@@ -1,0 +1,34 @@
+TechPath,Tier,TechName,SPCost,Unlocks,Requires,Description
+Blacksmith,1,Sharpened Blades,2,+10% dmg all infantry,Mission 1,"All melee infantry gain +10% damage"
+Blacksmith,2,Layered Leather,2,+15% armor infantry,Blacksmith 1,"Light & medium infantry +15% armor"
+Blacksmith,3,Damascus Steel,3,+25% dmg heroes only,Blacksmith 2+Mission 3,"Heroes only: +25% weapon damage"
+Blacksmith,4,Plate Armor,3,+30% armor heavy,Blacksmith 3,"Heavy infantry +30% armor"
+Blacksmith,5,Damascened Steel,4,+40% dmg all, fire dmg,Blacksmith 4+Mission 5,"All units +40% dmg, +5 fire dps"
+Blacksmith,A,Long Swords,3,+15% sword dmg,Blacksmith 2,
+Blacksmith,B,Battle Axes,3,+20% axe dmg, -5% atk speed,Blacksmith 2,
+Blacksmith,C,Defensive Spears,4,+25% vs cavalry, +10% spear dmg,Blacksmith 3,
+Blacksmith,D,Twin Blades,4,-10% armor, +30% dmg heavy,Blacksmith 3,
+Blacksmith,E,Fire Oil,3,Arrows burn 5s (10 dps),Blacksmith 2+Faith 1,
+Blacksmith,F,Horse Barding,3,+20% cavalry armor,Blacksmith 3,
+Cavalry,1,Improved Stables,2,-15% cavalry cost,Mission 1,"All cavalry 15% cheaper"
+Cavalry,2,Sturdy Saddles,2,+15% speed, +10% maneuver,Cavalry 1,"All mounted units faster"
+Cavalry,3,Arabian Breeding,3,+20% speed, +10% horse HP,Cavalry 2+Mission 3,"All mounted: speed +20%, horse HP +10%"
+Cavalry,4,Armored Charge,3,+35% charge dmg, -20% charge dist,Cavalry 3,"Charge dmg +35%, less run-up needed"
+Cavalry,5,Regular Lancers,4,Unlocks elite cavalry,Cavalry 4+Mission 5,"Unlocks Kayi Regular Lancers unit"
+Cavalry,A,Swift Scouts,3,+40% vision light horse,Cavalry 2,
+Cavalry,B,Mounted Infantry,3,Infantry move 50% faster (dismount),Cavalry 2,
+Cavalry,C,Horse Archery,4,Unlocks Horse Archer unit,Cavalry 3,"Unlocks firing while moving unit"
+Cavalry,D,Rapid Envelopment,3,+50% flank speed,Cavalry 4,
+Cavalry,E,Extra Packs,2,+50% loot from battles,Cavalry 1,
+Cavalry,F,War Whinny,3,Charge: -15 morale nearby,Cavalry 3+Faith 2,
+Faith,1,Prayer Grounds,2,+10% morale, +10% train speed,Mission 1,"Base morale & training bonus"
+Faith,2,Friday Sermon,2,+10% morale, heroes -20% cooldown,Faith 1+Mission 2,
+Faith,3,Sheikh's Counsel,3,Unlocks passive aura (removes panic),Faith 2+Mission 4,"Heroes: 60s pulse clears panic nearby"
+Faith,4,Light in Darkness,3,+20% night accuracy, -10% night dmg taken,Faith 3,
+Faith,5,Unshakeable Faith,4,Units never rout, morale min 15%,Faith 4+Mission 5,
+Faith,A,Pre-Battle Prayer,3,+15% dmg first 30s/battle,Faith 1,
+Faith,B,Remembrance Circles,2,Heroes +20% heal between missions,Faith 1,
+Faith,C,Blessed Banner,3,Buildings -20% dmg near banner,Faith 2,
+Faith,D,Fasting,3,Food lasts 15% longer,Faith 2,
+Faith,E,Ghazi Reward,4,Kill 3 = nearby +10% HP (max 30%),Faith 3,
+Faith,F,Martyrs' Rest,4,On unit death: nearby +20% dmg 10s,Faith 4,

@@ -1,0 +1,25 @@
+Unit,Category,Faction,FoodCost,GoldCost,Health,AttackDamage,AttackSpeed,Armor,MovementSpeed,VisionRange,DamageType,Special,UnlockCondition
+Alp Light,Infantry,Kayi,20,0,60,8,1.2,3,3.5,15,Slash,,Available from start
+Alp Archer,Ranged,Kayi,25,0,40,12,1.5,1,3.0,25,Pierce,,Available from start
+Alp Heavy,Infantry,Kayi,40,0,120,18,0.8,12,2.5,15,Blunt/Slash,,"Tech: Blacksmith 3"
+Alp Horseman Light,Cavalry,Kayi,50,0,80,10,1.0,4,5.5,25,Impact,,Mission 3
+Alp Horseman Heavy,Cavalry,Kayi,80,0,150,25,0.8,15,4.0,20,Impact,,"Tech: Cavalry 4"
+Alp Horse Archer,Cavalry,Kayi,60,0,70,14,1.2,6,5.0,30,Pierce,Fire while moving
+Ambush Infantry,Infantry,Kayi,30,0,55,10,1.0,2,4.0,15,Slash,1.5x dmg in ambush,
+Worker,Civilian,Kayi,10,0,30,2,0.5,0,3.0,15,None,Gathers resources,
+Byzantine Light,Infantry,Byzantine,0,0,70,9,1.0,4,3.0,12,Slash,,
+Byzantine Heavy,Infantry,Byzantine,0,0,150,25,0.7,18,2.0,10,Slash,,
+Byzantine Archer,Ranged,Byzantine,0,0,45,15,1.2,2,2.5,20,Pierce,,
+Byzantine Heavy Archer,Ranged,Byzantine,0,0,60,22,0.9,5,2.2,30,Pierce,,
+Byzantine Light Horse,Cavalry,Byzantine,0,0,90,12,1.0,8,5.0,20,Impact,,
+Kataphract,Cavalry,Byzantine,0,0,180,30,0.7,22,3.5,15,Impact,Heavy shock cavalry,
+Elite Guard,Infantry,Byzantine,0,0,200,35,0.8,25,2.5,12,Slash,Nikola's bodyguard,
+Nikola,Boss,Byzantine,0,0,800,45,0.6,60,3.0,15,Slam/Poison,Phase 2: faster no armor,
+Mongol Light,Infantry,Mongol,0,0,55,7,1.2,2,3.8,15,Slash,,
+Mongol Horse Archer,Cavalry,Mongol,0,0,60,10,1.5,3,6.5,28,Pierce,Always moving,
+Mongol Elite Horse,Cavalry,Mongol,0,0,120,22,1.0,8,6.0,30,Impact/Pierce,,
+Mongol Sniper,Ranged,Mongol,0,0,50,20,0.6,1,4.0,35,Pierce,High accuracy,
+Noyan Bayin,Boss,Mongol,0,0,500,25,1.2,15,6.0,30,Slash/Pierce,Command aura,
+Osman,Hero,Kayi,0,0,200,25,1.2,15,4.0,20,Slash,War Cry aura,
+Turgut,Hero,Kayi,0,0,400,35,0.6,35,3.2,15,Blunt,Earth shatter,
+Buran,Hero,Kayi,0,0,120,18,1.8,8,4.8,30,Pierce,Silent movement,

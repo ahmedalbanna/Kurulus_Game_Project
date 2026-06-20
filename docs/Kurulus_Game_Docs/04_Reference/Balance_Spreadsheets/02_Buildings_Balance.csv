@@ -1,0 +1,33 @@
+Building,Tier,WoodCost,IronCost,StoneCost,GoldCost,BuildTimeSec,HP,Function,Requires
+Command Tent,1,100,0,0,0,15,500,Max 4 buildings,start
+Command Tent,2,200,100,0,0,25,800,Max 8 buildings,Mission 2
+Command Tent,3,400,200,0,50,35,1200,Max 12 buildings,Mission 5
+Blacksmith,1,150,0,0,0,18,300,Weapon upgrade +10%,Mission 1
+Blacksmith,2,250,80,0,0,28,500,Weapon +25%, Armor +15%,Mission 2
+Blacksmith,3,400,200,0,0,38,800,Weapon +40%, Armor +30%,Mission 4
+Training Tent,1,120,0,0,0,15,300,Trains light infantry,Mission 1
+Training Tent,2,200,50,0,0,25,500,Trains + archers,Mission 2
+Training Tent,3,350,150,0,0,35,800,Trains + heavy infantry,Mission 4
+Watchtower,1,80,0,40,0,12,300,Vision 30m,detects,Mission 1
+Watchtower,2,0,60,150,0,22,600,Vision 45m, auto-attacks,Mission 2
+Watchtower,3,0,120,300,0,32,900,Vision 60m, reveals hidden,Mission 4
+Market,1,200,0,0,0,20,400,Buy/sell resources,Mission 2
+Market,2,300,0,0,100,30,600,Better trade rates,Mission 4
+Siege Workshop,1,400,200,0,0,40,400,Builds ladders,Mission 4
+Siege Workshop,2,600,350,0,0,50,600,Builds catapults + rams,Mission 5
+Siege Workshop,3,800,500,0,0,60,900,Builds heavy catapults + towers,Mission 5 (upgrade)
+Wooden Wall,1,50,0,0,0,8,500,Path blocker,start
+Wooden Wall,2,80,0,30,0,12,1000,Reinforced wall,Mission 2
+Wooden Wall,3,0,50,150,0,18,2000,Stone wall, archers stand on it,Mission 5
+Medical Tent,1,100,0,0,30,15,300,Heals 5 HP/sec/unit,Mission 2
+Medical Tent,2,180,0,0,80,25,500,Heals 10 HP/sec/unit,Mission 4
+Stable,1,180,60,0,0,20,400,Trains light cavalry,Mission 2
+Stable,2,280,120,0,0,30,600,Trains heavy cavalry,Mission 3
+Stable,3,420,200,0,0,40,800,Trains elite cavalry,Mission 5
+Stockpile,1,80,0,0,0,10,250,Base storage capacity,start
+Stockpile,2,150,40,0,0,18,400,+50% capacity,Mission 1
+Stockpile,3,250,100,0,0,25,600,+100% capacity,Mission 3
+Farm,1,60,0,0,0,10,200,Food production 20/min,start
+Farm,2,120,0,0,0,18,350,Food production 28/min,Mission 2
+Prayer Grounds,1,200,80,0,0,25,400,+10% morale, train speed,Mission 2
+Prayer Grounds,2,350,150,0,0,35,700,+20% morale, train speed,Mission 4

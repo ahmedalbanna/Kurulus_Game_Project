@@ -1,0 +1,31 @@
+Hero,Level,TotalXP,HP,Attack,Armor,Speed,Stamina,Vision,AbilityUnlocked,TalentChoices
+Osman,1,0,200,25,15,4.0,100,20,War Cry (Q),-
+Osman,2,200,225,29,17,4.05,110,20.5,-
+Osman,3,450,250,33,19,4.1,120,21,Sovereign Strike (W),-
+Osman,4,750,275,37,21,4.15,130,21.5,-
+Osman,5,1100,300,41,23,4.2,140,22,Lion's Heart (Passive),-
+Osman,6,1500,325,45,25,4.25,150,22.5,"Tier 1: A=War Cry +5m range / B=War Cry +30% armor"
+Osman,7,2000,350,49,27,4.3,160,23,-
+Osman,8,2600,375,53,29,4.35,170,23.5,"Tree's Vision (R)"
+Osman,9,3300,400,57,31,4.4,180,24,-
+Osman,10,4000,430,61,33,4.45,190,24.5,"Tier 2: A=Tree's Vision +5s duration / B=Tree's Vision slows 5s"
+Turgut,1,0,400,35,35,3.2,80,15,-
+Turgut,2,200,450,40,39,3.23,88,15.5,-
+Turgut,3,450,500,45,43,3.26,96,16,Earth Shatter (Q),-
+Turgut,4,750,550,50,47,3.29,104,16.5,-
+Turgut,5,1100,600,55,51,3.32,112,17,Wall of Iron (W),-
+Turgut,6,1500,650,60,55,3.35,120,17.5,"Tier 1: A=Earth Shatter +50% dmg / B=Earth Shatter +1s stun"
+Turgut,7,2000,700,65,59,3.38,128,18,-
+Turgut,8,2600,750,70,63,3.41,136,18.5,Quake Challenge (R),-
+Turgut,9,3300,800,75,67,3.44,144,19,-
+Turgut,10,4000,850,80,71,3.47,152,19.5,"Tier 2: A=Wall reflects 30% dmg / B=Wall heals 20% prevented dmg"
+Buran,1,0,120,18,8,4.8,120,30,-
+Buran,2,200,135,21,9,4.87,132,31,Flame Arrow (Q),-
+Buran,3,450,150,24,10,4.94,144,32,-
+Buran,4,750,165,27,11,5.01,156,33,Sight Snatch (W),-
+Buran,5,1100,180,30,12,5.08,168,34,Silent Step (Passive),-
+Buran,6,1500,195,33,13,5.15,180,35,"Tier 1: A=Flame Arrow +50% burn / B=Flame Arrow +5m reveal"
+Buran,7,2000,210,36,14,5.22,192,36,-
+Buran,8,2600,225,39,15,5.29,204,37,Death Volley (R),-
+Buran,9,3300,240,42,16,5.36,216,38,-
+Buran,10,4000,255,45,17,5.43,228,38.5,"Tier 2: A=Stillness 3s = full invisibility / B=Silent step everywhere"

@@ -1,0 +1,7 @@
+MissionID,MissionName,Chapter,DifficultyTier,BaseXP,BaseSP,PrimaryObjSP,SecondaryObj1SP,SecondaryObj2SP,SecondaryObj3SP,HiddenObjSP,ResourceRewards,Unlocks
+M1,Dawn of Sovereignty,Ch1_Spark,Tutorial,200,2,2,1,1,1,1,"Wood:100, Iron:50, Food:50","Mission 2; Tech Tree Tier 1"
+M2,Secure the Seat,Ch1_Spark,Core,400,4,3,2,2,2,2,"Wood:200, Iron:100, Food:150","Mission 3; Turgut; Tech: Stable 1, Medical 1"
+M3,Mountain Ambush,Ch2_Guerrilla,Core,600,3,3,2,2,2,2,"Gold:400, Iron:300, Castle Maps","Mission 4; Buran; Tech: Formation system, Ambush tutorial"
+M4,Rescue Operation,Ch2_Guerrilla,Core,800,4,3,2,3,2,2,"Wood:300, Iron:150, Gold:200","Mission 5; Faith Tree Tier 3; Turgut full; Mongol intel map"
+M5,First Siege,Ch3_Conquest,Core,1000,5,4,2,2,2,2,"Gold:800, Iron:500, Food:300","Mission 6; Stone walls; Siege 3; Heavy cavalry"
+M6,Grand Battle,Ch3_Conquest,Climax,1500,6,5,3,3,3,2,"All remaining resources","Skirmish Mode; Free Build; Gazi Medal"
