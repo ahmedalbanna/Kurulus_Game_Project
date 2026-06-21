@@ -1,0 +1,19 @@
+(
+    building_type: Oba,
+    name: "Oba (Main Tent)",
+    health: 500.0,
+    armor: 5.0,
+    cost: (
+        food: 50,
+        gold: 20,
+        wood: 30,
+        stone: 10,
+        population: 0,
+    ),
+    build_time: 60.0,
+    production: Some((
+        resource_type: "population",
+        amount_per_second: 0.01,
+    )),
+    requires_tech: None,
+)

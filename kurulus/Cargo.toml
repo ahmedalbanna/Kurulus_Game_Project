@@ -1,0 +1,32 @@
+[workspace]
+resolver = "2"
+members = [
+    "kurulus-core",
+    "kurulus-config",
+    "kurulus-systems",
+    "kurulus-render-2d",
+    "kurulus-render-3d",
+    "kurulus-app",
+    "kurulus-editor",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+bevy = { version = "0.15", features = [
+    "bevy_asset",
+    "bevy_core_pipeline",
+    "bevy_sprite",
+    "bevy_pbr",
+    "bevy_ui",
+    "bevy_state",
+    "bevy_gizmos",
+    "bevy_gltf",
+] }
+bevy_state = "0.15"
+serde = { version = "1", features = ["derive"] }
+ron = "0.8"
+rand = "0.8"

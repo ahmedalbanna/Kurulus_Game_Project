@@ -1,0 +1,18 @@
+[package]
+name = "kurulus-app"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+default = ["render-2d"]
+render-2d = ["kurulus-render-2d"]
+render-3d = ["kurulus-render-3d"]
+headless-test = []
+
+[dependencies]
+bevy = { workspace = true }
+kurulus-core = { path = "../kurulus-core" }
+kurulus-config = { path = "../kurulus-config" }
+kurulus-systems = { path = "../kurulus-systems" }
+kurulus-render-2d = { path = "../kurulus-render-2d", optional = true }
+kurulus-render-3d = { path = "../kurulus-render-3d", optional = true }

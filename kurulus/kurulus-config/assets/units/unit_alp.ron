@@ -1,0 +1,26 @@
+(
+    archetype: LightInfantry,
+    name: "Alp",
+    stats: (
+        move_speed: 4.0,
+        attack_range: 1.0,
+        attack_damage: 25.0,
+        attack_speed: 1.2,
+        vision_range: 8.0,
+        morale: 70.0,
+        morale_max: 100.0,
+    ),
+    health: (
+        current: 150.0,
+        max: 150.0,
+        armor: 10.0,
+        armor_type: Light,
+    ),
+    cost: (
+        food: 10,
+        gold: 5,
+        population: 1,
+    ),
+    build_time: 15.0,
+    abilities: ["Charge", "ShieldWall"],
+)

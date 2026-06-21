@@ -1,0 +1,11 @@
+[package]
+name = "kurulus-systems"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+bevy_state = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+rand = { workspace = true }
+kurulus-core = { path = "../kurulus-core" }

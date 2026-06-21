@@ -1,0 +1,12 @@
+[package]
+name = "kurulus-editor"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+bevy = { workspace = true, features = [
+    "bevy_state",
+    "bevy_ui",
+] }
+kurulus-core = { path = "../kurulus-core" }
+kurulus-config = { path = "../kurulus-config" }

@@ -1,0 +1,40 @@
+pub mod unit;
+pub mod hero;
+pub mod building;
+pub mod combat;
+pub mod stealth;
+pub mod world;
+pub mod mission;
+pub mod ai;
+pub mod diplomacy;
+pub mod siege;
+pub mod naval;
+pub mod corule;
+
+pub use unit::*;
+pub use hero::*;
+pub use building::*;
+pub use combat::*;
+pub use stealth::*;
+pub use world::*;
+pub use mission::*;
+pub use ai::*;
+pub use diplomacy::*;
+pub use siege::*;
+pub use naval::*;
+pub use corule::*;
+
+pub mod prelude {
+    pub use crate::components::unit::*;
+    pub use crate::components::hero::*;
+    pub use crate::components::building::*;
+    pub use crate::components::combat::*;
+    pub use crate::components::stealth::*;
+    pub use crate::components::world::*;
+    pub use crate::components::mission::*;
+    pub use crate::components::ai::*;
+    pub use crate::components::diplomacy::*;
+    pub use crate::components::siege::*;
+    pub use crate::components::naval::*;
+    pub use crate::components::corule::*;
+}
