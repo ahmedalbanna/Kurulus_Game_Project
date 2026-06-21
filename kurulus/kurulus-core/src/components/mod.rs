@@ -37,4 +37,5 @@ pub mod prelude {
     pub use crate::components::siege::*;
     pub use crate::components::naval::*;
     pub use crate::components::corule::*;
+    // Re-export from unit module (Path, Destination already there via unit::*)
 }

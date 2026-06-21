@@ -1,3 +1,4 @@
+use crate::coord::GridPos;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -136,3 +137,42 @@ pub enum ArmorType {
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct FormationFollower;
+
+/// A calculated path from the unit's position to its destination.
+/// The unit moves toward `waypoints[current_index]` each tick.
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct Path {
+    pub waypoints: Vec<GridPos>,
+    pub current_index: usize,
+}
+
+impl Path {
+    pub fn new(waypoints: Vec<GridPos>) -> Self {
+        Self {
+            waypoints,
+            current_index: 0,
+        }
+    }
+
+    /// Returns the next waypoint the unit should move toward, if any.
+    pub fn next_waypoint(&self) -> Option<GridPos> {
+        self.waypoints.get(self.current_index).copied()
+    }
+
+    /// Advance to the next waypoint.  Returns `true` if the path is complete.
+    pub fn advance(&mut self) -> bool {
+        if self.current_index + 1 < self.waypoints.len() {
+            self.current_index += 1;
+            false
+        } else {
+            true
+        }
+    }
+}
+
+/// Marks that a unit wants to move to a specific grid cell.
+/// The pathfinding system reads this and writes a `Path` component.
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct Destination {
+    pub target: GridPos,
+}

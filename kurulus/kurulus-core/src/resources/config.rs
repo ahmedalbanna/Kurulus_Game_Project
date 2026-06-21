@@ -7,6 +7,48 @@ use crate::components::{
     MissionId, ObjectiveId, ObjectiveType, MissionRewards,
 };
 
+/// Configuration for the three-phase game loop transitions.
+#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
+pub struct PhaseTransitionConfig {
+    /// How many seconds of no combat before Execution → Harvest.
+    pub combat_inactivity_timeout: f32,
+    /// How many seconds Harvest lasts before auto-returning to Planning.
+    pub harvest_duration: f32,
+    /// Minimum Planning phase duration (so brief orders don't skip too fast).
+    pub min_planning_duration: f32,
+}
+
+impl Default for PhaseTransitionConfig {
+    fn default() -> Self {
+        Self {
+            combat_inactivity_timeout: 10.0,
+            harvest_duration: 5.0,
+            min_planning_duration: 2.0,
+        }
+    }
+}
+
+/// Tracks the last time any combat event occurred (for Execution→Harvest).
+#[derive(Resource, Clone, Debug)]
+pub struct CombatActivityTracker {
+    /// Total game seconds at which the last DamageDealt or AttackTriggered was observed.
+    pub last_combat_game_time: f64,
+}
+
+impl Default for CombatActivityTracker {
+    fn default() -> Self {
+        Self {
+            last_combat_game_time: 0.0,
+        }
+    }
+}
+
+/// Flags that at least one order was issued during the current Planning phase.
+#[derive(Resource, Clone, Debug, Default)]
+pub struct OrdersIssuedDuringPlanning {
+    pub any_order_issued: bool,
+}
+
 // Config asset types used for loading .ron files
 
 #[derive(Asset, TypePath, Clone, Debug, Serialize, Deserialize)]

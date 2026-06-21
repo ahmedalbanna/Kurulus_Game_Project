@@ -37,7 +37,7 @@ fn test_melee_combat_damage() {
                 move_speed: 4.0,
                 attack_range: 2.0,
                 attack_damage: 25.0,
-                attack_speed: 1.0,
+                attack_speed: 100.0,
                 vision_range: 8.0,
                 morale: 70.0,
                 morale_max: 100.0,
@@ -54,101 +54,100 @@ fn test_melee_combat_damage() {
                 range: 1.5,
                 armor_penetration: 0.2,
             },
-            AttackTimer(Timer::from_seconds(0.01, TimerMode::Repeating)), // Fast timer for test
+            AttackTimer(Timer::from_seconds(0.01, TimerMode::Repeating)),
         ))
         .id();
 
-    // Spawn defender
-    let _defender = app
-        .world_mut()
-        .spawn((
-            Unit {
-                archetype: UnitArchetype::LightInfantry,
-                faction: FactionId::Kayi,
-                formation: FormationType::Line,
-                stance: CombatStance::Aggressive,
-            },
-            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-            Stats {
-                move_speed: 4.0,
-                attack_range: 2.0,
-                attack_damage: 25.0,
-                attack_speed: 1.0,
-                vision_range: 8.0,
-                morale: 70.0,
-                morale_max: 100.0,
-            },
-            Health {
-                current: 150.0,
-                max: 150.0,
-                armor: 10.0,
-                armor_type: ArmorType::Light,
-            },
-            MeleeWeapon {
-                damage: 25.0,
-                weapon_type: WeaponType::Sword,
-                range: 1.5,
-                armor_penetration: 0.2,
-            },
-            AttackTimer(Timer::from_seconds(0.01, TimerMode::Repeating)), // Fast timer for test
-        ))
-        .id();
+    // Spawn a same-faction unit (should be skipped by friendly-fire check)
+    spawn_same_faction_ally(&mut app);
 
-    // Spawn defender
-    let _defender = app
-        .world_mut()
-        .spawn((
-            Unit {
-                archetype: UnitArchetype::LightInfantry,
-                faction: FactionId::Byzantine,
-                formation: FormationType::Line,
-                stance: CombatStance::Defensive,
-            },
-            WorldPosition::new(IVec2::new(1, 0), CELL_SIZE),
-            Stats {
-                move_speed: 3.0,
-                attack_range: 1.0,
-                attack_damage: 15.0,
-                attack_speed: 0.8,
-                vision_range: 6.0,
-                morale: 60.0,
-                morale_max: 100.0,
-            },
-            Health {
-                current: 100.0,
-                max: 100.0,
-                armor: 5.0,
-                armor_type: ArmorType::Light,
-            },
-            MeleeWeapon {
-                damage: 15.0,
-                weapon_type: WeaponType::Spear,
-                range: 1.5,
-                armor_penetration: 0.1,
-            },
-            AttackTimer(Timer::from_seconds(1.25, TimerMode::Repeating)),
-        ))
-        .id();
+    // Spawn enemy defender
+    let _ = app.world_mut().spawn((
+        Unit {
+            archetype: UnitArchetype::LightInfantry,
+            faction: FactionId::Byzantine,
+            formation: FormationType::Line,
+            stance: CombatStance::Defensive,
+        },
+        WorldPosition::new(IVec2::new(1, 0), CELL_SIZE),
+        Stats {
+            move_speed: 3.0,
+            attack_range: 1.0,
+            attack_damage: 15.0,
+            attack_speed: 0.8,
+            vision_range: 6.0,
+            morale: 60.0,
+            morale_max: 100.0,
+        },
+        Health {
+            current: 100.0,
+            max: 100.0,
+            armor: 5.0,
+            armor_type: ArmorType::Light,
+        },
+        MeleeWeapon {
+            damage: 15.0,
+            weapon_type: WeaponType::Spear,
+            range: 1.5,
+            armor_penetration: 0.1,
+        },
+        AttackTimer(Timer::from_seconds(1.25, TimerMode::Repeating)),
+    ));
 
-    // Run simulation
+    // Run simulation and check for damage events during each frame
+    let mut damage_dealt = false;
+
     for _ in 0..10 {
         app.update();
-    }
-
-    // Verify damage was dealt
-    let mut damage_dealt = false;
-    let mut damage_events = app.world_mut().resource_mut::<Events<DamageDealt>>();
-    for event in damage_events.drain() {
-        if event.attacker == attacker {
-            assert!(event.amount > 0.0, "Damage must be positive");
-            assert!(
-                event.amount <= 25.0,
-                "Damage should not exceed weapon damage"
-            );
-            damage_dealt = true;
+        let mut dmg_events = app.world_mut().resource_mut::<Events<DamageDealt>>();
+        for event in dmg_events.drain() {
+            if event.attacker == attacker {
+                assert!(event.amount > 0.0, "Damage must be positive");
+                assert!(
+                    event.amount <= 25.0,
+                    "Damage should not exceed weapon damage"
+                );
+                damage_dealt = true;
+            }
         }
     }
+
     assert!(damage_dealt, "No damage events were emitted");
+}
+
+/// Helper to spawn an ally (same faction) for friendly-fire testing.
+fn spawn_same_faction_ally(app: &mut App) {
+    let _ = app.world_mut().spawn((
+        Unit {
+            archetype: UnitArchetype::LightInfantry,
+            faction: FactionId::Kayi,
+            formation: FormationType::Line,
+            stance: CombatStance::Aggressive,
+        },
+        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+        Stats {
+            move_speed: 4.0,
+            attack_range: 2.0,
+            attack_damage: 25.0,
+            attack_speed: 1.0,
+            vision_range: 8.0,
+            morale: 70.0,
+            morale_max: 100.0,
+        },
+        Health {
+            current: 150.0,
+            max: 150.0,
+            armor: 10.0,
+            armor_type: ArmorType::Light,
+        },
+        MeleeWeapon {
+            damage: 25.0,
+            weapon_type: WeaponType::Sword,
+            range: 1.5,
+            armor_penetration: 0.2,
+        },
+        AttackTimer(Timer::from_seconds(0.01, TimerMode::Repeating)),
+    ));
 }
 
 /// Integration test: Unit death triggers UnitDied event
@@ -184,7 +183,7 @@ fn test_unit_died_event() {
                 move_speed: 3.0,
                 attack_range: 2.0,
                 attack_damage: 100.0,
-                attack_speed: 1.0,
+                attack_speed: 100.0,
                 vision_range: 8.0,
                 morale: 100.0,
                 morale_max: 100.0,
@@ -246,7 +245,6 @@ fn test_unit_died_event() {
 
     for _ in 0..10 {
         app.update();
-        // Read events during each update to catch them before buffer swap clears them
         let death_events = app.world().resource::<Events<UnitDied>>();
         let mut reader = death_events.get_cursor();
         for event in reader.read(&death_events) {

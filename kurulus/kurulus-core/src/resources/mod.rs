@@ -16,4 +16,7 @@ pub mod prelude {
     pub use crate::resources::time::*;
     pub use crate::resources::config::*;
     pub use crate::resources::corule::*;
+    pub use crate::resources::config::{
+        PhaseTransitionConfig, CombatActivityTracker, OrdersIssuedDuringPlanning,
+    };
 }

@@ -87,18 +87,18 @@ fn test_objective_completion() {
     let mut mission = app.world_mut().get_mut::<MissionStateComponent>(mission_entity).unwrap();
     mission.objectives[0].progress = 100.0;
 
-    // Run simulation
+    // Run simulation and check for objective completed event during each frame
+    let mut completed = false;
+
     for _ in 0..5 {
         app.update();
-    }
-
-    // Check for objective completed event
-    let mut completed = false;
-    let mut events = app.world_mut().resource_mut::<Events<ObjectiveCompleted>>();
-    for event in events.drain() {
-        if event.objective_id == ObjectiveId::Custom(1) {
-            completed = true;
+        let mut events = app.world_mut().resource_mut::<Events<ObjectiveCompleted>>();
+        for event in events.drain() {
+            if event.objective_id == ObjectiveId::Custom(1) {
+                completed = true;
+            }
         }
     }
+
     assert!(completed, "ObjectiveCompleted event should fire when progress meets requirement");
 }

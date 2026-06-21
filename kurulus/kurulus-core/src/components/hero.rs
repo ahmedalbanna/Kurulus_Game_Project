@@ -40,6 +40,66 @@ pub struct SkillNode {
     pub unlocked: bool,
 }
 
+/// A temporary stat modifier applied by abilities (e.g. damage buff, defense).
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct Buff {
+    pub source: AbilityId,
+    pub duration: f32,       // remaining seconds
+    pub max_duration: f32,   // total seconds (for UI display)
+    pub damage_bonus: f32,
+    pub defense_bonus: f32,
+    pub move_speed_bonus: f32,
+    pub heal_per_second: f32,
+    pub damage_reduction: f32, // 0.0–1.0 fraction
+}
+
+impl Buff {
+    pub fn new(source: AbilityId, duration: f32) -> Self {
+        Self {
+            source,
+            duration,
+            max_duration: duration,
+            damage_bonus: 0.0,
+            defense_bonus: 0.0,
+            move_speed_bonus: 0.0,
+            heal_per_second: 0.0,
+            damage_reduction: 0.0,
+        }
+    }
+}
+
+/// Marks an entity as being affected by one or more active buffs.
+/// Separate from `Buff` so we can query for entities that have any buff.
+#[derive(Component, Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ActiveBuffs {
+    pub buffs: Vec<Buff>,
+}
+
+/// XP thresholds per level. Level 1→2 needs 100 XP, 2→3 needs 250, etc.
+#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
+pub struct XpConfig {
+    pub thresholds: Vec<u32>, // index = level-1, value = XP needed
+}
+
+impl Default for XpConfig {
+    fn default() -> Self {
+        Self {
+            thresholds: vec![100, 250, 500, 1000, 1800, 3000, 5000, 8000, 12000],
+        }
+    }
+}
+
+impl XpConfig {
+    pub fn xp_for_level(&self, level: u8) -> u32 {
+        let idx = (level as usize).saturating_sub(1);
+        self.thresholds.get(idx).copied().unwrap_or(u32::MAX)
+    }
+
+    pub fn max_level(&self) -> u8 {
+        self.thresholds.len() as u8 + 1
+    }
+}
+
 // --- Enums ---
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
