@@ -8,6 +8,7 @@ default = ["render-2d"]
 render-2d = ["kurulus-render-2d"]
 render-3d = ["kurulus-render-3d"]
 headless-test = []
+remote = []
 
 [dependencies]
 bevy = { workspace = true }

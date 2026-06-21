@@ -1,0 +1,76 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "build",
+  "model": "opencode/deepseek-v4-flash-free",
+
+  "agent": {
+    "build": {
+      "model": "opencode/deepseek-v4-flash-free",
+      "variant": "high",
+      "steps": 100,
+      "permission": {
+        "bash": "ask"
+      },
+      "prompt": "You are a build agent for the Kurulus project — a Bevy game engine simulation of Ottoman Empire history. You have access to bevy_brp_mcp and bevy_debugger_mcp MCP tools. Use them to inspect, mutate, and debug the ECS game state while the application is running."
+    },
+    "explore": {
+      "model": "opencode/big-pickle",
+      "steps": 20,
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "bash": "allow"
+      }
+    },
+    "general": {
+      "model": "opencode/deepseek-v4-flash-free",
+      "steps": 50
+    }
+  },
+
+  "permission": {
+    "edit": "allow",
+    "bash": "allow",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "webfetch": "ask",
+    "websearch": "ask",
+    "lsp": "allow"
+  },
+
+  "compaction": {
+    "auto": true,
+    "reserved": 10000
+  },
+
+  "lsp": true,
+  "shell": "bash",
+
+  "mcp": {
+    "bevy-brp": {
+      "type": "local",
+      "command": ["bevy_brp_mcp"],
+      "enabled": true,
+      "description": "Bevy Remote Protocol MCP — inspect, spawn, mutate ECS entities and resources in real-time via BRP. Requires RemotePlugin enabled in the Bevy app."
+    },
+    "bevy-debugger": {
+      "type": "local",
+      "command": ["bevy-debugger-mcp"],
+      "enabled": true,
+      "description": "AI-assisted debugging for Bevy — query game state in natural language and analyze system behavior."
+    }
+  },
+
+  "tool_output": {
+    "max_lines": 2000,
+    "max_bytes": 51200
+  },
+
+  "experimental": {
+    "mcp_timeout": 60000
+  }
+}

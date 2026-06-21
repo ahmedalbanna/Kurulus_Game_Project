@@ -4,13 +4,21 @@ use kurulus_systems::*;
 
 /// Registers all plugins in the correct dependency order
 pub fn register_plugins(app: &mut App) {
+    // === REMOTE CONTROL (BRP) — for MCP / external tooling ===
+    #[cfg(feature = "remote")]
+    {
+        use bevy::remote::http::RemoteHttpPlugin;
+        use bevy::remote::RemotePlugin;
+        app.add_plugins(RemotePlugin::default())
+            .add_plugins(RemoteHttpPlugin::default());
+    }
+
     // === CORE SETUP ===
     app
         // States (must be first)
         .init_state::<AppState>()
         .init_state::<GamePhase>()
         .init_state::<MissionState>()
-
         // Core resources
         .init_resource::<GameTime>()
         .init_resource::<ResourceStockpile>()
@@ -21,7 +29,6 @@ pub fn register_plugins(app: &mut App) {
         .init_resource::<TickTimer>()
         .init_resource::<CoCommandState>()
         .init_resource::<TrustMatrix>()
-
         // Event channels
         .add_event::<DamageDealt>()
         .add_event::<UnitDied>()
@@ -141,12 +148,14 @@ pub mod headless_test {
 
     impl Plugin for HeadlessTestPlugin {
         fn build(&self, app: &mut App) {
-            app
-                .add_plugins(MinimalPlugins)
+            app.add_plugins(MinimalPlugins)
                 .add_plugins(register_logic_plugins)
                 .init_resource::<TestScenario>()
                 .add_systems(Startup, setup_test_scenario)
-                .add_systems(FixedUpdate, run_test_assertions.in_set(SimulationSet::ComponentCleanup));
+                .add_systems(
+                    FixedUpdate,
+                    run_test_assertions.in_set(SimulationSet::ComponentCleanup),
+                );
         }
     }
 
@@ -158,12 +167,35 @@ pub mod headless_test {
 
     #[derive(Debug)]
     pub enum TestCase {
-        MeleeCombat { attacker: Entity, defender: Entity, expected_damage: f32 },
-        AmbushTrigger { ambusher: Entity, target: Entity, expected_bonus: f32 },
-        FormationMovement { leader: Entity, followers: Vec<Entity>, target: Vec2 },
-        SiegeBreach { engine: Entity, wall: Entity, hits_to_breach: u32 },
-        ResourceProduction { building: Entity, expected_per_tick: f32 },
-        HeroAbility { hero: Entity, ability: AbilityId, target: Entity },
+        MeleeCombat {
+            attacker: Entity,
+            defender: Entity,
+            expected_damage: f32,
+        },
+        AmbushTrigger {
+            ambusher: Entity,
+            target: Entity,
+            expected_bonus: f32,
+        },
+        FormationMovement {
+            leader: Entity,
+            followers: Vec<Entity>,
+            target: Vec2,
+        },
+        SiegeBreach {
+            engine: Entity,
+            wall: Entity,
+            hits_to_breach: u32,
+        },
+        ResourceProduction {
+            building: Entity,
+            expected_per_tick: f32,
+        },
+        HeroAbility {
+            hero: Entity,
+            ability: AbilityId,
+            target: Entity,
+        },
     }
 
     #[derive(Debug)]
@@ -173,73 +205,75 @@ pub mod headless_test {
         pub message: String,
     }
 
-    fn setup_test_scenario(
-        mut commands: Commands,
-    ) {
+    fn setup_test_scenario(mut commands: Commands) {
         // Spawn test entities programmatically
-        let attacker = commands.spawn((
-            Unit {
-                archetype: UnitArchetype::LightInfantry,
-                faction: FactionId::Kayi,
-                formation: FormationType::Line,
-                stance: CombatStance::Aggressive,
-            },
-            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-            Stats {
-                move_speed: 4.0,
-                attack_range: 2.0,
-                attack_damage: 25.0,
-                attack_speed: 1.0,
-                vision_range: 8.0,
-                morale: 70.0,
-                morale_max: 100.0,
-            },
-            Health {
-                current: 150.0,
-                max: 150.0,
-                armor: 10.0,
-                armor_type: ArmorType::Light,
-            },
-            MeleeWeapon {
-                damage: 25.0,
-                weapon_type: WeaponType::Sword,
-                range: 1.5,
-                armor_penetration: 0.2,
-            },
-            AttackTimer(Timer::from_seconds(1.0, TimerMode::Repeating)),
-        )).id();
+        let attacker = commands
+            .spawn((
+                Unit {
+                    archetype: UnitArchetype::LightInfantry,
+                    faction: FactionId::Kayi,
+                    formation: FormationType::Line,
+                    stance: CombatStance::Aggressive,
+                },
+                WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+                Stats {
+                    move_speed: 4.0,
+                    attack_range: 2.0,
+                    attack_damage: 25.0,
+                    attack_speed: 1.0,
+                    vision_range: 8.0,
+                    morale: 70.0,
+                    morale_max: 100.0,
+                },
+                Health {
+                    current: 150.0,
+                    max: 150.0,
+                    armor: 10.0,
+                    armor_type: ArmorType::Light,
+                },
+                MeleeWeapon {
+                    damage: 25.0,
+                    weapon_type: WeaponType::Sword,
+                    range: 1.5,
+                    armor_penetration: 0.2,
+                },
+                AttackTimer(Timer::from_seconds(1.0, TimerMode::Repeating)),
+            ))
+            .id();
 
-        let defender = commands.spawn((
-            Unit {
-                archetype: UnitArchetype::LightInfantry,
-                faction: FactionId::Byzantine,
-                formation: FormationType::Line,
-                stance: CombatStance::Defensive,
-            },
-            WorldPosition::new(IVec2::new(1, 0), CELL_SIZE),
-            Stats {
-                move_speed: 3.0,
-                attack_range: 1.0,
-                attack_damage: 15.0,
-                attack_speed: 0.8,
-                vision_range: 6.0,
-                morale: 60.0,
-                morale_max: 100.0,
-            },
-            Health {
-                current: 100.0,
-                max: 100.0,
-                armor: 5.0,
-                armor_type: ArmorType::Light,
-            },
-            MeleeWeapon {
-                damage: 15.0,
-                weapon_type: WeaponType::Spear,
-                range: 1.5,
-                armor_penetration: 0.1,
-            },
-            AttackTimer(Timer::from_seconds(1.25, TimerMode::Repeating)),
-        )).id();
+        let defender = commands
+            .spawn((
+                Unit {
+                    archetype: UnitArchetype::LightInfantry,
+                    faction: FactionId::Byzantine,
+                    formation: FormationType::Line,
+                    stance: CombatStance::Defensive,
+                },
+                WorldPosition::new(IVec2::new(1, 0), CELL_SIZE),
+                Stats {
+                    move_speed: 3.0,
+                    attack_range: 1.0,
+                    attack_damage: 15.0,
+                    attack_speed: 0.8,
+                    vision_range: 6.0,
+                    morale: 60.0,
+                    morale_max: 100.0,
+                },
+                Health {
+                    current: 100.0,
+                    max: 100.0,
+                    armor: 5.0,
+                    armor_type: ArmorType::Light,
+                },
+                MeleeWeapon {
+                    damage: 15.0,
+                    weapon_type: WeaponType::Spear,
+                    range: 1.5,
+                    armor_penetration: 0.1,
+                },
+                AttackTimer(Timer::from_seconds(1.25, TimerMode::Repeating)),
+            ))
+            .id();
 
         commands.insert_resource(TestScenario {
             current_test: Some(TestCase::MeleeCombat {
@@ -259,7 +293,11 @@ pub mod headless_test {
     ) {
         if let Some(test) = &scenario.current_test {
             match test {
-                TestCase::MeleeCombat { attacker, defender, expected_damage } => {
+                TestCase::MeleeCombat {
+                    attacker,
+                    defender,
+                    expected_damage,
+                } => {
                     for event in events.read() {
                         if event.attacker == *attacker && event.target == *defender {
                             let passed = (event.amount - expected_damage).abs() < 0.1;
@@ -267,13 +305,19 @@ pub mod headless_test {
                                 name: "MeleeCombat".to_string(),
                                 passed,
                                 message: if passed {
-                                    format!("✅ MeleeCombat: {:.1} damage dealt (expected {:.1})", event.amount, expected_damage)
+                                    format!(
+                                        "✅ MeleeCombat: {:.1} damage dealt (expected {:.1})",
+                                        event.amount, expected_damage
+                                    )
                                 } else {
-                                    format!("❌ MeleeCombat: {:.1} damage dealt (expected {:.1})", event.amount, expected_damage)
+                                    format!(
+                                        "❌ MeleeCombat: {:.1} damage dealt (expected {:.1})",
+                                        event.amount, expected_damage
+                                    )
                                 },
                             });
                             for r in results.iter() {
-                                bevy::utils::info!("{}", r.message);
+                                info!("{}", r.message);
                             }
                         }
                     }
