@@ -51,6 +51,7 @@ pub struct Buff {
     pub move_speed_bonus: f32,
     pub heal_per_second: f32,
     pub damage_reduction: f32, // 0.0–1.0 fraction
+    pub attack_speed_bonus: f32, // added to stats.attack_speed (e.g. 0.2 = +20%)
 }
 
 impl Buff {
@@ -64,8 +65,46 @@ impl Buff {
             move_speed_bonus: 0.0,
             heal_per_second: 0.0,
             damage_reduction: 0.0,
+            attack_speed_bonus: 0.0,
         }
     }
+}
+
+/// Marks a building as immune to enemy attacks (from DiplomaticImmunity ability).
+#[derive(Component, Clone, Debug, Default, Serialize, Deserialize)]
+pub struct DiplomaticImmunity {
+    pub remaining: f32,
+}
+
+/// Tracks the AdministrativeMind production buff duration.
+#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
+pub struct AdministrativeMindBuff {
+    pub remaining: f32,
+    pub active: bool,
+    pub original_food_rate: f32,
+    pub original_gold_rate: f32,
+    pub original_wood_rate: f32,
+    pub original_stone_rate: f32,
+}
+
+impl Default for AdministrativeMindBuff {
+    fn default() -> Self {
+        Self {
+            remaining: 0.0,
+            active: false,
+            original_food_rate: 1.0,
+            original_gold_rate: 0.5,
+            original_wood_rate: 0.5,
+            original_stone_rate: 0.2,
+        }
+    }
+}
+
+/// Tracks the CulturalRenaissance XP buff duration.
+#[derive(Resource, Clone, Debug, Default, Serialize, Deserialize)]
+pub struct CulturalRenaissanceBuff {
+    pub remaining: f32,
+    pub active: bool,
 }
 
 /// Marks an entity as being affected by one or more active buffs.
@@ -73,6 +112,20 @@ impl Buff {
 #[derive(Component, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ActiveBuffs {
     pub buffs: Vec<Buff>,
+}
+
+/// Tracks which hero entity the player is currently controlling.
+/// Updated by the hero switch system when the player cycles heroes.
+#[derive(Resource, Reflect, Clone, Debug)]
+#[reflect(Resource)]
+pub struct ActiveHero {
+    pub entity: Option<Entity>,
+}
+
+impl Default for ActiveHero {
+    fn default() -> Self {
+        Self { entity: None }
+    }
 }
 
 /// XP thresholds per level. Level 1→2 needs 100 XP, 2→3 needs 250, etc.

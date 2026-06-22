@@ -4,6 +4,8 @@ use crate::coord::GridPos;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+// ─── Core AI Components ─────────────────────────────────────────────────────
+
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct AIController {
     pub personality: AIPersonality,
@@ -17,8 +19,12 @@ pub struct AIController {
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct BehaviorTree {
     pub root: BehaviorNode,
-    pub current_node: Option<BehaviorNodeId>,
+    /// The path of child indices from root to the currently running node.
+    /// Empty means the tree is finished (Success/Failure) and should restart.
+    pub execution_path: Vec<usize>,
     pub blackboard: AIDataBlackboard,
+    /// Whether the tree evaluation should pause in Running state.
+    pub last_state: BehaviorState,
 }
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
@@ -29,7 +35,40 @@ pub struct Threat {
     pub threat_type: ThreatType,
 }
 
-// --- Enums ---
+/// Marker component for AI-controlled worker units that auto-gather/construct.
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct AIWorker {
+    pub assigned_task: Option<AIWorkerTask>,
+    pub idle_time: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AIWorkerTask {
+    GatherFood,
+    GatherWood,
+    GatherStone,
+    GatherGold,
+    Construct(BuildingType),
+}
+
+/// Marker component for AI-controlled combat units.
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct AICombatUnit {
+    pub target: Option<Entity>,
+    pub flanking: bool,
+    pub retreat_timer: f32,
+}
+
+// ─── Behavior Tree State ────────────────────────────────────────────────────
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BehaviorState {
+    Success,
+    Failure,
+    Running,
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AIPersonality {
@@ -74,9 +113,13 @@ pub enum BehaviorNode {
     Sequence(Vec<BehaviorNode>),
     Selector(Vec<BehaviorNode>),
     Condition(BehaviorCondition),
+    /// Issues a command / takes an action and returns Running until completion.
     Action(BehaviorAction),
     Inverter(Box<BehaviorNode>),
+    /// Repeats child N times or forever if count is 0.
     Repeater(Box<BehaviorNode>, u32),
+    /// Always succeeds; useful as a no-op fallback.
+    Succeeder(Box<BehaviorNode>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -90,24 +133,78 @@ pub enum BehaviorCondition {
     CanExpand,
     EnemyInRange,
     HasHero,
+    /// Check if population is at or above cap.
+    PopulationCapReached,
+    /// Check if current army strength is below threshold.
+    ArmyStrengthBelow(f32),
+    /// Check if resource stockpile is below threshold for a given resource.
+    ResourceLow(ResourceType),
+    /// Check if a specific building type exists.
+    HasBuilding(BuildingType),
     Custom(String),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ResourceType {
+    Food,
+    Gold,
+    Wood,
+    Stone,
+}
+
+impl std::fmt::Display for ResourceType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResourceType::Food => write!(f, "Food"),
+            ResourceType::Gold => write!(f, "Gold"),
+            ResourceType::Wood => write!(f, "Wood"),
+            ResourceType::Stone => write!(f, "Stone"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum BehaviorAction {
+    /// Move entity to a grid position.
     MoveTo(GridPos),
+    /// Attack a specific entity.
     Attack(Entity),
-    Build(BuildingType),
-    Recruit(UnitArchetype),
+    /// Build a building at a position.
+    Build(BuildingType, GridPos),
+    /// Recruit units of a given archetype.
+    Recruit(UnitArchetype, u32),
+    /// Research a technology.
     Research(String),
-    Retreat,
-    Patrol(Vec<GridPos>),
+    /// Retreat to a safe position.
+    Retreat(GridPos),
+    /// Patrol between two positions.
+    Patrol(GridPos, GridPos),
+    /// Idle for a number of ticks.
+    Wait(u32),
+    /// Flank around target.
+    Flank(Entity),
     Custom(String),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct AIDataBlackboard {
     pub data: Vec<(String, f32)>,
+}
+
+impl AIDataBlackboard {
+    pub fn set(&mut self, key: &str, value: f32) {
+        for entry in self.data.iter_mut() {
+            if entry.0 == key {
+                entry.1 = value;
+                return;
+            }
+        }
+        self.data.push((key.to_string(), value));
+    }
+
+    pub fn get(&self, key: &str) -> Option<f32> {
+        self.data.iter().find(|e| e.0 == key).map(|e| e.1)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

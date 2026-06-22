@@ -43,7 +43,7 @@ pub struct DayNightCycle {
 
 // --- Enums ---
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SeasonType {
     Spring,
     Summer,

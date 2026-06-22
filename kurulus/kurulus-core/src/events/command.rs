@@ -50,3 +50,28 @@ pub enum AbilityTarget {
     Direction(Vec2),
     None,
 }
+
+/// Order to place an ambush zone at the given position.
+/// Consumes a resource (gold or special resource).
+#[derive(Event, Clone, Debug)]
+pub struct PlaceAmbushOrder {
+    pub entity: Entity,
+    pub position: GridPos,
+}
+
+/// Direction to cycle the active hero selection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HeroSwitchDirection {
+    Next,
+    Previous,
+}
+
+/// Fired when the player wants to switch the actively controlled hero
+/// (e.g. by pressing Tab or clicking a hero portrait).
+#[derive(Event, Clone, Debug)]
+pub struct HeroSwitchEvent {
+    /// `Some(Next/Previous)` to cycle, `None` to switch to the specified hero entity.
+    pub direction: Option<HeroSwitchDirection>,
+    /// If `direction` is `None`, switch directly to this hero entity.
+    pub target: Option<Entity>,
+}

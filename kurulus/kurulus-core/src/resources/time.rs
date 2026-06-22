@@ -2,7 +2,8 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use crate::events::world::SeasonType;
 
-#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
+#[derive(Resource, Reflect, Clone, Debug, Serialize, Deserialize)]
+#[reflect(Resource)]
 pub struct GameTime {
     pub total_seconds: f64,
     pub minute: u8,
@@ -16,7 +17,9 @@ pub struct GameTime {
 impl Default for GameTime {
     fn default() -> Self {
         Self {
-            total_seconds: 0.0,
+            // total_seconds must match hour/minute so that advance() doesn't
+            // reset the clock to midnight on the first tick.
+            total_seconds: (8 * 60 * 60) as f64, // hour=8, minute=0
             minute: 0,
             hour: 8,
             day: 1,

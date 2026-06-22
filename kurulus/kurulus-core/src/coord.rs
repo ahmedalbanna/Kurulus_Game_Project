@@ -2,19 +2,23 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 /// Logical grid position (shared 2D/3D) — used for pathfinding, LOS, building placement
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Component, Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[reflect(Component)]
 pub struct GridPos(pub IVec2);
 
 /// Continuous world position (2D render)
-#[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Component, Reflect, Clone, Copy, Debug, Serialize, Deserialize)]
+#[reflect(Component)]
 pub struct WorldPos2D(pub Vec2);
 
 /// Continuous world position (3D render) — includes height
-#[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Component, Reflect, Clone, Copy, Debug, Serialize, Deserialize)]
+#[reflect(Component)]
 pub struct WorldPos3D(pub Vec3);
 
 /// Unified position — all systems read/write this; render systems project to 2D/3D
-#[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Component, Reflect, Clone, Copy, Debug, Serialize, Deserialize)]
+#[reflect(Component)]
 pub struct WorldPosition {
     pub grid: GridPos,
     pub world_2d: WorldPos2D,

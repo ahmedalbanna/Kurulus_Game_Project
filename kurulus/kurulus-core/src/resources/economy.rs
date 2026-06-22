@@ -2,7 +2,8 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use crate::components::FactionId;
 
-#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
+#[derive(Resource, Reflect, Clone, Debug, Serialize, Deserialize)]
+#[reflect(Resource)]
 pub struct ResourceStockpile {
     pub food: f32,
     pub gold: f32,

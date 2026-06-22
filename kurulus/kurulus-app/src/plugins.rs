@@ -125,6 +125,11 @@ pub fn register_plugins(app: &mut App) {
     // 22. UI Logic (data binding, no bevy_ui rendering)
     app.add_plugins(UILogicPlugin);
 
+    // === STARTUP: Spawn Mission 1 tutorial scenario ===
+    app.add_systems(Startup, |mut commands: Commands| {
+        narrative::setup_mission1_scenario(&mut commands);
+    });
+
     // === RENDER PLUGIN (Conditional — Phase 1 = 2D, Phase 2 = 3D) ===
     #[cfg(feature = "render-2d")]
     app.add_plugins(kurulus_render_2d::Render2DPlugin);

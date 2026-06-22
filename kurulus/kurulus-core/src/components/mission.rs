@@ -32,10 +32,14 @@ pub struct DialogueRef {
 
 // --- Enums ---
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MissionId {
     Mission01,
     Mission02,
+    Mission03,
+    Mission04,
+    Mission05,
+    Mission06,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -100,4 +104,11 @@ pub enum DialogueTrigger {
     OnHeroLevelUp,
     OnTimer,
     OnCondition(String),
+}
+
+/// Marker component for a unit that needs to be rescued in a mission.
+/// The objective progresses when this entity is escorted to safety (despawned or reaches the extraction zone).
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct RescueTarget {
+    pub extracted: bool,
 }

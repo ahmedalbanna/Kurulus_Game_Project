@@ -76,7 +76,9 @@ fn register_common_events(app: &mut bevy::prelude::App) {
         .add_event::<SeasonChanged>()
         .add_event::<DayNightCycle>()
         .add_event::<PanelOpened>()
-        .add_event::<PanelClosed>();
+        .add_event::<PanelClosed>()
+        .add_event::<CampaignAdvanced>()
+        .add_event::<PlaceAmbushOrder>();
 }
 
 /// Register all logic plugins (no render) — used by headless test harness.
@@ -101,7 +103,28 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         .init_resource::<FactionRelations>()
         .init_resource::<TickTimer>()
         .init_resource::<CoCommandState>()
-        .init_resource::<TrustMatrix>();
+        .init_resource::<TrustMatrix>()
+        .init_resource::<CampaignState>()
+        .init_resource::<ResourcePersistence>()
+        .init_resource::<TerrainGrid>()
+        // Register types for BRP/MCP reflection debugging
+        .register_type::<Stealth>()
+        .register_type::<Detection>()
+        .register_type::<AmbushZone>()
+        .register_type::<NoiseLevel>()
+        .register_type::<UnitVisibility>()
+        .register_type::<AmbushMarker>()
+        .register_type::<TerrainType>()
+        .register_type::<TerrainTile>()
+        .register_type::<TerrainGrid>()
+        .register_type::<GameTime>()
+        .register_type::<GridPos>()
+        .register_type::<WorldPosition>()
+        .register_type::<WorldPos2D>()
+        .register_type::<WorldPos3D>()
+        .register_type::<CampaignState>()
+        .register_type::<ResourceStockpile>()
+        .register_type::<ActiveHero>();
 
     register_common_events(app);
 
