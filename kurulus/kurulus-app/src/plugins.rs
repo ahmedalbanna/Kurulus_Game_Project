@@ -125,6 +125,10 @@ pub fn register_plugins(app: &mut App) {
     // 22. UI Logic (data binding, no bevy_ui rendering)
     app.add_plugins(UILogicPlugin);
 
+    // 23. UiPlugin for bevy_ui rendering (node layout, text, etc.)
+    //     Registered unconditionally — harmless when no camera is present.
+    app.add_plugins(bevy::ui::UiPlugin::default());
+
     // === STARTUP: Spawn Mission 1 tutorial scenario ===
     app.add_systems(Startup, |mut commands: Commands| {
         narrative::setup_mission1_scenario(&mut commands);

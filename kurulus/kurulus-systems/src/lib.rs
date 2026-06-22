@@ -2,6 +2,7 @@ pub mod ai;
 pub mod audio;
 pub mod base_building;
 pub mod beylik_politics;
+pub mod city_builder;
 pub mod combat;
 
 use bevy_state::app::{AppExtStates, StatesPlugin};
@@ -28,6 +29,7 @@ pub use ai::AIPlugin;
 pub use audio::AudioLogicPlugin;
 pub use base_building::BaseBuildingPlugin;
 pub use beylik_politics::BeylikPoliticsPlugin;
+pub use city_builder::CityBuilderPlugin;
 pub use combat::CombatPlugin;
 pub use core_loop::CoreLoopPlugin;
 pub use corule::CoRulePlugin;
@@ -78,7 +80,14 @@ fn register_common_events(app: &mut bevy::prelude::App) {
         .add_event::<PanelOpened>()
         .add_event::<PanelClosed>()
         .add_event::<CampaignAdvanced>()
-        .add_event::<PlaceAmbushOrder>();
+        .add_event::<PlaceAmbushOrder>()
+        .add_event::<WorldMapTravelStarted>()
+        .add_event::<WorldMapTravelCompleted>()
+        .add_event::<TileRevealed>()
+        .add_event::<TileExplored>()
+        .add_event::<PoiDiscovered>()
+        .add_event::<PoiVisited>()
+        .add_event::<EncounterTriggered>();
 }
 
 /// Register all logic plugins (no render) — used by headless test harness.
@@ -98,6 +107,7 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         .init_resource::<GameTime>()
         .init_resource::<ResourceStockpile>()
         .init_resource::<ProductionRates>()
+        .init_resource::<ResourceConsumption>()
         .init_resource::<TaxPolicy>()
         .init_resource::<TechTree>()
         .init_resource::<FactionRelations>()
@@ -107,6 +117,7 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         .init_resource::<CampaignState>()
         .init_resource::<ResourcePersistence>()
         .init_resource::<TerrainGrid>()
+        .init_resource::<WorldMap>()
         // Register types for BRP/MCP reflection debugging
         .register_type::<Stealth>()
         .register_type::<Detection>()
@@ -124,7 +135,24 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         .register_type::<WorldPos3D>()
         .register_type::<CampaignState>()
         .register_type::<ResourceStockpile>()
-        .register_type::<ActiveHero>();
+        .register_type::<ActiveHero>()
+        .register_type::<WorldMap>()
+        .register_type::<WorldTile>()
+        .register_type::<FogState>()
+        .register_type::<WorldTerrain>()
+        .register_type::<RegionDef>()
+        .register_type::<RegionResources>()
+        .register_type::<WorldMapTravel>()
+        .register_type::<RegionId>()
+        .register_type::<PointOfInterest>()
+        .register_type::<PoiId>()
+        .register_type::<PoiType>()
+        .register_type::<Encounter>()
+        .register_type::<EncounterType>()
+        .register_type::<EncounterDifficulty>()
+        .register_type::<EncounterChoice>()
+        .register_type::<EncounterOutcome>()
+        .register_type::<EncounterTemplate>();
 
     register_common_events(app);
 
@@ -143,6 +171,7 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
     // Group 2: Feature Systems (9-16)
     app.add_plugins((
         BaseBuildingPlugin,
+        CityBuilderPlugin,
         ProgressionPlugin,
         NarrativePlugin,
         DiplomacyPlugin,

@@ -34,6 +34,11 @@ pub enum SimulationSet {
     ResourceProduction,
     ResourceConsumption,
     ConstructionProgress,
+    CityPopulation,
+    CityHappiness,
+    CityServices,
+    CityZones,
+    CityProgression,
     ResearchProgress,
     XPGain,
 

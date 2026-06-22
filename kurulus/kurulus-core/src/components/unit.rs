@@ -98,7 +98,8 @@ pub enum UnitArchetype {
     Worker,
 }
 
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Component, Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[reflect(Component)]
 pub enum FactionId {
     Kayi,
     Dodurga,

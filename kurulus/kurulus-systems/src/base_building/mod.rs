@@ -92,7 +92,7 @@ fn complete_construction_system(
 ///
 /// For Phase 2, the upgrade cost is hardcoded per building type.
 fn building_upgrade_system(
-    mut buildings: Query<(&mut Building, &BuildCost)>,
+    mut buildings: Query<(&mut Building, &BuildCost), Without<UpgradeChain>>,
     mut stockpile: ResMut<ResourceStockpile>,
     mut production_rates: ResMut<ProductionRates>,
 ) {

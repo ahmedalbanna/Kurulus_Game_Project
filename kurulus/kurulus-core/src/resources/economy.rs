@@ -68,3 +68,43 @@ impl Default for ProductionRates {
 pub struct FactionRelations {
     pub relations: Vec<(FactionId, FactionId, f32)>,
 }
+
+/// Per-capita resource consumption rates, applied each tick.
+///
+/// Each field is the amount consumed **per citizen per game-second**.
+/// The actual per-tick deduction is:
+/// `population × rate × delta × policy_multiplier`
+///
+/// Only **food** is affected by the `RationingLevel` multiplier from
+/// `PolicySettings` (if that resource is available).  Gold and wood
+/// are consumed at flat rates representing non-discretionary upkeep
+/// (luxury goods, administrative costs, fuel, tool repair, etc.).
+///
+/// Stone is **not** consumed daily — it is only drawn from the stockpile
+/// for construction projects.
+#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
+pub struct ResourceConsumption {
+    /// Food consumed per citizen per game-second (before rationing).
+    pub food_per_second_per_capita: f32,
+    /// Gold consumed per citizen per game-second (luxury / admin upkeep).
+    pub gold_per_second_per_capita: f32,
+    /// Wood consumed per citizen per game-second (fuel / tools).
+    pub wood_per_second_per_capita: f32,
+}
+
+impl Default for ResourceConsumption {
+    fn default() -> Self {
+        Self {
+            // 5 people consume 0.0025/tick (same as old hardcoded rate);
+            // 20 people consume 0.01/tick (10% of base production);
+            // 100 people consume 0.05/tick (50% of base production).
+            food_per_second_per_capita: 0.005,
+            // 5 people consume 0.001/tick;
+            // 100 people consume 0.02/tick (40% of gold production).
+            gold_per_second_per_capita: 0.002,
+            // 5 people consume 0.0015/tick;
+            // 100 people consume 0.03/tick (60% of wood production).
+            wood_per_second_per_capita: 0.003,
+        }
+    }
+}

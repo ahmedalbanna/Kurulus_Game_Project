@@ -1,0 +1,59 @@
+### Phase 4: Season 2-3 (Weeks 19-30)
+
+## Yenişehir City Builder (Base Building Expanded)
+
+**Goal:** Evolve from isolated building placement to a living city system with districts, population, and infrastructure.
+
+- **City zoning districts** — Assign zones (Residential, Military, Economic, Religious, Administrative) with adjacency bonuses and unlock requirements
+- **Population system** — Citizens with needs (food, housing, faith, safety); growth rate based on satisfaction; worker allocation to buildings
+- **Road & infrastructure** — Free-form road placement between buildings; buildings need road access to function; roads cost gold to maintain
+- **Building upgrade chains** — Oba→Manor→Governor's Estate; Pasture→Ranch→Horse Farm; Barracks→Garrison→Fortress; each tier unlocks new units/abilities
+- **City services** — Wells (water), Markets (trade), Mosques (faith), Monuments (prestige); service coverage radius affects nearby zones
+- **City health & happiness** — Crime (unrest), disease (sanitation), loyalty (tax rate); low happiness triggers events (riots, emigration)
+- **Village→Town→City progression** — Population thresholds unlock new buildings,更大的城墙, and title upgrades for Osman
+- **City view UI** — Overhead city view with building tooltips, district coloring, population stats, and overlay modes (happiness, crime, service coverage)
+
+## World Map + Fog of War
+
+**Goal:** A strategic overworld layer connecting missions, revealing territory, and enabling campaign-level decisions.
+
+- **Tile-based world map** — Regions of Anatolia (Söğüt, Yenişehir, Bilecik, İznik, Bursa, etc.) rendered as a strategic map
+- **Fog of war system** — Undiscovered tiles hidden; explored tiles revealed; active tiles visible; persistent across missions
+- **Scouting & exploration** — Send hero parties to reveal adjacent fog; chance of random encounters (merchants, bandits, refugees)
+- **Region properties** — Each region has: resources (wood, stone, fertile land), strategic value,要塞 level, garrison size, owner faction
+- **Travel between regions** — Real-time travel with distance-based duration; chance of ambush; supply消耗 per distance
+- **Territory control** — Visual borders for each beylik/empire; capturing a region grants its resources and removes enemy garrison
+- **Points of interest** — Villages, ruins, trade posts, mountain passes, river crossings on the world map; interactable for events
+- **World map UI** — Zoomable/pannable map with legend, region tooltips, hero position markers, mission launch points
+
+## Beylik Politics System (Season 3 Core)
+
+**Goal:** A diplomacy and intrigue layer where Osman navigates alliances, rivalries, and power struggles among Anatolian beyliks and neighboring empires.
+
+- **Beylik relationships** — Tracked per-faction with numeric value (-100 hostile → +100 allied); modified by actions (trade, war, marriages, gifts)
+- **Diplomatic actions** — Send envoy (improve relations), declare war, propose alliance, request tribute, arrange marriage, trade agreement, non-aggression pact
+- **Beylik AI** — Each beylik has personality traits (Aggressive, Cautious, Greedy, Pious) driving their decisions; they pursue their own goals
+- **Council & court** — Advisors (Alaeddin = diplomacy, Bamsi = military, Dundar = economy) provide bonuses; court favor system
+- **Events & decisions** — Random narrative events (Byzantine envoy arrives, Mongol demands tribute, neighboring beylik requests aid) with branching choices
+- **Intrigue & espionage** — Send spies to gather intelligence, sow discord, or assassinate; counter-espionage to protect your court
+- **Marriage alliances** — Strategic marriages between houses grant permanent relationship boosts and potential claims
+- **Tributary system** — Weaker beyliks can become vassals, paying monthly tribute in exchange for protection
+- **Reputation & prestige** — Global reputation affects how all factions perceive you; high prestige unlocks diplomatic bonuses
+- **War & peace** — Declare war shifts relationship to hostile; war score system based on battles, territory, and duration; peace treaties with terms
+- **Diplomacy UI** — Faction overview panel, relationship history, active treaties, envoy management, event log
+
+## Next-Gen Heroes Framework
+
+**Goal:** Deep hero progression with skill trees, equipment, unique abilities, and personal story arcs.
+
+- **Hero skill trees** — Each hero gets a unique skill tree (Osman = Leadership/Combat, Alaeddin = Diplomacy/Intrigue, Bamsi = Warfare/Tactics, Orhan = Siege/Engineering); 3 specializations per hero
+- **Active abilities** — Equippable active skills (Osman: "War Cry" buffs nearby units, "Challenge" taunts enemy hero); unlocked via skill tree; cooldown-based
+- **Passive abilities** — Always-active bonuses (Osman: "+10% unit damage in radius", Alaeddin: "+15% diplomacy effectiveness"); stack from multiple sources
+- **Equipment system** — Weapon, armor, accessory slots; equipment drops from missions/events; rarity tiers (Common→Epic→Legendary); stat modifiers
+- **Hero inventory** — Backpack with weight/capacity limit; items usable from inventory (health potions, scrolls, tools)
+- **Hero relationships** — Companion affinity system; shared battles increase bond; high affinity unlocks combo abilities and story events
+- **Personal story arcs** — Each hero has a 3-5 act personal quest chain (e.g., Osman's vision of the crescent, Alaeddin's scholarly journey); rewards unique abilities/equipment
+- **Mentorship** — Senior heroes (Osman) can train junior heroes (Orhan), sharing XP and unlocking legacy abilities
+- **Hero banners & customization** — Visual banner/heraldry customization per hero; banner provides aura buff in battle
+- **Fatigue & injury** — Heroes get tired after consecutive battles; injuries require recovery time;重伤 can永久降低 stats without treatment
+- **Hero roster UI** — Character sheet with stats, skills, equipment, relationships, quest log, and portrait art placeholders

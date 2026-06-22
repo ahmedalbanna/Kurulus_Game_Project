@@ -1,3 +1,4 @@
+pub mod city;
 pub mod economy;
 pub mod tech;
 pub mod time;
@@ -6,7 +7,9 @@ pub mod corule;
 pub mod campaign;
 pub mod ai_config;
 pub mod terrain;
+pub mod world_map;
 
+pub use city::*;
 pub use economy::*;
 pub use tech::*;
 pub use time::*;
@@ -15,8 +18,10 @@ pub use corule::*;
 pub use campaign::*;
 pub use ai_config::*;
 pub use terrain::*;
+pub use world_map::*;
 
 pub mod prelude {
+    pub use crate::resources::city::*;
     pub use crate::resources::economy::*;
     pub use crate::resources::tech::*;
     pub use crate::resources::time::*;
@@ -25,6 +30,7 @@ pub mod prelude {
     pub use crate::resources::campaign::*;
     pub use crate::resources::ai_config::*;
     pub use crate::resources::terrain::*;
+    pub use crate::resources::world_map::*;
     pub use crate::resources::config::{
         PhaseTransitionConfig, CombatActivityTracker, OrdersIssuedDuringPlanning,
     };
