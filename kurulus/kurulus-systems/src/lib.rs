@@ -16,6 +16,7 @@ pub mod imperial_admin;
 pub mod narrative;
 pub mod naval_warfare;
 pub mod next_gen_heroes;
+pub mod population;
 pub mod progression;
 pub mod romance_loyalty;
 pub mod siege_warfare;
@@ -40,6 +41,7 @@ pub use imperial_admin::ImperialAdminPlugin;
 pub use narrative::NarrativePlugin;
 pub use naval_warfare::NavalWarfarePlugin;
 pub use next_gen_heroes::NextGenHeroesPlugin;
+pub use population::PopulationPlugin;
 pub use progression::ProgressionPlugin;
 pub use romance_loyalty::RomanceLoyaltyPlugin;
 pub use siege_warfare::SiegeWarfarePlugin;
@@ -88,7 +90,10 @@ fn register_common_events(app: &mut bevy::prelude::App) {
         .add_event::<TileExplored>()
         .add_event::<PoiDiscovered>()
         .add_event::<PoiVisited>()
-        .add_event::<EncounterTriggered>();
+        .add_event::<EncounterTriggered>()
+        .add_event::<ScoutOrdered>()
+        .add_event::<RecallScout>()
+        .add_event::<ScoutEncounterResolved>();
 }
 
 /// Register all logic plugins (no render) — used by headless test harness.
@@ -153,7 +158,19 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         .register_type::<EncounterDifficulty>()
         .register_type::<EncounterChoice>()
         .register_type::<EncounterOutcome>()
-        .register_type::<EncounterTemplate>();
+        .register_type::<EncounterTemplate>()
+        .register_type::<WorldMapViewState>()
+        .register_type::<kurulus_core::resources::world_map::WorldMapHover>()
+        .register_type::<kurulus_core::resources::world_map::WorldMapSelection>()
+        .register_type::<ScoutParty>()
+        .register_type::<ScoutStatus>()
+        .register_type::<CrossZoneSynergy>()
+        .register_type::<CrossZoneSynergyTable>()
+        .register_type::<CrossZoneSynergyEffect>()
+        .register_type::<ZoneDefinition>()
+        .register_type::<ZoneUnlockRequirement>()
+        .register_type::<PopulationRegistry>()
+        .register_type::<WorkerRole>();
 
     register_common_events(app);
 
@@ -173,6 +190,7 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
     app.add_plugins((
         BaseBuildingPlugin,
         CityBuilderPlugin,
+        PopulationPlugin,
         ProgressionPlugin,
         NarrativePlugin,
         DiplomacyPlugin,

@@ -20,6 +20,27 @@ pub struct ZoneUpgraded {
     pub new_level: u8,
 }
 
+/// Fired when a zone placement is rejected due to unlock requirements.
+#[derive(Event, Clone, Debug)]
+pub struct ZonePlacementBlocked {
+    pub zone_type: ZoneType,
+    pub position: GridPos,
+    pub reason: ZoneBlockReason,
+}
+
+/// Why a zone placement was blocked.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ZoneBlockReason {
+    /// Zone type not yet unlocked (city level / population requirement).
+    NotUnlocked,
+    /// Insufficient sovereignty points.
+    InsufficientSP { required: f32, available: f32 },
+    /// Cell already occupied by another zone.
+    CellOccupied,
+    /// Insufficient gold or wood for zone placement.
+    InsufficientResources,
+}
+
 /// Fired when the settlement advances to a higher city level
 /// (Village → Town → City → Metropolis).
 #[derive(Event, Clone, Debug)]

@@ -1,0 +1,133 @@
+// Population & Worker Slot Configuration
+// =========================================
+// Controls population growth rates, building slot capacities, and
+// per-building-type worker limits.
+
+GrowthConfig(
+    base_growth_rate: 0.02,           // Base growth: 2% per update tick
+    max_growth_rate: 0.08,            // Cap: 8% per tick when all needs met
+    decline_rate: 0.05,               // Decline: 5% per tick when needs are critical
+    needs_met_threshold: 0.7,          // 70%+ need satisfaction → growth
+    housing_required_per_citizen: 1.0, // Each citizen requires 1 housing unit
+    growth_boost_well: 1.5,           // 50% bonus with well in district
+    growth_boost_mosque: 2.0,         // 100% bonus with mosque in district
+    growth_boost_bath: 1.5,           // 50% bonus with bathhouse in district
+    elite_housing_threshold: 5,       // Population 5+ triggers elite housing
+    urban_housing_threshold: 10,      // Population 10+ triggers urban housing
+)
+
+WorkerSlotConfig(
+    slot_definitions: {
+        // === ECONOMY BUILDINGS ===
+        Pasture: (
+            max_workers: 4,
+            role: Gatherer,
+            base_production_rate: 10.0,
+        ),
+        MiningCamp: (
+            max_workers: 3,
+            role: Gatherer,
+            base_production_rate: 5.0,
+        ),
+        LumberCamp: (
+            max_workers: 4,
+            role: Gatherer,
+            base_production_rate: 8.0,
+        ),
+
+        // === MILITARY BUILDINGS ===
+        Barracks: (
+            max_workers: 3,
+            role: Trainer,
+            base_production_rate: 0.0,
+        ),
+        ArcheryRange: (
+            max_workers: 3,
+            role: Trainer,
+            base_production_rate: 0.0,
+        ),
+        Stable: (
+            max_workers: 3,
+            role: Trainer,
+            base_production_rate: 0.0,
+        ),
+        SiegeWorkshop: (
+            max_workers: 2,
+            role: Trainer,
+            base_production_rate: 0.0,
+        ),
+        Watchtower: (
+            max_workers: 2,
+            role: Trainer,
+            base_production_rate: 0.0,
+        ),
+
+        // === INFRASTRUCTURE / TRADE ===
+        Market: (
+            max_workers: 2,
+            role: Merchant,
+            base_production_rate: 5.0,
+        ),
+        Warehouse: (
+            max_workers: 2,
+            role: Merchant,
+            base_production_rate: 3.0,
+        ),
+
+        // === CIVIC / RELIGIOUS ===
+        Mosque: (
+            max_workers: 2,
+            role: Civic,
+            base_production_rate: 0.0,
+        ),
+        CouncilChamber: (
+            max_workers: 3,
+            role: Civic,
+            base_production_rate: 0.0,
+        ),
+        GuildHall: (
+            max_workers: 2,
+            role: Civic,
+            base_production_rate: 0.0,
+        ),
+        Monument: (
+            max_workers: 1,
+            role: Civic,
+            base_production_rate: 0.0,
+        ),
+
+        // === SPECIAL ===
+        Oba: (
+            max_workers: 2,
+            role: Civic,
+            base_production_rate: 0.0,
+        ),
+
+        // === NON-WORKER BUILDINGS ===
+        Well: (
+            max_workers: 0,
+            role: Gatherer,
+            base_production_rate: 0.0,
+        ),
+        Road: (
+            max_workers: 0,
+            role: Builder,
+            base_production_rate: 0.0,
+        ),
+        Palisade: (
+            max_workers: 0,
+            role: Gatherer,
+            base_production_rate: 0.0,
+        ),
+        StoneWall: (
+            max_workers: 0,
+            role: Gatherer,
+            base_production_rate: 0.0,
+        ),
+        Gate: (
+            max_workers: 0,
+            role: Gatherer,
+            base_production_rate: 0.0,
+        ),
+    },
+)

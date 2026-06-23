@@ -4,6 +4,7 @@ pub mod command;
 pub mod mission;
 pub mod world;
 pub mod ui;
+pub mod population;
 
 pub use city::*;
 pub use combat::*;
@@ -19,4 +20,5 @@ pub mod prelude {
     pub use crate::events::mission::*;
     pub use crate::events::world::*;
     pub use crate::events::ui::*;
+    pub use crate::events::population::*;
 }

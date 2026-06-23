@@ -345,6 +345,74 @@ pub struct EncounterOutcome {
     pub result_text: String,
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+//  Scouting & Exploration
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// A scout party moving around the world map to explore fog and discover POIs.
+/// Multiple scout parties can exist simultaneously as separate entities.
+#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
+#[reflect(Component)]
+pub struct ScoutParty {
+    /// Unique identifier for this scout party
+    pub id: u32,
+    /// Display name (e.g. "Boran's Scouts")
+    pub name: String,
+    /// Current tile position on the world map (interpolated during travel)
+    pub position: IVec2,
+    /// Tile position where the scout started its current journey
+    pub start_position: IVec2,
+    /// Destination tile (None if idle / returned to player)
+    pub destination: Option<IVec2>,
+    /// Which faction owns this scout
+    pub faction: FactionId,
+    /// Current status
+    pub status: ScoutStatus,
+    /// Travel progress 0.0–1.0
+    pub travel_progress: f32,
+    /// Total travel duration in seconds
+    pub travel_duration: f32,
+    /// POIs discovered by this scout
+    pub discoveries: Vec<PoiId>,
+    /// Tiles where the scout has already checked for an encounter (dedup)
+    pub encounter_checked_tiles: Vec<IVec2>,
+    /// Cooldown timer until next encounter check (seconds)
+    pub encounter_cooldown: f32,
+}
+
+/// Status of a scout party on the world map.
+#[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ScoutStatus {
+    /// Stationary at the player's position or at a destination
+    Idle,
+    /// Moving toward a destination
+    Travelling,
+    /// Returning to the player's position
+    Returning,
+    /// Temporarily paused due to an encounter awaiting player decision
+    Encountered,
+}
+
+impl ScoutParty {
+    /// Create a new scout party at the given position.
+    pub fn new(id: u32, name: String, position: IVec2, faction: FactionId) -> Self {
+        Self {
+            id,
+            name,
+            position,
+            start_position: position,
+            destination: None,
+            faction,
+            status: ScoutStatus::Idle,
+            travel_progress: 0.0,
+            travel_duration: 0.0,
+            discoveries: Vec::new(),
+            encounter_checked_tiles: Vec::new(),
+            encounter_cooldown: 0.0,
+        }
+    }
+}
+
 // --- Enums ---
 
 #[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

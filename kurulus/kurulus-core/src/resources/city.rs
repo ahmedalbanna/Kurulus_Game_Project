@@ -1,11 +1,112 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::components::{BuildingType, ZoneType, ServiceType};
+use crate::components::{BuildingType, ZoneType, ServiceType, AdjacencyBonusEffect};
+
+// ─── Cross-Zone Synergy ──────────────────────────────────────────────────────
+
+/// A synergy bonus applied when two different zone types are orthogonally adjacent.
+/// Synergies are symmetric (A↔B): the same bonus applies regardless of direction.
+#[derive(Clone, Debug, Serialize, Deserialize, Reflect)]
+pub struct CrossZoneSynergy {
+    pub zone_a: ZoneType,
+    pub zone_b: ZoneType,
+    pub effect: AdjacencyBonusEffect,
+}
+
+/// All defined cross-zone synergies, runtime-loaded from config or hardcoded defaults.
+#[derive(Resource, Clone, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(Resource, Serialize, Deserialize)]
+pub struct CrossZoneSynergyTable {
+    pub synergies: Vec<CrossZoneSynergy>,
+}
+
+impl Default for CrossZoneSynergyTable {
+    fn default() -> Self {
+        Self {
+            synergies: vec![
+                CrossZoneSynergy {
+                    zone_a: ZoneType::Residential,
+                    zone_b: ZoneType::Religious,
+                    effect: AdjacencyBonusEffect {
+                        happiness_bonus: 5.0,
+                        ..Default::default()
+                    },
+                },
+                CrossZoneSynergy {
+                    zone_a: ZoneType::Residential,
+                    zone_b: ZoneType::Administrative,
+                    effect: AdjacencyBonusEffect {
+                        population_growth_mult: 1.10,
+                        ..Default::default()
+                    },
+                },
+                CrossZoneSynergy {
+                    zone_a: ZoneType::Military,
+                    zone_b: ZoneType::Economic,
+                    effect: AdjacencyBonusEffect {
+                        recruit_speed_mult: 1.15,
+                        ..Default::default()
+                    },
+                },
+                CrossZoneSynergy {
+                    zone_a: ZoneType::Military,
+                    zone_b: ZoneType::Administrative,
+                    effect: AdjacencyBonusEffect {
+                        recruit_speed_mult: 1.10,
+                        ..Default::default()
+                    },
+                },
+                CrossZoneSynergy {
+                    zone_a: ZoneType::Economic,
+                    zone_b: ZoneType::Administrative,
+                    effect: AdjacencyBonusEffect {
+                        resource_output_mult: 1.10,
+                        ..Default::default()
+                    },
+                },
+                CrossZoneSynergy {
+                    zone_a: ZoneType::Protection,
+                    zone_b: ZoneType::Residential,
+                    effect: AdjacencyBonusEffect {
+                        crime_reduction: 5.0,
+                        ..Default::default()
+                    },
+                },
+                CrossZoneSynergy {
+                    zone_a: ZoneType::Protection,
+                    zone_b: ZoneType::Military,
+                    effect: AdjacencyBonusEffect {
+                        defense_bonus_mult: 1.20,
+                        ..Default::default()
+                    },
+                },
+            ],
+        }
+    }
+}
+
+// ─── Imperial Administration / Edict Hooks ─────────────────────────────────────
+
+/// Trait for edicts that modify zone bonuses.
+/// Implemented by System 18 (Imperial Administration); the default placeholder
+/// returns zero effect so the hook is wired today without breaking anything.
+pub trait EdictZoneModifier: Send + Sync {
+    fn compute_zone_bonus(&self, zone_type: ZoneType) -> AdjacencyBonusEffect;
+}
+
+/// Null implementation — returns no bonus. Used as placeholder until System 18.
+pub struct NullEdictZoneModifier;
+
+impl EdictZoneModifier for NullEdictZoneModifier {
+    fn compute_zone_bonus(&self, _zone_type: ZoneType) -> AdjacencyBonusEffect {
+        AdjacencyBonusEffect::default()
+    }
+}
 
 // ─── City Level ──────────────────────────────────────────────────────────────
 
 /// The developmental level of a settlement, from humble village to imperial city.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
 pub enum CityLevel {
     Village,
     Town,
@@ -94,6 +195,9 @@ pub struct CityState {
     pub total_economic_power: u32,
     /// Active random events currently affecting the city.
     pub active_events: Vec<CityEvent>,
+    /// Combined zone bonus from active Imperial Administration edicts (System 18).
+    /// Updated each tick by `policy_effects_system`. Placeholder until System 18.
+    pub edict_zone_bonuses: AdjacencyBonusEffect,
 }
 
 impl Default for CityState {
@@ -111,6 +215,7 @@ impl Default for CityState {
             total_military_pop: 0,
             total_economic_power: 0,
             active_events: Vec::new(),
+            edict_zone_bonuses: AdjacencyBonusEffect::default(),
         }
     }
 }
@@ -195,14 +300,51 @@ impl CitizenNeeds {
 
 // ─── Zone Definitions Resource ──────────────────────────────────────────────
 
+/// Requirements that must be met before a zone type can be placed.
+#[derive(Clone, Debug, Serialize, Deserialize, Reflect)]
+pub struct ZoneUnlockRequirement {
+    /// Minimum city level required.
+    pub required_city_level: CityLevel,
+    /// Minimum population required.
+    pub required_population: u32,
+    /// Sovereignty points (SP) cost to place one zone cell of this type.
+    pub sp_cost: f32,
+}
+
+impl Default for ZoneUnlockRequirement {
+    fn default() -> Self {
+        Self {
+            required_city_level: CityLevel::Village,
+            required_population: 0,
+            sp_cost: 0.0,
+        }
+    }
+}
+
 /// Configuration for a zone type that the player can designate on the map.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Reflect)]
 pub struct ZoneDefinition {
     pub zone_type: ZoneType,
-    /// Whether zone type is unlocked at current city level.
+    /// Whether zone type is currently unlocked (runtime-computed).
     pub unlocked: bool,
-    /// Bonus multiplier applied to buildings within this zone.
+    /// Base bonus multiplier applied to buildings within this zone.
     pub bonus_multiplier: f32,
+    /// Requirements to unlock this zone type.
+    pub unlock_requirement: ZoneUnlockRequirement,
+    /// Gold cost per zone cell placed.
+    pub placement_gold_cost: u32,
+    /// Wood cost per zone cell placed.
+    pub placement_wood_cost: u32,
+    /// Soft-cap maximum size for districts of this type (beyond this = diminishing returns).
+    pub max_district_size: u32,
+    /// Gold cost to upgrade this zone from level N to N+1.
+    pub upgrade_gold_cost: u32,
+    /// Wood cost to upgrade this zone from level N to N+1.
+    pub upgrade_wood_cost: u32,
+    /// Max level this zone type can reach.
+    pub max_level: u8,
+    /// RGBA colour for overlay rendering.
+    pub color: [f32; 4],
 }
 
 /// All zone definitions accessible to the player.
@@ -218,30 +360,262 @@ impl Default for ZoneDefinitions {
                 ZoneDefinition {
                     zone_type: ZoneType::Residential,
                     unlocked: true,
-                    bonus_multiplier: 1.25, // +25% population growth
+                    bonus_multiplier: 1.25,
+                    unlock_requirement: ZoneUnlockRequirement::default(),
+                    placement_gold_cost: 5,
+                    placement_wood_cost: 2,
+                    max_district_size: 12,
+                    upgrade_gold_cost: 10,
+                    upgrade_wood_cost: 5,
+                    max_level: 5,
+                    color: [0.2, 0.8, 0.2, 1.0],
                 },
                 ZoneDefinition {
                     zone_type: ZoneType::Military,
                     unlocked: true,
-                    bonus_multiplier: 1.30, // +30% recruit speed
+                    bonus_multiplier: 1.30,
+                    unlock_requirement: ZoneUnlockRequirement::default(),
+                    placement_gold_cost: 8,
+                    placement_wood_cost: 5,
+                    max_district_size: 10,
+                    upgrade_gold_cost: 12,
+                    upgrade_wood_cost: 6,
+                    max_level: 4,
+                    color: [0.8, 0.2, 0.2, 1.0],
                 },
                 ZoneDefinition {
                     zone_type: ZoneType::Economic,
-                    unlocked: true,
-                    bonus_multiplier: 1.25, // +25% resource output
+                    unlocked: false, // unlocked at Town level + 20 pop
+                    bonus_multiplier: 1.25,
+                    unlock_requirement: ZoneUnlockRequirement {
+                        required_city_level: CityLevel::Town,
+                        required_population: 20,
+                        sp_cost: 5.0,
+                        ..Default::default()
+                    },
+                    placement_gold_cost: 10,
+                    placement_wood_cost: 5,
+                    max_district_size: 14,
+                    upgrade_gold_cost: 15,
+                    upgrade_wood_cost: 8,
+                    max_level: 5,
+                    color: [0.8, 0.8, 0.2, 1.0],
                 },
                 ZoneDefinition {
                     zone_type: ZoneType::Religious,
-                    unlocked: true,
-                    bonus_multiplier: 1.50, // +50% faith generation
+                    unlocked: false, // unlocked at Town level + 30 pop
+                    bonus_multiplier: 1.50,
+                    unlock_requirement: ZoneUnlockRequirement {
+                        required_city_level: CityLevel::Town,
+                        required_population: 30,
+                        sp_cost: 10.0,
+                        ..Default::default()
+                    },
+                    placement_gold_cost: 15,
+                    placement_wood_cost: 8,
+                    max_district_size: 8,
+                    upgrade_gold_cost: 20,
+                    upgrade_wood_cost: 10,
+                    max_level: 4,
+                    color: [0.2, 0.4, 0.8, 1.0],
                 },
                 ZoneDefinition {
                     zone_type: ZoneType::Administrative,
-                    unlocked: false, // unlocked at Town level
-                    bonus_multiplier: 1.40, // +40% happiness
+                    unlocked: false,
+                    bonus_multiplier: 1.40,
+                    unlock_requirement: ZoneUnlockRequirement {
+                        required_city_level: CityLevel::Town,
+                        required_population: 20,
+                        sp_cost: 15.0,
+                        ..Default::default()
+                    },
+                    placement_gold_cost: 20,
+                    placement_wood_cost: 10,
+                    max_district_size: 10,
+                    upgrade_gold_cost: 25,
+                    upgrade_wood_cost: 12,
+                    max_level: 4,
+                    color: [0.6, 0.2, 0.8, 1.0],
+                },
+                ZoneDefinition {
+                    zone_type: ZoneType::Protection,
+                    unlocked: true,
+                    bonus_multiplier: 1.0,
+                    unlock_requirement: ZoneUnlockRequirement::default(),
+                    placement_gold_cost: 5,
+                    placement_wood_cost: 10,
+                    max_district_size: 15,
+                    upgrade_gold_cost: 8,
+                    upgrade_wood_cost: 15,
+                    max_level: 5,
+                    color: [0.5, 0.5, 0.5, 1.0],
                 },
             ],
         }
+    }
+}
+
+// ─── District Tracking ───────────────────────────────────────────────────────
+
+/// A single contiguous district of same-type zone cells on the grid.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct District {
+    /// Unique identifier for this district.
+    pub id: u32,
+    /// The zone type of all cells in this district.
+    pub zone_type: ZoneType,
+    /// Grid positions of all cells in this district.
+    pub cells: Vec<IVec2>,
+    /// Entity IDs of the zone entities in this district.
+    pub entities: Vec<Entity>,
+    /// Sum of zone levels across all cells (for bonus scaling).
+    pub total_level: u32,
+    /// Number of cells in this district.
+    pub size: u32,
+}
+
+impl District {
+    /// Average level of zones in this district.
+    pub fn avg_level(&self) -> f32 {
+        if self.size == 0 {
+            1.0
+        } else {
+            self.total_level as f32 / self.size as f32
+        }
+    }
+
+    /// Computes the combined adjacency bonus multiplier for this district.
+    ///
+    /// Formula: `apply_soft_cap(base_multiplier × (1.0 + size_bonus + level_bonus))`
+    /// - `size_bonus` = 10% per cell beyond the first (capped at 5 extra → +50%)
+    /// - `level_bonus` = 15% per average level above 1 (capped at +45%)
+    /// - Soft cap: beyond `max_district_size` (configurable), each additional cell
+    ///   contributes only 30% of the normal size bonus.
+    pub fn compute_bonus_multiplier(&self, base_multiplier: f32) -> f32 {
+        let soft_cap = self.max_district_size().unwrap_or(15) as u32;
+        let raw_size_bonus = ((self.size.saturating_sub(1)) as f32) * 0.10;
+        let size_bonus = if self.size > soft_cap {
+            let capped = (soft_cap.saturating_sub(1)) as f32 * 0.10;
+            let over = (self.size - soft_cap) as f32 * 0.10 * 0.30; // 30% per extra cell
+            capped + over
+        } else {
+            raw_size_bonus
+        };
+        let size_bonus = size_bonus.min(1.0); // hard ceiling: +100% max from size
+        let level_bonus = ((self.avg_level() - 1.0).max(0.0)).min(3.0) * 0.15;
+        base_multiplier * (1.0 + size_bonus + level_bonus)
+    }
+
+    /// Returns the configured maximum district size for this zone type from
+    /// `ZoneDefinitions`, or a default of 15 if definitions are not available.
+    fn max_district_size(&self) -> Option<u32> {
+        // Accessed via resource lookup at runtime; this is a placeholder
+        // that returns None so the caller uses the default soft cap of 15.
+        None
+    }
+
+    /// Soft-cap diminishing returns adjustment.
+    /// Beyond `soft_cap` (default 15), each additional cell contributes
+    /// only 30% of the normal size bonus. This returns the effective
+    /// multiplier after applying the soft cap.
+    pub fn apply_soft_cap(&self, raw_multiplier: f32) -> f32 {
+        let soft_cap = 15u32;
+        if self.size <= soft_cap {
+            raw_multiplier
+        } else {
+            let over = (self.size - soft_cap) as f32;
+            let penalty = over * 0.007; // -0.7% per extra cell beyond soft cap
+            (raw_multiplier - penalty).max(1.0)
+        }
+    }
+
+    /// Administrative overhead for oversized districts.
+    /// Districts beyond the hard cap (15 cells) generate crime per extra cell.
+    pub fn administrative_overhead(&self) -> f32 {
+        const HARD_CAP_SIZE: u32 = 15;
+        if self.size > HARD_CAP_SIZE {
+            (self.size - HARD_CAP_SIZE) as f32 * 0.5
+        } else {
+            0.0
+        }
+    }
+
+    /// Computes the numeric adjacency bonus effect for this district.
+    /// Combines the zone type's base effect with the district's computed multiplier.
+    pub fn compute_bonus_effect(&self, base_multiplier: f32) -> crate::components::city::AdjacencyBonusEffect {
+        use crate::components::city::ZoneType as ZT;
+        let mult = self.compute_bonus_multiplier(base_multiplier);
+        let extra = mult - 1.0; // bonus above 1.0
+        match self.zone_type {
+            ZT::Residential => crate::components::city::AdjacencyBonusEffect {
+                population_growth_mult: 1.0 + extra,
+                ..Default::default()
+            },
+            ZT::Military => crate::components::city::AdjacencyBonusEffect {
+                recruit_speed_mult: 1.0 + extra,
+                ..Default::default()
+            },
+            ZT::Economic => crate::components::city::AdjacencyBonusEffect {
+                resource_output_mult: 1.0 + extra,
+                ..Default::default()
+            },
+            ZT::Religious => crate::components::city::AdjacencyBonusEffect {
+                faith_generation_mult: 1.0 + extra,
+                ..Default::default()
+            },
+            ZT::Administrative => crate::components::city::AdjacencyBonusEffect {
+                happiness_bonus: extra * 20.0, // flat bonus: up to ~10 points
+                ..Default::default()
+            },
+            ZT::Protection => crate::components::city::AdjacencyBonusEffect {
+                crime_reduction: extra * 5.0, // flat crime reduction: up to ~2.5 points
+                defense_bonus_mult: 1.0 + extra, // defensive HP/upkeep multiplier
+                ..Default::default()
+            },
+        }
+    }
+}
+
+/// Tracks all computed districts on the city grid.
+/// Updated each tick by `district_detection_system`.
+#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
+pub struct DistrictTracker {
+    /// All active districts, grouped by zone type.
+    pub districts: Vec<District>,
+    /// Next unique district ID to assign.
+    pub next_id: u32,
+    /// Aggregated bonus effects from all districts, applied to city metrics each tick.
+    pub aggregate_bonus: crate::components::city::AdjacencyBonusEffect,
+    /// Computed cross-zone synergy effects from adjacent different-type districts.
+    /// Populated by `cross_zone_synergy_system`.
+    pub cross_zone_bonus: crate::components::city::AdjacencyBonusEffect,
+}
+
+impl Default for DistrictTracker {
+    fn default() -> Self {
+        Self {
+            districts: Vec::new(),
+            next_id: 1,
+            aggregate_bonus: crate::components::city::AdjacencyBonusEffect::default(),
+            cross_zone_bonus: crate::components::city::AdjacencyBonusEffect::default(),
+        }
+    }
+}
+
+impl DistrictTracker {
+    /// Returns all districts of a given zone type.
+    pub fn districts_of_type(&self, zone_type: ZoneType) -> Vec<&District> {
+        self.districts.iter().filter(|d| d.zone_type == zone_type).collect()
+    }
+
+    /// Total district count for a given zone type.
+    pub fn count_of_type(&self, zone_type: ZoneType) -> usize {
+        self.districts.iter().filter(|d| d.zone_type == zone_type).count()
+    }
+
+    /// Total zone cells across all districts of a given type.
+    pub fn total_cells_of_type(&self, zone_type: ZoneType) -> u32 {
+        self.districts.iter().filter(|d| d.zone_type == zone_type).map(|d| d.size).sum()
     }
 }
 
@@ -634,7 +1008,7 @@ impl OverlayMode {
 ///   • Hover over the grid to preview zone placement.
 ///   • Left-click to place a zone of the selected type.
 ///   • Right-click to remove a zone at the cursor position.
-///   • Press 1–5 to switch zone types (Residential .. Administrative).
+///   • Press 1–6 to switch zone types (Residential .. Protection).
 #[derive(Resource, Clone, Debug, PartialEq)]
 pub struct ZonePlacementState {
     /// Whether zone placement mode is currently active.
@@ -791,6 +1165,22 @@ pub struct CityEventLogRoot;
 pub struct ZoneLegendRoot;
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// World Map UI Marker Components
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Marker component on the world map region- or POI-tooltip root node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct WorldMapTooltipRoot;
+
+/// Marker component on the world map selection info panel root node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct WorldMapSelectionRoot;
+
+/// Marker component on the world map legend overlay root node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct WorldMapLegendRoot;
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Overlay colours
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -804,6 +1194,7 @@ pub mod overlay_colors {
     pub const ZONE_ECONOMIC: Color = Color::srgb(0.8, 0.8, 0.2);
     pub const ZONE_RELIGIOUS: Color = Color::srgb(0.2, 0.4, 0.8);
     pub const ZONE_ADMIN: Color = Color::srgb(0.6, 0.2, 0.8);
+    pub const ZONE_PROTECTION: Color = Color::srgb(0.5, 0.5, 0.5);
     pub const ZONE_UNASSIGNED: Color = Color::srgb(0.4, 0.4, 0.4);
 
     /// Service-coverage heatmap colours

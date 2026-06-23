@@ -5,5 +5,7 @@ pub enum AppState {
     #[default]
     MainMenu,
     InGame,
+    /// World Map / strategic overworld view
+    WorldMap,
     Paused,
 }

@@ -1,73 +1,198 @@
 {
-    "$schema": "https://opencode.ai/config.json",
-    "default_agent": "build",
-    "model": "opencode/deepseek-v4-flash-free",
-    "agent": {
-        "build": {
-            "model": "opencode/deepseek-v4-flash-free",
-            "variant": "high",
-            "steps": 100,
-            "permission": {
-                "bash": "allow"
-            },
-            "prompt": "You are a build agent for the Kurulus project — a Bevy game engine simulation of Ottoman Empire history. You have access to bevy_brp_mcp and bevy_debugger_mcp MCP tools. Use them to inspect, mutate, and debug the ECS game state while the application is running."
-        },
-        "explore": {
-            "model": "opencode/big-pickle",
-            "steps": 20,
-            "permission": {
-                "read": "allow",
-                "glob": "allow",
-                "grep": "allow",
-                "list": "allow",
-                "bash": "allow"
-            }
-        },
-        "general": {
-            "model": "opencode/deepseek-v4-flash-free",
-            "steps": 50
-        }
+  "$schema": "https://opencode.ai/config.json",
+  "shell": "bash",
+  "model": "opencode/deepseek-v4-flash-free",
+  "small_model": "opencode/big-pickle",
+  "default_agent": "build",
+  "username": "ahmed",
+  "autoupdate": "notify",
+  "snapshot": true,
+  "plugin": [
+    "opencode-wakatime",
+    "opencode-vibeguard",
+    "opencode-notify",
+    "opencode-dynamic-context-pruning"
+  ],
+  "permission": {
+    "read": "allow",
+    "edit": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "bash": "allow",
+    "task": "allow",
+    "external_directory": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "question": "allow",
+    "todowrite": "allow",
+    "lsp": "allow",
+    "skill": "allow"
+  },
+  "agent": {
+    "plan": {
+      "model": "opencode/mimo-v2.5-free",
+      "variant": "high",
+      "steps": 40,
+      "temperature": 0.2,
+      "permission": {
+        "bash": "allow"
+      },
+      "prompt": "You are a planning agent specialized in complex game architecture (Rust/Bevy Engine) for the Kurulus project. The workspace is a 7-crate Cargo workspace rooted at kurulus/ with dependency order: core → config → systems → app → (render-2d | render-3d). Your job is to design strict ECS structures (Entities, Components, Systems) and Modular Plugins before code is written. Map out data layouts, Resource dependencies, and identify Rust lifetimes or multi-threading sync risks. Always consult docs/GDD.md and docs/Kurulus_Game_Docs/ for design intent before proposing architecture changes. Avoid writing code; output structured Markdown game architecture and feature breakdown plans."
     },
-    "permission": {
-        "edit": "allow",
-        "bash": "allow",
+    "build": {
+      "model": "opencode/deepseek-v4-flash-free",
+      "variant": "high",
+      "steps": 100,
+      "temperature": 0.2,
+      "permission": {
+        "bash": "allow"
+      },
+      "prompt": "You are a high-efficiency Rust/Bevy build agent for the Kurulus game project.\n\nWORKSPACE STRUCTURE\nRoot: kurulus/ (7-crate Cargo workspace)\nDep order: core -> config -> systems -> app -> (2D|3D|editor)\n\nCRATE DIRECTORIES:\nkurulus-core      -> Components, Events, Resources, States\nkurulus-config    -> RON asset loader for config files\nkurulus-systems   -> All 22 game logic plugins\nkurulus-app       -> Entrypoint (main.rs, plugins.rs)\nkurulus-render-2d -> 2D sprite rendering\nkurulus-render-3d -> 3D PBR rendering\nkurulus-editor    -> Mission editor (stub)\n\nCOMMANDS (run from kurulus/ directory):\ncargo check -p kurulus-app\ncargo test\ncargo clippy -p kurulus-app\ncargo fmt\ncargo build -p kurulus-app --features remote\n\nKEY ARCHITECTURE RULES:\n- 3 states: AppState, GamePhase, MissionState\n- 9 ordered system sets: SimulationSet\n- ~40 event types in kurulus-core/src/events/\n- GridPos(IVec2) + CELL_SIZE = 1.0\n- All components: Serialize/Deserialize or Reflect\n- register_logic_plugins() for state/resource/event setup\n\nWrite idiomatically strict Rust code adhering to the Borrow Checker, safe memory management, and Bevy's ECS patterns. Implement features inside modular Bevy Plugins. Write unit tests in kurulus-app/tests/. Run cargo clippy -p kurulus-app, cargo fmt, and cargo check -p kurulus-app after every architectural change. Always run commands from the kurulus/ subdirectory. Ensure your work compiles with 0 warnings, 0 errors before reporting completion."
+    },
+    "explore": {
+      "model": "opencode/north-mini-code-free",
+      "steps": 20,
+      "permission": {
         "read": "allow",
         "glob": "allow",
         "grep": "allow",
         "list": "allow",
-        "webfetch": "allow",
-        "websearch": "allow",
-        "lsp": "allow"
+        "bash": "allow"
+      },
+      "prompt": "You are an exploration agent for the Kurulus project (Rust/Bevy game, 7 crates at kurulus/). Leverage your 256k context window and code reasoning to map massive Rust codebases. Deeply investigate how systems run, find queries across Bevy stages, trace Event readers/writers, and locate specific components. The workspace dependency order is: core -> config -> systems -> app -> (render-2d | render-3d | editor). Key docs at docs/GDD.md and docs/Kurulus_Game_Docs/. Provide clear summaries of current state or architecture without modifying any code."
+    },
+    "review": {
+      "model": "opencode/deepseek-v4-flash-free",
+      "variant": "high",
+      "steps": 40,
+      "temperature": 0.1,
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow"
+      },
+      "prompt": "You are a code review agent for the Kurulus game (Rust/Bevy Ottoman Empire simulation, 7-crate workspace at kurulus/). Inspect changes for: performance traps, unnecessary allocations, clone() anti-patterns, proper error handling (Result/Option), Bevy ECS system performance (query filters, archetype fragmentation), deadlock risks in system ordering, and component bloat. Look for missing Serialize/Deserialize or Reflect derives on components. Check that new systems are registered in the correct SimulationSet. Suggest idiomatic refactoring and code optimizations without making direct file edits."
+    },
+    "security": {
+      "model": "opencode/nemotron-3-ultra-free",
+      "variant": "high",
+      "steps": 40,
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "bash": "allow"
+      },
+      "prompt": "You are a security and safety auditing agent for the Kurulus Rust game project (7-crate workspace at kurulus/). Monitor Rust safe/unsafe code boundary usage. Scan for multi-threading deadlocks in Bevy systems, race conditions (e.g., multiple systems mutating the same resource in the same schedule), memory leaks (e.g., dangling resource leaks, event reader not consumed), and vulnerabilities in external crate dependencies. Check for: Mutex poisoning risks, World::resource misuse, and resource leak via Events not being drained. You are permitted to run 'cargo audit' to check dependency vulnerabilities."
+    },
+    "general": {
+      "model": "opencode/deepseek-v4-flash-free",
+      "steps": 60,
+      "prompt": "You are a general-purpose multimodal game dev agent for the Kurulus project (Rust/Bevy Ottoman Empire simulation, 7-crate workspace at kurulus/). Help the user implement UI designs (from visual asset uploads to bevy_ui/egui layouts), troubleshoot math formulas for strategy mechanics, or answer general Rust questions. The project uses GridPos(IVec2) for grid logic with CELL_SIZE=1.0. Be concise, highly technical, and practical."
+    },
+    "title": {
+      "model": "opencode/big-pickle"
+    },
+    "summary": {
+      "model": "opencode/big-pickle"
     },
     "compaction": {
-        "auto": true,
-        "reserved": 10000
-    },
-    "lsp": true,
-    "shell": "bash",
-    "mcp": {
-        "bevy-brp": {
-            "type": "local",
-            "command": [
-                "/teamspace/studios/this_studio/.cargo/bin/bevy_brp_mcp"
-            ],
-            "enabled": true,
-            "description": "Bevy Remote Protocol MCP — inspect, spawn, mutate ECS entities and resources in real-time via BRP. Requires RemotePlugin enabled in the Bevy app."
-        },
-        "bevy-debugger": {
-            "type": "local",
-            "command": [
-                "/teamspace/studios/this_studio/.cargo/bin/bevy-debugger-mcp"
-            ],
-            "enabled": true,
-            "description": "AI-assisted debugging for Bevy — query game state in natural language and analyze system behavior."
-        }
-    },
-    "tool_output": {
-        "max_lines": 2000,
-        "max_bytes": 51200
-    },
-    "experimental": {
-        "mcp_timeout": 60000
+      "model": "opencode/north-mini-code-free"
     }
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "tail_turns": 3
+  },
+  "lsp": true,
+  "formatter": true,
+  "tool_output": {
+    "max_lines": 15000,
+    "max_bytes": 700000
+  },
+  "mcp": {
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true
+    },
+    "gh_grep": {
+      "type": "remote",
+      "url": "https://mcp.grep.app",
+      "enabled": true
+    },
+    "sentry": {
+      "type": "remote",
+      "url": "https://mcp.sentry.dev/mcp",
+      "oauth": {},
+      "enabled": false
+    },
+    "bevy-brp": {
+      "type": "local",
+      "command": [
+        "/teamspace/studios/this_studio/.cargo/bin/bevy_brp_mcp"
+      ],
+      "enabled": true
+    },
+    "bevy-debugger": {
+      "type": "local",
+      "command": [
+        "/teamspace/studios/this_studio/.cargo/bin/bevy-debugger-mcp"
+      ],
+      "enabled": true
+    }
+  },
+  "watcher": {
+    "ignore": [
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      ".git/**",
+      ".next/**",
+      "target/**",
+      "venv/**",
+      "__pycache__/**",
+      "*.log",
+      ".cache/**",
+      "anchor/**"
+    ]
+  },
+  "provider": {
+    "opencode": {
+      "models": {
+        "deepseek-v4-flash-free": {
+          "options": {
+            "reasoningEffort": "high"
+          },
+          "variants": {
+            "high": {},
+            "low": {}
+          }
+        },
+        "nemotron-3-ultra-free": {
+          "variants": {
+            "high": {},
+            "low": {}
+          }
+        },
+        "big-pickle": {
+          "variants": {
+            "high": {},
+            "low": {}
+          }
+        },
+        "mimo-v2.5-free": {
+          "options": { "reasoningEffort": "high" },
+          "variants": { "high": {}, "low": {} }
+        },
+        "north-mini-code-free": {
+          "options": { "reasoningEffort": "high" },
+          "variants": { "high": {}, "low": {} }
+        }
+      }
+    }
+  },
+  "logLevel": "INFO"
 }

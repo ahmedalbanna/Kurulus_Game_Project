@@ -12,6 +12,7 @@ pub mod siege;
 pub mod naval;
 pub mod city;
 pub mod corule;
+pub mod population;
 
 pub use unit::*;
 pub use hero::*;
@@ -27,6 +28,7 @@ pub use siege::*;
 pub use naval::*;
 pub use city::*;
 pub use corule::*;
+pub use population::*;
 
 pub mod prelude {
     pub use crate::components::unit::*;
@@ -43,5 +45,6 @@ pub mod prelude {
     pub use crate::components::naval::*;
     pub use crate::components::city::*;
     pub use crate::components::corule::*;
+    pub use crate::components::population::*;
     // Re-export from unit module (Path, Destination already there via unit::*)
 }

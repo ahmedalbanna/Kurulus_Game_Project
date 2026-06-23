@@ -1,13 +1,24 @@
 use bevy::prelude::*;
 use bevy::math::IVec2;
 use kurulus_core::prelude::*;
+use kurulus_core::resources::world_map::{WorldMapHover, WorldMapSelection};
 use std::collections::HashMap;
+
+pub mod interaction;
+use interaction::*;
+
+pub mod scouting;
+use scouting::*;
 
 pub struct WorldMapPlugin;
 
 impl Plugin for WorldMapPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, world_map_setup_system)
+        app.init_resource::<WorldMapViewState>()
+            .init_resource::<WorldMapHover>()
+            .init_resource::<WorldMapSelection>()
+            .init_resource::<ScoutPartyCounter>()
+            .add_systems(Startup, world_map_setup_system)
             .add_systems(
                 FixedUpdate,
                 (
@@ -16,9 +27,31 @@ impl Plugin for WorldMapPlugin {
                     world_map_travel_system,
                     poi_discovery_system,
                     encounter_system,
+                    // Scouting systems in FixedUpdate for consistent timing
+                    scout_travel_system,
+                    scout_fog_reveal_system,
+                    scout_poi_discovery_system,
+                    scout_encounter_system,
                 )
                     .chain()
                     .in_set(SimulationSet::VisionCalculation),
+            )
+            // Input-driven systems run in Update for responsive input
+            .add_systems(
+                Update,
+                (
+                    world_map_toggle_system,
+                    world_map_camera_system,
+                    world_map_pan_system,
+                    world_map_zoom_system,
+                    world_map_hover_system,
+                    world_map_click_system,
+                    // Event-handling scouting systems in Update for responsiveness
+                    scout_spawn_system,
+                    scout_encounter_resolution_system,
+                    scout_recall_system,
+                    scout_recall_complete_system,
+                ),
             );
     }
 }

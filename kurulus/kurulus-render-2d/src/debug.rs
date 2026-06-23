@@ -229,5 +229,6 @@ fn zone_color(zone_type: ZoneType) -> Color {
         ZoneType::Economic => overlay_colors::ZONE_ECONOMIC,
         ZoneType::Religious => overlay_colors::ZONE_RELIGIOUS,
         ZoneType::Administrative => overlay_colors::ZONE_ADMIN,
+        ZoneType::Protection => overlay_colors::ZONE_PROTECTION,
     }
 }

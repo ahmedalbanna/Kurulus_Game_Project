@@ -2,6 +2,7 @@ pub mod sprite;
 pub mod camera;
 pub mod debug;
 pub mod building_sprites;
+pub mod world_map;
 
 use bevy::prelude::*;
 
@@ -14,6 +15,7 @@ impl Plugin for Render2DPlugin {
             camera::Camera2DPlugin,
             debug::DebugRenderPlugin,
             building_sprites::BuildingSpritePlugin,
+            world_map::WorldMapRenderPlugin,
         ));
     }
 }

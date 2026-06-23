@@ -8,6 +8,29 @@ use crate::components::{
     WorldTile,
 };
 
+/// World map tile size in world units (used for rendering).
+/// The grid is 48×36 tiles; at 2.0 units per tile the map is 96×72 units.
+pub const WORLD_MAP_CELL_SIZE: f32 = 2.0;
+
+/// State for the world map camera view (pan and zoom).
+#[derive(Resource, Reflect, Clone, Debug, Serialize, Deserialize)]
+#[reflect(Resource)]
+pub struct WorldMapViewState {
+    /// Current camera pan offset (world units relative to map centre)
+    pub pan_offset: Vec2,
+    /// Camera zoom level (1.0 = default — shows most of the map)
+    pub zoom: f32,
+}
+
+impl Default for WorldMapViewState {
+    fn default() -> Self {
+        Self {
+            pan_offset: Vec2::ZERO,
+            zoom: 1.0,
+        }
+    }
+}
+
 /// Global world map state — the strategic overworld layer.
 /// Stores the tile grid, region definitions, player position, and fog of war.
 #[derive(Resource, Reflect, Clone, Debug, Serialize, Deserialize)]
@@ -338,4 +361,25 @@ impl EncounterTemplate {
             position: IVec2::ZERO,
         }
     }
+}
+
+/// Tracks which tile/region/POI the mouse cursor is hovering over on the
+/// world map.  Updated each frame by `world_map_hover_system`.
+#[derive(Resource, Reflect, Clone, Debug, Serialize, Deserialize, Default)]
+#[reflect(Resource)]
+pub struct WorldMapHover {
+    /// Grid tile position currently under the cursor (if any)
+    pub hovered_tile: Option<IVec2>,
+    /// Region containing the hovered tile (if any)
+    pub hovered_region: Option<RegionId>,
+    /// POI at or near the hovered tile (if any)
+    pub hovered_poi: Option<PoiId>,
+}
+
+/// Tracks the currently selected region on the world map (set by left-click).
+#[derive(Resource, Reflect, Clone, Debug, Serialize, Deserialize, Default)]
+#[reflect(Resource)]
+pub struct WorldMapSelection {
+    /// The region the player has clicked on (if any)
+    pub selected_region: Option<RegionId>,
 }

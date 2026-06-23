@@ -5,7 +5,9 @@ use crate::components::{
     BuildingType, BuildCost,
     HeroId, AbilityId, AbilityType, TargetType, AbilityCost, AbilityEffect,
     MissionId, ObjectiveId, ObjectiveType, MissionRewards,
+    ZoneType,
 };
+use crate::resources::city::CityLevel;
 
 /// Configuration for the three-phase game loop transitions.
 #[derive(Resource, Clone, Debug, Serialize, Deserialize)]
@@ -174,4 +176,31 @@ pub struct ObjectiveDef {
     pub description: String,
     pub required_progress: f32,
     pub rewards: MissionRewards,
+}
+
+// ─── Zone Config Asset ──────────────────────────────────────────────────────
+
+/// Configures zone prices, unlock requirements, and level caps.
+/// Loaded from `assets/zones/zone_definitions.ron` at runtime.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ZoneConfigEntry {
+    pub zone_type: ZoneType,
+    pub unlocked: bool,
+    pub bonus_multiplier: f32,
+    pub placement_gold_cost: u32,
+    pub placement_wood_cost: u32,
+    pub upgrade_gold_cost: u32,
+    pub upgrade_wood_cost: u32,
+    pub max_level: u8,
+    pub max_district_size: u32,
+    pub color: [f32; 4],
+    pub required_city_level: CityLevel,
+    pub required_population: u32,
+    pub sp_cost: f32,
+}
+
+/// A list of zone config entries, loaded from a single RON asset.
+#[derive(Asset, TypePath, Clone, Debug, Serialize, Deserialize)]
+pub struct ZoneConfigList {
+    pub zones: Vec<ZoneConfigEntry>,
 }

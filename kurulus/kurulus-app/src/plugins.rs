@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use kurulus_core::prelude::*;
 use kurulus_systems::*;
+use kurulus_config::register_config_assets;
 
 /// Registers all plugins in the correct dependency order
 pub fn register_plugins(app: &mut App) {
@@ -12,6 +13,9 @@ pub fn register_plugins(app: &mut App) {
         app.add_plugins(RemotePlugin::default())
             .add_plugins(RemoteHttpPlugin::default());
     }
+
+    // === CONFIG ASSET LOADERS ===
+    register_config_assets(app);
 
     // === CORE SETUP ===
     app

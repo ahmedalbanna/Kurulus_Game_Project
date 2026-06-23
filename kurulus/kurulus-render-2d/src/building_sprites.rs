@@ -38,6 +38,7 @@ fn neutral_tint(zone_type: ZoneType) -> Color {
         ZoneType::Economic => Color::srgb(0.7, 0.7, 0.4),
         ZoneType::Religious => Color::srgb(0.4, 0.5, 0.7),
         ZoneType::Administrative => Color::srgb(0.6, 0.4, 0.7),
+        ZoneType::Protection => Color::srgb(0.5, 0.5, 0.5),
     }
 }
 
@@ -49,6 +50,7 @@ fn saturated_tint(zone_type: ZoneType) -> Color {
         ZoneType::Economic => overlay_colors::ZONE_ECONOMIC,
         ZoneType::Religious => overlay_colors::ZONE_RELIGIOUS,
         ZoneType::Administrative => overlay_colors::ZONE_ADMIN,
+        ZoneType::Protection => overlay_colors::ZONE_PROTECTION,
     }
 }
 

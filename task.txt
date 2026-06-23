@@ -1,0 +1,10 @@
+#### Week 5 — Core Loop & Unit Command
+
+- **Phase Transitions:** Event-driven transitions (`Planning` $\rightarrow$ `Execution` $\rightarrow$ `Harvest`).
+    
+- **Pathfinding:** $A^*$ pathfinding on `GridPos` using an 8-directional octile heuristic.
+    
+- **Movement:** * Free-form movement along computed paths with grid quantization.
+    
+    - Formation movement relative to the leader.
+        

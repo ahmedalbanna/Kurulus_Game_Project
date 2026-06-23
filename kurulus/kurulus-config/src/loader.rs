@@ -46,10 +46,12 @@ pub fn register_config_assets(app: &mut App) {
         .init_asset::<BuildingConfig>()
         .init_asset::<HeroConfig>()
         .init_asset::<MissionDef>()
+        .init_asset::<ZoneConfigList>()
         .register_asset_loader::<RonAssetLoader<UnitConfig>>(RonAssetLoader::default())
         .register_asset_loader::<RonAssetLoader<BuildingConfig>>(RonAssetLoader::default())
         .register_asset_loader::<RonAssetLoader<HeroConfig>>(RonAssetLoader::default())
-        .register_asset_loader::<RonAssetLoader<MissionDef>>(RonAssetLoader::default());
+        .register_asset_loader::<RonAssetLoader<MissionDef>>(RonAssetLoader::default())
+        .register_asset_loader::<RonAssetLoader<ZoneConfigList>>(RonAssetLoader::default());
 }
 
 // --- Error type ---

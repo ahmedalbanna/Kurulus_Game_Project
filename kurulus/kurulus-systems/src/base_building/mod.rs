@@ -55,6 +55,7 @@ fn complete_construction_system(
     mut commands: Commands,
     sites: Query<(Entity, &ConstructionSite, &Building, &WorldPosition)>,
     mut stockpile: ResMut<ResourceStockpile>,
+    slot_config: Option<Res<WorkerSlotConfig>>,
 ) {
     for (entity, site, building_template, pos) in sites.iter() {
         if site.progress < site.max_progress {
@@ -74,6 +75,19 @@ fn complete_construction_system(
             0
         };
         stockpile.max_population += pop_bonus;
+
+        // Attach WorkerSlot based on building type (if configured)
+        if let Some(ref config) = slot_config {
+            let ws = config.slot_for(building_template.building_type);
+            if ws.max_workers > 0 {
+                commands.entity(entity).insert(ws);
+            }
+        } else {
+            // Fallback: use the hardcoded default from WorkerSlot::for_building_type
+            if let Some(ws) = WorkerSlot::for_building_type(building_template.building_type) {
+                commands.entity(entity).insert(ws);
+            }
+        }
 
         // Remove ConstructionSite, keep Building and other components
         commands.entity(entity).remove::<ConstructionSite>();

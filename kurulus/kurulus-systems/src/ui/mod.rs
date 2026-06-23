@@ -7,6 +7,8 @@ use city_event_log::*;
 mod zone_legend;
 use zone_legend::*;
 
+pub mod world_map;
+
 pub struct UILogicPlugin;
 
 impl Plugin for UILogicPlugin {
@@ -27,6 +29,9 @@ impl Plugin for UILogicPlugin {
             .add_systems(Update, (
                 city_event_log_render_system,
                 zone_legend_render_system,
+                world_map::world_map_tooltip_system,
+                world_map::world_map_legend_system,
+                world_map::world_map_selection_panel_system,
             ));
     }
 }

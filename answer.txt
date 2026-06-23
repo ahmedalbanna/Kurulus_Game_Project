@@ -1,0 +1,26 @@
+Here are design and technical recommendations to address your open questions:
+
+### 1. Cross-zone Adjacency: Symmetric vs. Directional
+
+* **Recommendation:** **Symmetric ($A \leftrightarrow B$) by default, with Directional ($A \to B$) reserved for special landmarks/wonders.**
+* **Rationale:** Symmetric adjacency (e.g., if District A is next to District B, both benefit or share a mutual calculation) keeps the UI clean and intuitive for the player. Directional adjacency adds exponential complexity to tooltips and mental calculations. Unless a specific zone acts explicitly as a "supplier" to a "consumer" (e.g., an Outpost providing safety to a adjacent residential zone, but not vice-versa), keeping it symmetric makes grid calculations significantly cheaper performance-wise.
+
+### 2. Protection Zone vs. Existing Walls
+
+* **Recommendation:** **Optional Bonus (Walls work anywhere, but get a bonus in the Protection Zone).**
+* **Rationale:** Forcing walls to only exist within a designated Protection Zone severely limits player tactical expression and defensive creativity. Walls should be placing-flexible so players can block natural chokepoints. However, if built *inside* or *adjacent to* a Protection Zone cell, they should receive a passive modifier (e.g., +20% HP, automated garrison arrows, or reduced upkeep) to reward cohesive town planning.
+
+### 3. Max District Size: Hard Cap vs. Soft Cap
+
+* **Recommendation:** **Soft Cap (Diminishing returns / escalating costs beyond a threshold).**
+* **Rationale:** Hard caps can feel artificially restrictive in strategy and city-building games, creating frustrating artificial design boundaries. Instead, implement a soft cap using a diminishing returns curve on efficiency or an exponential increase in administrative/upkeep costs (e.g., increased crime, lower morale, or slower construction speeds for every cell added beyond the optimal size). This turns district enlargement into an interesting risk-vs-reward choice.
+
+### 4. RON Config Loading: Hot-reloadable vs. Startup Only
+
+* **Recommendation:** **Hot-reloadable in Development/Debug builds; Loaded once at Startup in Release builds.**
+* **Rationale:** During development, being able to tweak zone definitions, numbers, and balancing values in your RON configurations without restarting the game saves countless hours of iteration. However, hot-reloading introduces architectural overhead (polling files, safe state serialization). For final production builds, parse and cook these values into a static immutable structure once during the startup splash screen to optimize memory layout and runtime performance.
+
+### 5. Imperial Administration Integration Timing
+
+* **Recommendation:** **Wire the zone bonus hooks now using a decoupled, event-driven interface with placeholder/null implementations.**
+* **Rationale:** Deferring the hook entirely often leads to massive technical debt and painful refactoring when Season 6 content arrives, forcing you to rewrite your core zone validation loops later. By defining the interface now (e.g., exposing an `IEdictModifier` or `OnZoneEvaluated` hook that currently returns an un-modified fallback), you ensure your core systems are inherently designed to accept external modifiers down the line without breaking core code during implementation of System 18.

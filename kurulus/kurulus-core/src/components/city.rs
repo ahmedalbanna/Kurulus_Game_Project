@@ -4,7 +4,7 @@ use super::building::BuildingType;
 
 // ─── Zone Components ─────────────────────────────────────────────────────────
 
-/// Marks a building as belonging to a city zone district.
+/// Marks a zone cell as belonging to a city zone district.
 /// Zones provide adjacency bonuses to buildings of the same zone type.
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Zone {
@@ -12,10 +12,21 @@ pub struct Zone {
     pub level: u8,
 }
 
+/// Tracks which district this zone cell belongs to.
+/// Assigned by `district_detection_system` after flood-fill analysis.
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct DistrictMembership {
+    /// Unique identifier for the district this cell belongs to.
+    pub district_id: u32,
+    /// The zone type of the district (same as Zone.zone_type).
+    pub zone_type: ZoneType,
+}
+
 /// The type of city zone district.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, Default)]
 pub enum ZoneType {
     /// Houses, population capacity (Oba, upgraded Obas)
+    #[default]
     Residential,
     /// Barracks, ArcheryRange, Stable, SiegeWorkshop, Watchtower
     Military,
@@ -25,18 +36,72 @@ pub enum ZoneType {
     Religious,
     /// CouncilChamber, GuildHall
     Administrative,
+    /// Walls, Gates, fortifications — grants defensive bonuses to adjacent zones
+    Protection,
+}
+
+/// Numeric adjacency bonus effects for a zone district.
+/// Each field is a **multiplier** (1.0 = no bonus, 1.25 = +25%)
+/// unless noted as a flat bonus.
+/// A district's total bonus is computed from its size, average level,
+/// and the base multiplier defined in `ZoneDefinition`.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Reflect)]
+#[reflect(Serialize, Deserialize)]
+pub struct AdjacencyBonusEffect {
+    /// Multiplier for population growth rate (Residential districts).
+    pub population_growth_mult: f32,
+    /// Multiplier for military recruitment speed (Military districts).
+    pub recruit_speed_mult: f32,
+    /// Multiplier for resource/gold output (Economic districts).
+    pub resource_output_mult: f32,
+    /// Multiplier for faith generation (Religious districts).
+    pub faith_generation_mult: f32,
+    /// Flat happiness bonus added per tick (Administrative districts).
+    pub happiness_bonus: f32,
+    /// Flat crime reduction applied to adjacent zones (Protection districts).
+    pub crime_reduction: f32,
+    /// Multiplier for defensive building HP/reduced upkeep (Protection districts).
+    pub defense_bonus_mult: f32,
+}
+
+impl AdjacencyBonusEffect {
+    /// Zero bonus (all multipliers = 1.0, flat bonuses = 0.0).
+    pub fn none() -> Self {
+        Self::default()
+    }
 }
 
 impl ZoneType {
-    /// Returns the bonus this zone type gives to buildings within it.
-    /// Used for adjacency and same-zone bonuses.
-    pub fn adjacency_bonus(&self) -> &str {
+    /// Returns the primary numeric bonus this zone type provides.
+    /// The magnitude is scaled by district size and level at application time.
+    pub fn adjacency_bonus(&self) -> AdjacencyBonusEffect {
         match self {
-            ZoneType::Residential => "population_growth",
-            ZoneType::Military => "recruit_speed",
-            ZoneType::Economic => "resource_output",
-            ZoneType::Religious => "faith",
-            ZoneType::Administrative => "happiness",
+            ZoneType::Residential => AdjacencyBonusEffect {
+                population_growth_mult: 1.25,
+                ..Default::default()
+            },
+            ZoneType::Military => AdjacencyBonusEffect {
+                recruit_speed_mult: 1.30,
+                ..Default::default()
+            },
+            ZoneType::Economic => AdjacencyBonusEffect {
+                resource_output_mult: 1.25,
+                ..Default::default()
+            },
+            ZoneType::Religious => AdjacencyBonusEffect {
+                faith_generation_mult: 1.50,
+                ..Default::default()
+            },
+            ZoneType::Administrative => AdjacencyBonusEffect {
+                happiness_bonus: 5.0,
+                ..Default::default()
+            },
+            ZoneType::Protection => AdjacencyBonusEffect {
+                // Protection's primary effect is cross-zone crime reduction
+                // and defense bonus for walls. Applied via cross-zone synergy system.
+                defense_bonus_mult: 1.20,
+                ..Default::default()
+            },
         }
     }
 
@@ -64,8 +129,27 @@ impl ZoneType {
             ZoneType::Administrative => {
                 matches!(bt, BuildingType::CouncilChamber | BuildingType::GuildHall)
             }
+            ZoneType::Protection => matches!(
+                bt,
+                BuildingType::Palisade | BuildingType::StoneWall | BuildingType::Gate
+            ),
         }
     }
+}
+
+// ─── Cross-Zone Synergy Component ───────────────────────────────────────────
+
+/// A computed synergy bonus stored on a district entity when it is adjacent
+/// to a different zone type. Populated by `cross_zone_synergy_system`.
+#[derive(Component, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
+#[reflect(Component, Serialize, Deserialize)]
+pub struct CrossZoneSynergyEffect {
+    /// The other zone type this synergy comes from.
+    pub source_zone: ZoneType,
+    /// Combined effect from all adjacent cells of `source_zone`.
+    pub effect: AdjacencyBonusEffect,
+    /// Number of adjacency edges contributing to this synergy.
+    pub adjacency_count: u32,
 }
 
 // ─── Service Building Component ──────────────────────────────────────────────

@@ -88,6 +88,26 @@ pub struct EncounterTriggered {
     pub entity: Option<Entity>,
 }
 
+#[derive(Event, Clone, Debug)]
+pub struct ScoutOrdered {
+    /// Destination tile on the world map
+    pub destination: IVec2,
+}
+
+#[derive(Event, Clone, Debug)]
+pub struct RecallScout {
+    /// Which scout party to recall (entity)
+    pub scout_entity: Entity,
+}
+
+#[derive(Event, Clone, Debug)]
+pub struct ScoutEncounterResolved {
+    /// The scout party entity that was in an encounter
+    pub scout_entity: Entity,
+    /// Index into the encounter's choices array
+    pub choice_index: usize,
+}
+
 // --- Enums ---
 
 #[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
