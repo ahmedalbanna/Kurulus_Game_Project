@@ -45,7 +45,7 @@ pub struct BuildCost {
 
 // --- Enums ---
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum BuildingType {
     // Production
     Oba,           // Main tent / town center

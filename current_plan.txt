@@ -1,0 +1,1023 @@
+# Hero System — Architecture & Feature Breakdown Plan
+
+  
+
+## Executive Summary
+
+  
+
+The Hero System has a **solid foundation** (core `Hero` component, ability dispatch, XP/leveling, buff tick, hero switching with 10 tests) but has **significant gaps** between the current implementation and the GDD/feature specs. The plan below is organized into 5 phases: first fixing the foundation to match the design docs, then building outward to the advanced subsystems.
+
+  
+
+---
+
+  
+
+## 1. Current State Audit
+
+  
+
+### 1.1 What Exists & Works
+
+  
+
+| Area | Status | Location |
+
+|------|--------|----------|
+
+| `Hero` component | ✅ Core fields (hero_id, level, xp, skill_points, unlocked_abilities, active_cooldowns) | `kurulus-core/src/components/hero.rs` |
+
+| `Ability` component | ✅ Full (id, type, target, range, cooldown, cost, effect) | Same file |
+
+| `SkillTree` + `SkillNode` | ✅ Structure exists, but auto-unlocks (no player choice) | Same file |
+
+| `Buff` + `ActiveBuffs` | ✅ Duration ticking, stat bonuses | Same file |
+
+| `ActiveHero` resource | ✅ Tracks controlled hero | Same file |
+
+| `XpConfig` resource | ✅ XP thresholds | Same file |
+
+| Hero switching | ✅ Forward/backward/direct with 10 passing tests | `kurulus-systems/src/hero/mod.rs`, `kurulus-app/tests/hero_switch_tests.rs` |
+
+| 11 ability implementations | ✅ WarCry, SovereignStrike, LionsHeart, TacticalGenius, ShieldWall, CavalryCharge, FortressBuilder, AdministrativeMind, TaxReform, DiplomaticImmunity, CulturalRenaissance | `kurulus-systems/src/hero/mod.rs` |
+
+| Events | ✅ HeroLeveledUp, HeroSwitchEvent, AbilityUsed, HeroMomentTriggered, HeroMomentCompleted | `kurulus-core/src/events/` |
+
+| Config (RON) | ⚠️ Only `hero_osman.ron` — stats don't match GDD | `kurulus-config/assets/heroes/` |
+
+| TODO Plugin Stubs | ⚠️ NextGenHeroes, RomanceLoyalty, SuccessionLegacy, CoRule — all empty | `kurulus-systems/src/` |
+
+  
+
+### 1.2 Critical Gaps (Foundation)
+
+  
+
+| Gap | Impact | Details |
+
+|-----|--------|---------|
+
+| **HeroId enum mismatch** | 🔴 Blocks Turgut/Buran abilities | Code has Osman, Orhan, Alaeddin, Malhun, Bala, Turgut, Bamsi, Abdurrahman, Gunduz, Savci. Missing: `Buran`. The GDD's core 3 are Osman/Turgut/Buran. |
+
+| **Missing 12 abilities** | 🔴 Turgut (4) + Buran (4) + Osman partial rework needed | Turgut: GroundStrike, EarthquakeChallenge, IronWall, BullsWrath. Buran: FlamingArrow, BlindingShot, ShadowLightness, DeathVolley. |
+
+| **No per-hero stats** | 🔴 GDD specifies unique stat progressions per hero | `Hero` component has no HP/damage/defense/speed fields. Stats come from shared `Stats` component. |
+
+| **No hero resource system** | 🟡 Abilities cost `stamina` but GDD says hero-specific (Inspiration/Fury/Focus) | `AbilityCost.stamina` is generic. |
+
+| **Buff system bug** | 🔴 Stat inflation every frame | `buff_tick_system` adds `damage_bonus` to stats every tick without tracking baseline. |
+
+| **Tactical Genius bug** | 🟡 Buff applied to caster not affected units | `execute_tactical_genius` inserts buff on caster entity in the AoE loop. |
+
+| **Skill tree auto-unlocks** | 🟡 No player agency | `skill_tree_system` auto-unlocks first available node. GDD requires player choice. |
+
+| **No hero death/recovery flow** | 🟡 Knockout → 30s → Recovering → Dead chain missing | No KO timer, no death blow mechanic, no recovery system. |
+
+| **No equipment system** | 🟡 Full GDD spec exists (weapons, armor, accessories, rarity, crafting) but zero code. |
+
+| **No hero states component** | 🟡 No state machine for Idle/Moving/Attacking/Channeling/KO/Dead |
+
+| **XpConfig thresholds don't match GDD** | 🟡 Minor but should sync | GDD: 200→450→750→1200→1800→2500→3500→5000→7500. Code: 100→250→500→1000→1800→3000→5000→8000→12000. |
+
+| **Level cap is 10** | 🟡 GDD specifies 10 for v1, 45 for S6 expansion |
+
+  
+
+### 1.3 Critical Gaps (Advanced Systems — All TODO)
+
+  
+
+| Plugin | Systems (all TODO) |
+
+|--------|--------------------|
+
+| `NextGenHeroesPlugin` | `hero_legacy_system`, `hero_marriage_system`, `child_growth_system` |
+
+| `RomanceLoyaltyPlugin` | `loyalty_calculation_system`, `romance_progression_system`, `relationship_event_system` |
+
+| `SuccessionLegacyPlugin` | `succession_order_system`, `legacy_scoring_system`, `dynasty_tree_system` |
+
+| `CoRulePlugin` | `co_command_dispatch_system`, `trust_update_system`, `synergy_calculation_system`, `delegation_order_system` |
+
+  
+
+---
+
+  
+
+## 2. Proposed Architecture — Component Layout
+
+  
+
+### 2.1 Core Hero Component (`kurulus-core/src/components/hero.rs`)
+
+  
+
+```rust
+
+// Rework Hero to carry per-hero stats
+
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
+
+pub struct Hero {
+
+    pub hero_id: HeroId,
+
+    pub level: u8,
+
+    pub xp: u32,
+
+    pub skill_points: u8,
+
+    pub unlocked_abilities: Vec<AbilityId>,
+
+    pub active_cooldowns: HashMap<AbilityId, f32>,
+
+    pub resource_type: HeroResource,  // NEW: Inspiration/Fury/Focus
+
+    pub resource_current: f32,        // NEW: current resource
+
+    pub resource_max: f32,            // NEW: max resource
+
+    pub resource_regen: f32,          // NEW: regen per second
+
+    pub talent Choices: HashMap<u8, TalentChoice>,  // NEW: level → chosen talent
+
+    pub specialization: Option<SpecializationPath>, // NEW: chosen at lvl 8
+
+}
+
+  
+
+// NEW: Hero-specific resource types
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+
+pub enum HeroResource {
+
+    Inspiration,  // Osman
+
+    Fury,         // Turgut
+
+    Focus,        // Buran
+
+}
+
+  
+
+// NEW: Per-hero base stats (loaded from RON config)
+
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
+
+pub struct HeroStats {
+
+    pub base_health: f32,
+
+    pub base_damage: f32,
+
+    pub base_defense: f32,
+
+    pub base_speed: f32,
+
+    pub base_vision: f32,
+
+    pub base_attack_speed: f32,
+
+    pub health_per_level: f32,
+
+    pub damage_per_level: f32,
+
+    pub defense_per_level: f32,
+
+    pub damage_type: DamageType,       // Slash/Blunt/Pierce per hero
+
+}
+
+  
+
+// NEW: Equipment slots
+
+#[derive(Component, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
+
+pub struct Equipment {
+
+    pub weapon: Option<EquipmentItem>,
+
+    pub armor: Option<EquipmentItem>,
+
+    pub accessory_1: Option<EquipmentItem>,
+
+    pub accessory_2: Option<EquipmentItem>,  // unlocked at level 7
+
+}
+
+  
+
+#[derive(Clone, Debug, Serialize, Deserialize, Reflect)]
+
+pub struct EquipmentItem {
+
+    pub item_id: String,
+
+    pub name: String,
+
+    pub rarity: Rarity,
+
+    pub slot: EquipmentSlot,
+
+    pub stats: EquipmentStats,
+
+    pub passive_effect: Option<String>,
+
+}
+
+  
+
+// NEW: Hero state machine
+
+#[derive(Component, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+
+pub enum HeroState {
+
+    Idle,
+
+    Moving,
+
+    Running,
+
+    Attacking,
+
+    UsingAbility,
+
+    Channeling,
+
+    KnockedOut { timer: f32 },     // 30s countdown
+
+    Recovering { timer: f32 },     // 5s countdown
+
+    Dead,                           // for current mission
+
+}
+
+  
+
+// NEW: Hero death tracking (per-mission)
+
+#[derive(Component, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
+
+pub struct HeroDeathState {
+
+    pub is_dead_this_mission: bool,
+
+    pub knockout_timer: f32,
+
+    pub death_blow_chance: f32,
+
+}
+
+  
+
+// NEW: Named unit marker (distinct from Hero)
+
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
+
+pub struct NamedUnit {
+
+    pub unit_id: NamedUnitId,
+
+    pub is_permanently_dead: bool,  // Named units CAN permadeath
+
+}
+
+  
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+
+pub enum NamedUnitId {
+
+    KonurAlp,
+
+    Ayazbey,
+
+    BamsiBeyrek,
+
+    Salvador, // → AbuBakr after conversion
+
+    SalurAlp,
+
+}
+
+```
+
+  
+
+### 2.2 Updated Enums
+
+  
+
+```rust
+
+// Add Buran to HeroId
+
+pub enum HeroId {
+
+    Osman,
+
+    Turgut,
+
+    Buran,
+
+    // Season 2+ (future)
+
+    Orhan,
+
+    Alaeddin,
+
+    Fatma,
+
+    // Named units are NOT heroes — use NamedUnitId
+
+}
+
+  
+
+// Add Turgut + Buran abilities
+
+pub enum AbilityId {
+
+    // Osman
+
+    WarCry,           // Q — Active
+
+    CallOfTheTribe,   // W — Active (renamed from SovereignStrike for accuracy)
+
+    Lionheart,        // E — Passive
+
+    DreamOfTheTree,   // R — Ultimate
+
+    // Turgut
+
+    GroundStrike,     // Q — Active
+
+    EarthquakeChallenge, // W — Active
+
+    IronWall,         // E — Passive
+
+    BullsWrath,       // R — Ultimate
+
+    // Buran
+
+    FlamingArrow,     // Q — Active
+
+    BlindingShot,     // W — Active
+
+    ShadowLightness,  // E — Passive
+
+    DeathVolley,      // R — Ultimate
+
+}
+
+  
+
+// Talent system
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+
+pub enum TalentChoice {
+
+    OptionA,
+
+    OptionB,
+
+}
+
+  
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+
+pub enum SpecializationPath {
+
+    // Osman
+
+    Conquest, Sovereignty, Faith,
+
+    // Turgut
+
+    Mountain, Storm, Guardian,
+
+    // Buran
+
+    Fire, Shadow, Eye,
+
+}
+
+```
+
+  
+
+### 2.3 New Resources
+
+  
+
+```rust
+
+// Loot table for equipment drops
+
+#[derive(Resource, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
+
+pub struct EquipmentLootTable {
+
+    pub entries: Vec<LootEntry>,
+
+}
+
+  
+
+// Track hero death penalties across missions
+
+#[derive(Resource, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
+
+pub struct HeroDeathPenalties {
+
+    pub penalties: HashMap<HeroId, DeathPenalty>,
+
+}
+
+  
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
+
+pub struct DeathPenalty {
+
+    pub rating_loss: f32,        // -10% score
+
+    pub xp_loss: u32,           // XP lost this mission
+
+    pub morale_penalty: f32,    // -15 morale next mission
+
+}
+
+```
+
+  
+
+---
+
+  
+
+## 3. Systems Architecture
+
+  
+
+### 3.1 System Set Ordering
+
+  
+
+The hero systems should run within the existing `SimulationSet` ordering:
+
+  
+
+```
+
+InputProcessing → AbilityActivation → Movement → Combat → BuffApplication →
+
+ComponentCleanup
+
+```
+
+  
+
+**Hero systems mapped to sets:**
+
+  
+
+| System | Set | Notes |
+
+|--------|-----|-------|
+
+| `hero_resource_regen_system` | `SimulationSet::InputProcessing` | Regen resources each tick |
+
+| `hero_ability_system` | `SimulationSet::AbilityActivation` (new) | Validate & dispatch abilities |
+
+| `hero_state_machine_system` | `SimulationSet::Movement` | Transition hero states |
+
+| `hero_knockout_system` | `SimulationSet::Combat` | Handle KO → death blow → recovery |
+
+| `buff_tick_system` | `SimulationSet::BuffApplication` | Tick durations, apply/remove stats |
+
+| `hero_xp_system` | `SimulationSet::HarvestProcessing` | Award XP from kills/objectives |
+
+| `hero_level_up_system` | `SimulationSet::ComponentCleanup` | Check XP, grant levels |
+
+| `equipment_stat_system` | `SimulationSet::BuffApplication` | Apply equipment stat bonuses |
+
+| `hero_death_penalty_system` | `SimulationSet::ComponentCleanup` | Track death penalties |
+
+  
+
+### 3.2 Plugin Registration
+
+  
+
+```
+
+Group 1: Core Systems (1-8)
+
+  7. HeroPlugin  ←  expanded from current
+
+  
+
+Group 2: Feature Systems (9-16)
+
+  11. NextGenHeroesPlugin  ←  implement
+
+  12. RomanceLoyaltyPlugin  ←  implement
+
+  13. SuccessionLegacyPlugin  ←  implement
+
+  
+
+Group 3: Advanced Systems (17-22)
+
+  20. CoRulePlugin  ←  implement
+
+```
+
+  
+
+---
+
+  
+
+## 4. Phase-by-Phase Implementation Plan
+
+  
+
+### Phase 1: Foundation Fix (Critical — Do First)
+
+  
+
+**Goal:** Align code with GDD, fix bugs, make the core 3 heroes playable.
+
+  
+
+| # | Task | Files | Est. Complexity |
+
+|---|------|-------|----------------|
+
+| 1.1 | **Fix HeroId enum** — Remove Orhan/Alaeddin/Malhun/Bala/Abdurrahman/Gunduz/Savci. Keep Osman, Turgut, Buran. Add season-2+ heroes behind `#[cfg(feature = "season2")]` or just keep them for future. | `hero.rs` | Low |
+
+| 1.2 | **Add Buran's 4 abilities** — FlamingArrow (AoE fire DoT + reveal), BlindingShot (single target blind+silence), ShadowLightness (passive stealth after 3s still), Death Volley (20 arrows on area) | `hero/mod.rs` | Medium |
+
+| 1.3 | **Add Turgut's 4 abilities** — GroundStrike (AoE blunt + knockback), EarthquakeChallenge (leap + taunt + self-def buff), IronWall (passive damage reduction scaling with stillness), BullsWrath (dash + enrage) | `hero/mod.rs` | Medium |
+
+| 1.4 | **Rework Osman's abilities** to match GDD exactly — WarCry radius/effects, CallOfTheTribe (summon 5 alps), Lionheart (trigger at <30% HP, not manual), DreamOfTheTree (area reveal+buff) | `hero/mod.rs` | Medium |
+
+| 1.5 | **Add `HeroStats` component** — Per-hero base stats loaded from RON. Update stat calculations in ability system. | `hero.rs`, `hero/mod.rs` | Medium |
+
+| 1.6 | **Add `HeroResource` system** — Inspiration/Fury/Focus per hero. Replace generic `stamina` in `AbilityCost`. | `hero.rs` | Medium |
+
+| 1.7 | **Fix buff_tick_system stat inflation bug** — Track baseline stats, add/remove deltas instead of accumulating. | `hero/mod.rs` | Medium |
+
+| 1.8 | **Fix Tactical Genius buff target bug** — Insert buff on each affected unit, not caster. | `hero/mod.rs` | Low |
+
+| 1.9 | **Sync XpConfig thresholds** with GDD | `hero.rs` | Low |
+
+| 1.10 | **Add RON configs** for Turgut and Buran | `kurulus-config/assets/heroes/` | Low |
+
+  
+
+**Bug Details:**
+
+  
+
+**Buff stat inflation** (1.7): Currently `buff_tick_system` does:
+
+```rust
+
+stats.attack_damage = (stats.attack_damage + buff.damage_bonus).max(1.0);
+
+```
+
+This adds `damage_bonus` every tick. Fix: store original stats on buff application, restore on removal, or use a separate `EffectiveStats` computed resource.
+
+  
+
+**Tactical Genius target** (1.8): Line 455 inserts buff on `caster` instead of `_e` (the affected unit).
+
+  
+
+### Phase 2: Hero Progression & States
+
+  
+
+**Goal:** Implement talent choices, equipment, hero death flow, hero states.
+
+  
+
+| # | Task | Files | Est. Complexity |
+
+|---|------|-------|----------------|
+
+| 2.1 | **Add `HeroState` component + state machine** — Idle → Moving → Attacking → UsingAbility → Channeling. KO → Recovering → Dead transitions. | `hero.rs`, new `hero/state_machine.rs` | Medium |
+
+| 2.2 | **Implement talent choice system** — Player selects OptionA/OptionB at levels 6 and 10. Store choices in `Hero.talent_choices`. Apply talent modifiers to abilities. | `hero/mod.rs`, new `hero/talents.rs` | High |
+
+| 2.3 | **Implement specialization paths** — At level 8, player chooses one of 3 paths. Each path adds a unique ability + stat bonuses. | New `hero/specialization.rs` | High |
+
+| 2.4 | **Implement hero death flow** — HP→0 → KnockedOut (30s timer) → DeathBlow check → Dead OR Recovering (5s, 20% HP). Per-mission tracking. | New `hero/death.rs` | High |
+
+| 2.5 | **Implement equipment system** — Equipment component, 4 slots (weapon/armor/acc1/acc2). Stat application. Rarity tiers. | New `hero/equipment.rs` | High |
+
+| 2.6 | **Implement equipment crafting** — Blacksmith building integration. Recipes from GDD. Material costs. | New `hero/crafting.rs` | Medium |
+
+| 2.7 | **Implement equipment loot drops** — From enemy kills (5-100% chance by enemy type). | New `hero/loot.rs` | Medium |
+
+| 2.8 | **Implement hero resource regen** — Inspiration (+1/s, +3/s in combat), Fury (+0.8/s, +2 on hit taken), Focus (+1.5/s, +5 in stealth). | `hero/mod.rs` | Low |
+
+  
+
+### Phase 3: Named Units
+
+  
+
+**Goal:** Implement the 5 named units with unique passives and permadeath.
+
+  
+
+| # | Task | Files | Est. Complexity |
+
+|---|------|-------|----------------|
+
+| 3.1 | **Add `NamedUnit` component + `NamedUnitId` enum** | `hero.rs` | Low |
+
+| 3.2 | **Implement Konur Alp** — Light cavalry, Rider's Swiftness passive (+15% damage on charge, +20% speed on kill) | New `hero/named_units.rs` | Medium |
+
+| 3.3 | **Implement Ayazbey** — Archer, Hawk's Eye passive (+25% range, +5m stealth detection) | Same file | Medium |
+
+| 3.4 | **Implement Bamsı Beyrek** — Veteran infantry, Veteran's Cry aura (+15% morale, +10% defense to adjacent) | Same file | Low |
+
+| 3.5 | **Implement Salvador/Abu Bakr** — Heavy infantry, Roman Tactics passive (+15% defense aura, -10% siege damage taken). Name changes on conversion. | Same file | Medium |
+
+| 3.6 | **Implement Salur Alp** — Scout leader, Tribe's Eye passive (+20% scout range, +5% speed to squad) | Same file | Low |
+
+| 3.7 | **Permadeath system for named units** — If killed → removed for rest of campaign. Different from heroes (who return next mission). | `hero/named_units.rs` | Medium |
+
+| 3.8 | **Mission availability matrix** — GDD specifies which named units are available per mission. | `hero/named_units.rs` | Low |
+
+  
+
+### Phase 4: Advanced Hero Systems (TODO → Real)
+
+  
+
+**Goal:** Implement the 4 stubbed plugins.
+
+  
+
+| # | Task | Files | Est. Complexity |
+
+|---|------|-------|----------------|
+
+| 4.1 | **RomanceLoyaltyPlugin** — Relationship meters between characters. Loyalty calculations. Marriage mechanics. Choice impact system. | `romance_loyalty/mod.rs` | High |
+
+| 4.2 | **NextGenHeroesPlugin** — Hero legacy/lineage. Marriage alliances. Child growth system. | `next_gen_heroes/mod.rs` | High |
+
+| 4.3 | **SuccessionLegacyPlugin** — Succession order on ruler death. Legacy scoring. Dynasty tree tracking. | `succession_legacy/mod.rs` | High |
+
+| 4.4 | **CoRulePlugin** — Co-command dispatch. Trust updates. Synergy calculations. Delegation orders. | `corule/mod.rs` | High |
+
+| 4.5 | **Hero Moments system** — Trigger conditions, cinematic playback integration, rewards. | `hero/mod.rs` or new file | Medium |
+
+  
+
+### Phase 5: Expansion Systems (Future)
+
+  
+
+**Goal:** Season 6+ systems — Age, Ruler class, Level 45 cap.
+
+  
+
+| # | Task | Description |
+
+|---|------|-------------|
+
+| 5.1 | **Age Mechanic** — Youth→Warrior→Veteran→Elder→Sage stages. Combat stat penalties, strategic stat bonuses. |
+
+| 5.2 | **Ruler Classification** — Orhan/Alaeddin get "Ruler" class with expanded influence radius, Tier 6-8 abilities, level cap 45. |
+
+| 5.3 | **Osman's Decline** — Gradual stat reduction (HP, damage, defense, speed) from levels 30→45. Wisdom stat introduced. |
+
+| 5.4 | **Osman's Legacy Abilities** — Post-death permanent buffs (Eternal Tree Dream, Founder's Blessing, etc.) |
+
+| 5.5 | **Level Cap 45 expansion** — XP table extension, Ruler talent trees at 32/36/41. |
+
+  
+
+---
+
+  
+
+## 5. Data Layout — Entity Component Design
+
+  
+
+### Hero Entity Composition
+
+  
+
+```
+
+Entity: Osman
+
+├── Hero { hero_id: Osman, level: 5, xp: 800, ... }
+
+├── HeroStats { base_health: 1200, base_damage: 35, ... }
+
+├── HeroState::Idle
+
+├── HeroDeathState::default()
+
+├── Unit { archetype: HeavyInfantry, faction: Kayi, ... }
+
+├── Health { current: 1800, max: 1800, armor: 35, ... }
+
+├── Stats { move_speed: 3.2, attack_damage: 50, ... }
+
+├── ActiveBuffs { buffs: [...] }
+
+├── Equipment { weapon: Some(DamascusSword), armor: Some(LeatherArmor), ... }
+
+├── SkillTree { hero_id: Osman, nodes: [...], available_points: 2 }
+
+├── WorldPosition(IVec2(10, 15))
+
+├── GridPos(IVec2(10, 15))
+
+├── Selected (when player selects)
+
+└── [Optional] CoCommand { primary: Entity, secondary: Entity, ... }
+
+```
+
+  
+
+### Named Unit Entity Composition
+
+  
+
+```
+
+Entity: KonurAlp
+
+├── NamedUnit { unit_id: KonurAlp, is_permanently_dead: false }
+
+├── Unit { archetype: LightCavalry, faction: Kayi, ... }
+
+├── Health { current: 250, max: 250, armor: 15, ... }
+
+├── Stats { move_speed: 5.2, attack_damage: 22, ... }
+
+├── WorldPosition(...)
+
+└── GridPos(...)
+
+```
+
+  
+
+### Resource Dependencies
+
+  
+
+```
+
+XpConfig (Resource)
+
+  └── read by: hero_level_up_system
+
+  
+
+ActiveHero (Resource)
+
+  └── read by: hero_switch_system, UI systems
+
+  
+
+AdministrativeMindBuff (Resource)
+
+  └── read/written by: admin_mind_tick_system, execute_administrative_mind
+
+  
+
+CulturalRenaissanceBuff (Resource)
+
+  └── read/written by: cultural_renaissance_tick_system, execute_cultural_renaissance
+
+  
+
+HeroDeathPenalties (Resource) — NEW
+
+  └── read/written by: hero_death_penalty_system
+
+  
+
+EquipmentLootTable (Resource) — NEW
+
+  └── read by: loot drop system
+
+  
+
+TrustMatrix (Resource) — exists
+
+  └── read/written by: CoRulePlugin systems
+
+  
+
+CoCommandState (Resource) — exists
+
+  └── read/written by: CoRulePlugin systems
+
+```
+
+  
+
+---
+
+  
+
+## 6. Threading & Lifetime Risks
+
+  
+
+| Risk | Mitigation |
+
+|------|------------|
+
+| `buff_tick_system` mutates both `ActiveBuffs` and `Stats` in same query — B0001 conflict with other systems that read Stats | Split into two systems: one to tick durations (read Stats, write ActiveBuffs), one to apply stat modifiers (write Stats via a `StatModifier` resource) |
+
+| `hero_ability_system` takes 13 parameters — potential B0003/B0005 conflicts | Already using two-phase approach (collect activations, then execute). Continue this pattern. Consider `SystemParam` derive for grouping. |
+
+| `equipment_stat_system` writing to `Stats` while `buff_tick_system` also writes to `Stats` | Use an `EffectiveStats` computed resource updated once per frame, or order systems strictly via system sets |
+
+| `Hero.active_cooldowns: HashMap<AbilityId, f32>` — HashMap iteration during mutation | Use `iter_mut()` pattern which is safe in Bevy ECS |
+
+| Co-rule systems need to access two hero entities simultaneously | Use `Query::get()` with explicit entity IDs from `CoCommand` component, not parallel iteration |
+
+| Named unit permadeath persists across missions — needs save/load support | Store in `CampaignState` resource, serialize with `serde` |
+
+  
+
+---
+
+  
+
+## 7. Testing Strategy
+
+  
+
+### Existing Tests (keep & extend)
+
+- `hero_switch_tests.rs` — 10 tests for hero cycling. Add cases for KO heroes, dead heroes.
+
+  
+
+### New Test Files Needed
+
+  
+
+| File | Tests | Coverage |
+
+|------|-------|----------|
+
+| `hero_ability_tests.rs` | Test each ability: cost deduction, cooldown application, buff application, effect values | 12+ tests |
+
+| `hero_leveling_tests.rs` | XP gain, level-up thresholds, skill point grants, stat growth | 8+ tests |
+
+| `hero_death_tests.rs` | Knockout timer, death blow chance, recovery, cross-mission reset | 8+ tests |
+
+| `buff_system_tests.rs` | Buff stacking, duration expiry, stat restoration (no inflation) | 6+ tests |
+
+| `equipment_tests.rs` | Equip/unequip, stat bonuses, rarity effects, crafting | 10+ tests |
+
+| `named_unit_tests.rs` | Permadeath, mission availability, passive effects | 6+ tests |
+
+| `talent_tests.rs` | Talent selection at correct levels, effect application, reset | 6+ tests |
+
+  
+
+---
+
+  
+
+## 8. Key Design Decisions to Confirm
+
+  
+
+Before implementation, these should be resolved:
+
+  
+
+1. **HeroId alignment**: Should we keep the extra hero IDs (Orhan, Alaeddin, etc.) in the enum for forward compatibility, or strip them to just Osman/Turgut/Buran and add later? *Recommendation: Keep them — they're harmless and prevent future enum migration.*
+
+  
+
+2. **Buff baseline tracking**: Two approaches:
+
+   - **(A) Store baseline stats on entity** — Add `BaseStats` component, `Stats` is always derived. Clean but requires recalculation.
+
+   - **(B) StatModifier resource** — Centralized stat modification queue processed once per frame. More Bevy-idiomatic but more complex.
+
+   *Recommendation: (A) — simpler, less cross-system coupling.*
+
+  
+
+3. **Equipment RON config format**: Should equipment be defined in per-hero RON files or a global equipment catalog?
+
+   *Recommendation: Global catalog (`equipment.ron`) + per-hero loadout reference.*
+
+  
+
+4. **Named units: separate plugin or inside HeroPlugin?**
+
+   *Recommendation: Inside HeroPlugin — they share stat/combat infrastructure and are not complex enough to warrant a separate crate.*
+
+  
+
+5. **Talent choice UX**: How does the player select talents? Full-screen UI? Quick-select popup?
+
+   *Recommendation: Quick-select popup on level-up (2-3 options), pausing the game briefly. Implement as event-driven UI trigger.*
+
+  
+
+---
+
+  
+
+## 9. File Change Summary
+
+  
+
+| Crate | Files to Modify | Files to Create |
+
+|-------|----------------|-----------------|
+
+| `kurulus-core` | `components/hero.rs`, `components/mod.rs` | — |
+
+| `kurulus-systems` | `hero/mod.rs` | `hero/state_machine.rs`, `hero/talents.rs`, `hero/specialization.rs`, `hero/death.rs`, `hero/equipment.rs`, `hero/crafting.rs`, `hero/loot.rs`, `hero/named_units.rs` |
+
+| `kurulus-config` | — | `assets/heroes/hero_turgut.ron`, `assets/heroes/hero_buran.ron`, `assets/equipment.ron` |
+
+| `kurulus-app/tests` | `hero_switch_tests.rs` (extend) | `hero_ability_tests.rs`, `hero_leveling_tests.rs`, `hero_death_tests.rs`, `buff_system_tests.rs`, `equipment_tests.rs`, `named_unit_tests.rs`, `talent_tests.rs` |
+
+  
+
+---
+
+  
+
+## 10. Recommended Implementation Order
+
+  
+
+```
+
+Phase 1.1-1.3  →  HeroId fix + Turgut/Buran abilities     [1-2 days]
+
+Phase 1.4-1.6  →  Osman rework + HeroStats + HeroResource [1-2 days]
+
+Phase 1.7-1.8  →  Bug fixes (buff inflation, tact. genius) [0.5 day]
+
+Phase 1.9-1.10 →  XpConfig sync + RON configs              [0.5 day]
+
+Phase 2.1      →  HeroState machine                        [1 day]
+
+Phase 2.4      →  Hero death flow                          [1 day]
+
+Phase 2.8      →  Hero resource regen                      [0.5 day]
+
+Phase 2.2-2.3  →  Talent choices + Specialization          [2 days]
+
+Phase 2.5-2.7  →  Equipment system                         [3 days]
+
+Phase 3.1-3.8  →  Named units                              [2 days]
+
+Phase 4.1-4.5  →  Advanced systems (4 plugins)             [5-8 days]
+
+Phase 5        →  Expansion systems (defer to later)       [deferred]
+
+                ─────────────────────────────────────────
+
+                TOTAL (Phases 1-4):                        ~18-25 days
+
+```
+
+  
+
+---
+
+  
+
+This plan provides a structured path from the current working foundation to a complete Hero System that matches the GDD specifications. The critical path is Phase 1 (foundation fix) — everything else builds on top of correct core data structures.

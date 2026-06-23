@@ -78,6 +78,7 @@ fn spawn_m2_minimal(app: &mut App) {
             skill_points: 0,
             unlocked_abilities: vec![],
             active_cooldowns: HashMap::new(),
+            ..Default::default()
         },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
         WorldPosition::new(IVec2::new(5, 5), CELL_SIZE),
@@ -96,6 +97,7 @@ fn spawn_m2_minimal(app: &mut App) {
             skill_points: 0,
             unlocked_abilities: vec![],
             active_cooldowns: HashMap::new(),
+            ..Default::default()
         },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
         WorldPosition::new(IVec2::new(3, 5), CELL_SIZE),

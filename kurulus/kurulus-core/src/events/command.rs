@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use crate::coord::GridPos;
-use crate::components::{BuildingType, ZoneType, UnitArchetype, AbilityId};
+use crate::components::{BuildingType, ZoneType, UnitArchetype, AbilityId, FormationType, CombatStance};
 
 #[derive(Event, Clone, Debug)]
 pub struct MoveOrder {
@@ -92,4 +92,57 @@ pub struct HeroSwitchEvent {
     pub direction: Option<HeroSwitchDirection>,
     /// If `direction` is `None`, switch directly to this hero entity.
     pub target: Option<Entity>,
+}
+
+// ─── Phase B: Core Command Events ──────────────────────────────────────────
+
+/// Stop: clear movement, cancel current action, hold position.
+#[derive(Event, Clone, Debug)]
+pub struct StopCommand {
+    pub entity: Entity,
+}
+
+/// Hold: stay in place, auto-engage enemies within attack range.
+#[derive(Event, Clone, Debug)]
+pub struct HoldCommand {
+    pub entity: Entity,
+}
+
+/// Retreat: flee toward a safe direction or toward the nearest owned structure.
+#[derive(Event, Clone, Debug)]
+pub struct RetreatCommand {
+    pub entity: Entity,
+    /// Optional retreat direction. If `None`, the unit picks a direction away
+    /// from the nearest visible enemy.
+    pub direction: Option<Vec2>,
+}
+
+/// Scatter: move a short random distance from the current position.
+/// Used to break formations under ranged fire or to avoid AoE.
+#[derive(Event, Clone, Debug)]
+pub struct ScatterCommand {
+    pub entity: Entity,
+}
+
+/// Assign a formation type to the entity.
+/// The formation positioning system (Phase D) computes slot offsets later.
+#[derive(Event, Clone, Debug)]
+pub struct FormationCommand {
+    pub entity: Entity,
+    pub formation: FormationType,
+}
+
+/// Change the combat stance of the entity.
+#[derive(Event, Clone, Debug)]
+pub struct StanceChangeCommand {
+    pub entity: Entity,
+    pub stance: CombatStance,
+}
+
+/// Attack-Move: move to a grid position. If an enemy is encountered en route,
+/// auto-engage (switch to attack mode) without completing the full path.
+#[derive(Event, Clone, Debug)]
+pub struct AttackMoveOrder {
+    pub entity: Entity,
+    pub target: GridPos,
 }

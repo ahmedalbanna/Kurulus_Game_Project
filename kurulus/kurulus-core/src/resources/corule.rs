@@ -2,7 +2,8 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use crate::components::corule::DelegationOrder;
 
-#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
+#[derive(Resource, Clone, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(Resource)]
 pub struct CoCommandState {
     pub active: bool,
     pub primary_hero: Option<Entity>,
@@ -23,7 +24,8 @@ impl Default for CoCommandState {
     }
 }
 
-#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
+#[derive(Resource, Clone, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(Resource)]
 pub struct TrustMatrix {
     pub trust_values: Vec<(Entity, Entity, f32)>,
 }
@@ -36,7 +38,7 @@ impl Default for TrustMatrix {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Reflect)]
 pub struct DelegationLog {
     pub order: DelegationOrder,
     pub timestamp: f32,

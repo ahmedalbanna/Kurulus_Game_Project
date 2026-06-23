@@ -1,26 +1,33 @@
-Here are design and technical recommendations to address your open questions:
+Here is a technical assessment and architecture feedback for your recommendations regarding the open questions in **Section 12**:
 
-### 1. Cross-zone Adjacency: Symmetric vs. Directional
+### 1. Selection Events from Render Layer
 
-* **Recommendation:** **Symmetric ($A \leftrightarrow B$) by default, with Directional ($A \to B$) reserved for special landmarks/wonders.**
-* **Rationale:** Symmetric adjacency (e.g., if District A is next to District B, both benefit or share a mutual calculation) keeps the UI clean and intuitive for the player. Directional adjacency adds exponential complexity to tooltips and mental calculations. Unless a specific zone acts explicitly as a "supplier" to a "consumer" (e.g., an Outpost providing safety to a adjacent residential zone, but not vice-versa), keeping it symmetric makes grid calculations significantly cheaper performance-wise.
+* **Verdict:** **Strong Agree.** * **Architectural Impact:** Placing `SelectEvent` or `InteractionEvent` variants in `kurulus-core` is the clean, idiomatic way to handle decoupling. Render crates are cross-platform wrappers meant only to convert raw window OS pointer/touch events into meaningful domain abstractions. By pushing raw screen raycasts down to render crates and emitting a shared core event, your simulation state logic inside `kurulus-systems` stays entirely decoupled from your engine internals (e.g., whether you use Bevy or a custom backend).
 
-### 2. Protection Zone vs. Existing Walls
+### 2. FormationType `Skirmish` vs `Scatter`
 
-* **Recommendation:** **Optional Bonus (Walls work anywhere, but get a bonus in the Protection Zone).**
-* **Rationale:** Forcing walls to only exist within a designated Protection Zone severely limits player tactical expression and defensive creativity. Walls should be placing-flexible so players can block natural chokepoints. However, if built *inside* or *adjacent to* a Protection Zone cell, they should receive a passive modifier (e.g., +20% HP, automated garrison arrows, or reduced upkeep) to reward cohesive town planning.
+* **Verdict:** **Agree.** * **Architectural Impact:** Consistency with the Design Document (GDD) specification (`مبعثر`) takes precedence. Keeping dead structural aliases like `Skirmish` can introduce code ambiguity for future developers reading the matching logic or configuring data files. Running a quick automated refactor across the 5+ affected test suites prevents technical debt from mounting during early implementation stages.
 
-### 3. Max District Size: Hard Cap vs. Soft Cap
+### 3. Patrol Route Mechanics
 
-* **Recommendation:** **Soft Cap (Diminishing returns / escalating costs beyond a threshold).**
-* **Rationale:** Hard caps can feel artificially restrictive in strategy and city-building games, creating frustrating artificial design boundaries. Instead, implement a soft cap using a diminishing returns curve on efficiency or an exponential increase in administrative/upkeep costs (e.g., increased crime, lower morale, or slower construction speeds for every cell added beyond the optimal size). This turns district enlargement into an interesting risk-vs-reward choice.
+* **Verdict:** **Agree with an Architectural Caveat.** * **Architectural Impact:** Starting with a 2-point ping-pong mechanic handles Phase B scope brilliantly without over-engineering the movement state machines. However, instead of rewriting the structure later, define your component array structure right now to support multiple elements:
 
-### 4. RON Config Loading: Hot-reloadable vs. Startup Only
+```rust
+pub struct PatrolRoute {
+    pub waypoints: Vec<Vec3>, // Will only contain 2 elements for now
+    pub current_index: usize,
+}
 
-* **Recommendation:** **Hot-reloadable in Development/Debug builds; Loaded once at Startup in Release builds.**
-* **Rationale:** During development, being able to tweak zone definitions, numbers, and balancing values in your RON configurations without restarting the game saves countless hours of iteration. However, hot-reloading introduces architectural overhead (polling files, safe state serialization). For final production builds, parse and cook these values into a static immutable structure once during the startup splash screen to optimize memory layout and runtime performance.
+```
 
-### 5. Imperial Administration Integration Timing
+This costs nothing to implement initially, ensures your systems read index-based navigation hooks immediately, and seamlessly scales to multi-waypoint logic later without modifying data schemas.
 
-* **Recommendation:** **Wire the zone bonus hooks now using a decoupled, event-driven interface with placeholder/null implementations.**
-* **Rationale:** Deferring the hook entirely often leads to massive technical debt and painful refactoring when Season 6 content arrives, forcing you to rewrite your core zone validation loops later. By defining the interface now (e.g., exposing an `IEdictModifier` or `OnZoneEvaluated` hook that currently returns an un-modified fallback), you ensure your core systems are inherently designed to accept external modifiers down the line without breaking core code during implementation of System 18.
+### 4. Formation Facing Direction
+
+* **Verdict:** **Agree.**
+* **Architectural Impact:** Having units automatically rotate to orient their forward vector along their active navigation trajectory prevents clunky visual micro-management on mobile layouts. Overriding with a deliberate rotation function (`Tab + Drag` or touch rotation wheel) can be hooked up directly to your `MoveCommand` event payload once the tactile UI requirements are tackled in later development sprint milestones.
+
+### 5. Garrison Postponement
+
+* **Verdict:** **Strong Agree.**
+* **Architectural Impact:** Deferring garrison systems minimizes scope creep. Core movement systems, pathfinding constraints, and basic combat loops are critical paths. Postponing target collection wrappers and spatial nesting logic (putting units inside structures) preserves developer velocity for more important tasks.

@@ -1,6 +1,11 @@
 use bevy::prelude::*;
 use kurulus_core::prelude::*;
 
+pub mod state_death;
+pub mod talents;
+pub mod equipment;
+pub mod named_units;
+
 #[derive(Event, Clone, Debug)]
 pub struct HeroLeveledUp {
     pub hero: Entity,
@@ -15,12 +20,54 @@ impl Plugin for HeroPlugin {
             .init_resource::<AdministrativeMindBuff>()
             .init_resource::<CulturalRenaissanceBuff>()
             .init_resource::<ActiveHero>()
+            .init_resource::<HeroDeathPenalties>()
+            .init_resource::<equipment::RecipeDatabase>()
+            .init_resource::<EquipmentLootTable>()
+            .init_resource::<NamedUnitRoster>()
             .add_event::<HeroLeveledUp>()
             .add_event::<HeroSwitchEvent>()
+            .add_event::<HeroKnockedOut>()
+            .add_event::<HeroRecovering>()
+            .add_event::<HeroReturnedToIdle>()
+            .add_event::<HeroKilledInMission>()
+            .add_event::<HeroDeathBlow>()
+            .add_event::<TalentChoiceRequest>()
+            .add_event::<TalentChoiceSelected>()
+            .add_event::<SpecializationRequest>()
+            .add_event::<SpecializationSelected>()
+            .add_event::<state_death::DeathBlowAttempt>()
+            // ── Phase 2.5-2.7: Equipment events ──
+            .add_event::<equipment::EquipItem>()
+            .add_event::<equipment::UnequipItem>()
+            .add_event::<equipment::ItemUnequipped>()
+            .add_event::<equipment::CraftItem>()
+            .add_event::<equipment::ItemCrafted>()
+            .add_event::<equipment::CraftingFailed>()
+            .add_event::<equipment::LootDropped>()
+            // ── Phase 3: Named unit events ──
+            .add_event::<named_units::NamedUnitKilled>()
             .register_type::<ActiveHero>()
+            .register_type::<HeroDeathPenalties>()
+            .register_type::<DeathPenalty>()
+            .register_type::<Equipment>()
+            .register_type::<EquipmentItem>()
+            .register_type::<EquipmentSlot>()
+            .register_type::<Rarity>()
+            .register_type::<EquipmentStats>()
+            .register_type::<HeroState>()
+            .register_type::<HeroDeathState>()
+            .register_type::<NamedUnit>()
+            .register_type::<EquipmentLootTable>()
+            .register_type::<equipment::RecipeDatabase>()
+            .register_type::<equipment::CraftingRecipe>()
+            .register_type::<NamedUnitAbilities>()
+            .register_type::<NamedUnitStatsBlock>()
+            .register_type::<NamedUnitRoster>()
+            .register_type::<NamedUnitAbilityId>()
             .add_systems(
                 FixedUpdate,
                 (
+                    hero_resource_regen_system,
                     buff_tick_system,
                     xp_gain_system,
                     level_up_system,
@@ -31,27 +78,75 @@ impl Plugin for HeroPlugin {
                     cultural_renaissance_tick_system,
                     hero_switch_system,
                 ),
-            );
+            )
+            // ── Phase 2: State machine + death flow ──
+            .add_systems(FixedUpdate, (
+                state_death::hero_state_machine_system,
+                state_death::hero_death_penalty_system,
+            ))
+            // ── Phase 2: Talent + specialization ──
+            .add_systems(FixedUpdate, (
+                talents::hero_talent_request_system,
+                talents::hero_talent_apply_system,
+                talents::hero_specialization_apply_system,
+            ))
+            // ── Phase 2.5-2.7: Equipment + Crafting + Loot ──
+            .add_systems(FixedUpdate, (
+                equipment::equip_item_system,
+                equipment::unequip_item_system,
+                equipment::equipment_apply_system,
+                equipment::crafting_system,
+                equipment::loot_drop_system,
+            ))
+            // ── Phase 3: Named units ──
+            .add_systems(FixedUpdate, (
+                named_units::named_unit_stats_system,
+                named_units::named_unit_permadeath_system,
+                named_units::named_unit_ability_system,
+            ))
+            // Initialize recipes, loot table, and named unit roster on startup
+            .add_systems(Startup, (
+                equipment::initialize_recipes,
+                equipment::initialize_loot_table,
+                named_units::initialize_named_unit_roster,
+            ));
+    }
+}
+
+// ─── Hero resource regen ────────────────────────────────────────────────────
+
+/// Regenerates hero-specific ability resources each tick.
+/// Osman (Inspiration): +1/s base, +3/s in combat
+/// Turgut (Fury): +0.8/s base, +2 on taking damage (handled by combat system)
+/// Buran (Focus): +1.5/s base, +5 while stealthed and stationary (handled by stealth system)
+fn hero_resource_regen_system(
+    time: Res<bevy::time::Time<bevy::time::Fixed>>,
+    mut heroes: Query<&mut Hero>,
+) {
+    let delta = time.delta_secs();
+    for mut hero in heroes.iter_mut() {
+        let regen_amount = hero.resource_regen * delta;
+        hero.resource_current = (hero.resource_current + regen_amount).min(hero.resource_max);
     }
 }
 
 // ─── Buff system ────────────────────────────────────────────────────────────
 
 /// Ticks all active buff durations and removes expired ones.
+/// NOTE: Stat bonuses from buffs are applied ONCE at buff creation time
+/// (in the ability execute functions). The tick system does NOT modify stats
+/// to avoid cumulative inflation. Buff removal is handled by removal handlers.
 fn buff_tick_system(
     time: Res<bevy::time::Time<bevy::time::Fixed>>,
     mut commands: Commands,
-    mut entities: Query<(Entity, &mut ActiveBuffs, &mut Stats)>,
+    mut entities: Query<(Entity, &mut ActiveBuffs)>,
 ) {
-    for (_entity, mut active_buffs, mut stats) in entities.iter_mut() {
+    for (_entity, mut active_buffs) in entities.iter_mut() {
         let delta = time.delta_secs();
         let mut expired = Vec::new();
 
         for (i, buff) in active_buffs.buffs.iter_mut().enumerate() {
             buff.duration -= delta;
-            stats.attack_damage = (stats.attack_damage + buff.damage_bonus).max(1.0);
-            stats.attack_speed = (stats.attack_speed + buff.attack_speed_bonus).max(0.1);
-
             if buff.duration <= 0.0 {
                 expired.push(i);
             }
@@ -179,14 +274,14 @@ fn skill_tree_system(mut heroes: Query<(&mut Hero, &mut SkillTree)>) {
 fn skill_node_to_ability(node: SkillNodeId) -> Option<AbilityId> {
     match node {
         // Osman tree
-        SkillNodeId::SwordMastery => Some(AbilityId::SovereignStrike),
+        SkillNodeId::SwordMastery => Some(AbilityId::CallOfTheTribe),
         SkillNodeId::LeaderAura => Some(AbilityId::WarCry),
         SkillNodeId::GuerrillaTactics => None,
         SkillNodeId::WarLeadership => None,
-        SkillNodeId::TribalUnity => Some(AbilityId::LionsHeart),
+        SkillNodeId::TribalUnity => Some(AbilityId::Lionheart),
         SkillNodeId::EpicWarcry => Some(AbilityId::WarCry),
-        SkillNodeId::ShadowStrike => Some(AbilityId::SovereignStrike),
-        SkillNodeId::Sovereignty => Some(AbilityId::TreesVision),
+        SkillNodeId::ShadowStrike => Some(AbilityId::CallOfTheTribe),
+        SkillNodeId::Sovereignty => Some(AbilityId::DreamOfTheTree),
         // Orhan tree
         SkillNodeId::SiegeMastery => Some(AbilityId::FortressBuilder),
         SkillNodeId::ArmyOrganization => Some(AbilityId::TacticalGenius),
@@ -201,6 +296,16 @@ fn skill_node_to_ability(node: SkillNodeId) -> Option<AbilityId> {
         SkillNodeId::CulturalPatronage => Some(AbilityId::CulturalRenaissance),
         SkillNodeId::LegalCode => Some(AbilityId::TaxReform),
         SkillNodeId::GrandVizier => Some(AbilityId::AdministrativeMind),
+        // Turgut tree
+        SkillNodeId::GroundPounder => Some(AbilityId::GroundStrike),
+        SkillNodeId::Unyielding => Some(AbilityId::IronWall),
+        SkillNodeId::BattleRoar => Some(AbilityId::EarthquakeChallenge),
+        SkillNodeId::StoneSkin => Some(AbilityId::IronWall),
+        // Buran tree
+        SkillNodeId::EagleEye => Some(AbilityId::BlindingShot),
+        SkillNodeId::SilentStep => Some(AbilityId::ShadowLightness),
+        SkillNodeId::EmberArrow => Some(AbilityId::FlamingArrow),
+        SkillNodeId::ShadowForm => Some(AbilityId::ShadowLightness),
     }
 }
 
@@ -260,7 +365,7 @@ fn hero_ability_system(
             AbilityId::WarCry => {
                 execute_warcry(&mut commands, act.caster, &act.hero_pos, &mut stats_q)
             }
-            AbilityId::SovereignStrike => execute_sovereign_strike(
+            AbilityId::CallOfTheTribe => execute_sovereign_strike(
                 &mut commands,
                 act.caster,
                 &act.hero_pos,
@@ -268,10 +373,10 @@ fn hero_ability_system(
                 &units,
                 &mut damage_events,
             ),
-            AbilityId::LionsHeart => {
+            AbilityId::Lionheart => {
                 execute_lions_heart(&mut commands, act.caster, &act.hero_pos, &mut healths)
             }
-            AbilityId::TreesVision => 45.0,
+            AbilityId::DreamOfTheTree => 45.0,
             // Orhan
             AbilityId::TacticalGenius => execute_tactical_genius(
                 &mut commands,
@@ -321,6 +426,32 @@ fn hero_ability_system(
                 &mut heroes,
                 &mut renaissance,
             ),
+            // Turgut (not yet implemented — stubs return placeholder cooldowns)
+            AbilityId::GroundStrike => {
+                execute_ground_strike(&mut commands, act.caster, &act.hero_pos, &units, &mut damage_events)
+            }
+            AbilityId::EarthquakeChallenge => {
+                execute_earthquake_challenge(&mut commands, act.caster, &act.hero_pos, &units, &mut stats_q, &mut damage_events)
+            }
+            AbilityId::IronWall => {
+                0.0 // Passive — handled by stat calculation system
+            }
+            AbilityId::BullsWrath => {
+                execute_bulls_wrath(&mut commands, act.caster, &act.hero_pos, &act.target, &units, &mut stats_q, &mut damage_events)
+            }
+            // Buran (not yet implemented — stubs return placeholder cooldowns)
+            AbilityId::FlamingArrow => {
+                execute_flaming_arrow(&mut commands, act.caster, &act.hero_pos, &act.target, &units, &mut damage_events)
+            }
+            AbilityId::BlindingShot => {
+                execute_blinding_shot(&mut commands, act.caster, &act.target, &units, &mut damage_events)
+            }
+            AbilityId::ShadowLightness => {
+                0.0 // Passive — handled by stealth system
+            }
+            AbilityId::DeathVolley => {
+                execute_death_volley(&mut commands, act.caster, &act.hero_pos, &act.target, &units, &mut damage_events)
+            }
             // Generic (not yet implemented)
             AbilityId::FirstAid | AbilityId::Scout | AbilityId::Sabotage | AbilityId::Inspire => {
                 30.0
@@ -363,7 +494,7 @@ fn execute_warcry(
     60.0
 }
 
-/// SovereignStrike: 3× damage + knockback.
+/// CallOfTheTribe: summons 5 alps to the hero's location.
 fn execute_sovereign_strike(
     commands: &mut Commands,
     caster: Entity,
@@ -401,7 +532,7 @@ fn execute_sovereign_strike(
     15.0
 }
 
-/// LionsHeart: heal self + damage reduction.
+/// Lionheart: heal self + damage reduction.
 fn execute_lions_heart(
     commands: &mut Commands,
     caster: Entity,
@@ -416,13 +547,272 @@ fn execute_lions_heart(
         health.current = (health.current + HEAL).min(health.max);
     }
 
-    let mut buff = Buff::new(AbilityId::LionsHeart, DURATION);
+    let mut buff = Buff::new(AbilityId::Lionheart, DURATION);
     buff.damage_reduction = DR;
     commands
         .entity(caster)
         .insert(ActiveBuffs { buffs: vec![buff] });
 
     30.0
+}
+
+// ─── Turgut ability implementations ─────────────────────────────────────────
+
+/// GroundStrike: AoE blunt damage + knockback.
+fn execute_ground_strike(
+    _commands: &mut Commands,
+    caster: Entity,
+    caster_pos: &WorldPosition,
+    units: &Query<(Entity, &WorldPosition, &Unit)>,
+    damage_events: &mut EventWriter<DamageDealt>,
+) -> f32 {
+    const RADIUS: f32 = 4.0 * CELL_SIZE;
+    const DAMAGE: f32 = 60.0;
+
+    let caster_faction = units
+        .get(caster)
+        .map(|(_, _, u)| u.faction)
+        .unwrap_or(FactionId::Kayi);
+
+    for (entity, pos, unit) in units.iter() {
+        if unit.faction != caster_faction {
+            let dist = pos.world_2d.0.distance(caster_pos.world_2d.0);
+            if dist <= RADIUS {
+                damage_events.send(DamageDealt {
+                    attacker: caster,
+                    target: entity,
+                    amount: DAMAGE,
+                    damage_type: DamageType::Melee,
+                });
+            }
+        }
+    }
+
+    10.0
+}
+
+/// EarthquakeChallenge: leap to target, taunt, self defense buff.
+fn execute_earthquake_challenge(
+    commands: &mut Commands,
+    caster: Entity,
+    caster_pos: &WorldPosition,
+    units: &Query<(Entity, &WorldPosition, &Unit)>,
+    stats_q: &mut Query<&mut Stats>,
+    damage_events: &mut EventWriter<DamageDealt>,
+) -> f32 {
+    const LEAP_RADIUS: f32 = 8.0 * CELL_SIZE;
+    const DAMAGE: f32 = 40.0;
+    const DEFENSE_BOOST: f32 = 0.25;
+    const DURATION: f32 = 5.0;
+
+    let caster_faction = units
+        .get(caster)
+        .map(|(_, _, u)| u.faction)
+        .unwrap_or(FactionId::Kayi);
+
+    // AoE damage on landing
+    for (entity, pos, unit) in units.iter() {
+        if unit.faction != caster_faction {
+            let dist = pos.world_2d.0.distance(caster_pos.world_2d.0);
+            if dist <= LEAP_RADIUS {
+                damage_events.send(DamageDealt {
+                    attacker: caster,
+                    target: entity,
+                    amount: DAMAGE,
+                    damage_type: DamageType::Melee,
+                });
+            }
+        }
+    }
+
+    // Self defense buff
+    if let Ok(mut stats) = stats_q.get_mut(caster) {
+        stats.attack_damage *= 1.0 + DEFENSE_BOOST;
+    }
+
+    // Taunt + defense buff via buff component
+    let mut buff = Buff::new(AbilityId::EarthquakeChallenge, DURATION);
+    buff.defense_bonus = DEFENSE_BOOST;
+    commands
+        .entity(caster)
+        .insert(ActiveBuffs { buffs: vec![buff] });
+
+    18.0
+}
+
+/// BullsWrath: dash forward, deal AoE damage, enter enrage state.
+fn execute_bulls_wrath(
+    commands: &mut Commands,
+    caster: Entity,
+    caster_pos: &WorldPosition,
+    target: &AbilityTarget,
+    units: &Query<(Entity, &WorldPosition, &Unit)>,
+    _stats_q: &mut Query<&mut Stats>,
+    damage_events: &mut EventWriter<DamageDealt>,
+) -> f32 {
+    const DASH_DISTANCE: f32 = 10.0;
+    const BASE_DAMAGE: f32 = 80.0;
+    const ENRAGE_DURATION: f32 = 12.0;
+
+    // Get target position
+    let target_pos = match target {
+        AbilityTarget::Position(gp) => Vec2::new(gp.0.x as f32, gp.0.y as f32),
+        AbilityTarget::Entity(e) => {
+            if let Ok((_, pos, _)) = units.get(*e) {
+                pos.world_2d.0
+            } else {
+                return 20.0;
+            }
+        }
+        _ => return 20.0,
+    };
+
+    // Move caster toward target
+    let dir = (target_pos - caster_pos.world_2d.0).normalize_or_zero();
+    let dest = caster_pos.world_2d.0 + dir * DASH_DISTANCE;
+    let gp = IVec2::new(
+        (dest.x / CELL_SIZE).round() as i32,
+        (dest.y / CELL_SIZE).round() as i32,
+    );
+    commands.entity(caster).insert(WorldPosition::new(gp, CELL_SIZE));
+
+    // AoE damage on impact
+    let caster_faction = units
+        .get(caster)
+        .map(|(_, _, u)| u.faction)
+        .unwrap_or(FactionId::Kayi);
+    let impact_radius = 2.0 * CELL_SIZE;
+
+    for (entity, pos, unit) in units.iter() {
+        if unit.faction != caster_faction {
+            let dist = pos.world_2d.0.distance(dest);
+            if dist <= impact_radius {
+                damage_events.send(DamageDealt {
+                    attacker: caster,
+                    target: entity,
+                    amount: BASE_DAMAGE,
+                    damage_type: DamageType::Melee,
+                });
+            }
+        }
+    }
+
+    // Enrage buff: +100% attack speed, +40% damage, -30% defense
+    let mut buff = Buff::new(AbilityId::BullsWrath, ENRAGE_DURATION);
+    buff.attack_speed_bonus = 1.0;
+    buff.damage_bonus = 0.4;
+    buff.damage_reduction = -0.30; // negative = more damage taken
+    commands
+        .entity(caster)
+        .insert(ActiveBuffs { buffs: vec![buff] });
+
+    150.0
+}
+
+// ─── Buran ability implementations ──────────────────────────────────────────
+
+/// FlamingArrow: fire DoT + area reveal.
+fn execute_flaming_arrow(
+    _commands: &mut Commands,
+    _caster: Entity,
+    caster_pos: &WorldPosition,
+    target: &AbilityTarget,
+    units: &Query<(Entity, &WorldPosition, &Unit)>,
+    damage_events: &mut EventWriter<DamageDealt>,
+) -> f32 {
+    const RANGE: f32 = 35.0 * CELL_SIZE;
+    const BASE_DAMAGE: f32 = 30.0;
+
+    let target_entity = match target {
+        AbilityTarget::Entity(e) => *e,
+        _ => return 8.0,
+    };
+
+    // Check range
+    if let Ok((_, target_pos, _)) = units.get(target_entity) {
+        let dist = target_pos.world_2d.0.distance(caster_pos.world_2d.0);
+        if dist > RANGE {
+            return 8.0; // out of range, quick cooldown
+        }
+    }
+
+    damage_events.send(DamageDealt {
+        attacker: _caster,
+        target: target_entity,
+        amount: BASE_DAMAGE,
+        damage_type: DamageType::Ranged,
+    });
+
+    8.0
+}
+
+/// BlindingShot: blind + silence a single target.
+fn execute_blinding_shot(
+    _commands: &mut Commands,
+    caster: Entity,
+    target: &AbilityTarget,
+    _units: &Query<(Entity, &WorldPosition, &Unit)>,
+    damage_events: &mut EventWriter<DamageDealt>,
+) -> f32 {
+    let target_entity = match target {
+        AbilityTarget::Entity(e) => *e,
+        _ => return 12.0,
+    };
+
+    damage_events.send(DamageDealt {
+        attacker: caster,
+        target: target_entity,
+        amount: 20.0,
+        damage_type: DamageType::Ranged,
+    });
+
+    12.0
+}
+
+/// DeathVolley: 20 arrows rain on target area.
+fn execute_death_volley(
+    _commands: &mut Commands,
+    caster: Entity,
+    _caster_pos: &WorldPosition,
+    target: &AbilityTarget,
+    units: &Query<(Entity, &WorldPosition, &Unit)>,
+    damage_events: &mut EventWriter<DamageDealt>,
+) -> f32 {
+    const RADIUS: f32 = 5.0 * CELL_SIZE; // 10m diameter
+    const ARROW_DAMAGE: f32 = 15.0;
+
+    let center = match target {
+        AbilityTarget::Position(gp) => Vec2::new(gp.0.x as f32, gp.0.y as f32),
+        AbilityTarget::Entity(e) => {
+            if let Ok((_, pos, _)) = units.get(*e) {
+                pos.world_2d.0
+            } else {
+                return 100.0;
+            }
+        }
+        _ => return 100.0,
+    };
+
+    let caster_faction = units
+        .get(caster)
+        .map(|(_, _, u)| u.faction)
+        .unwrap_or(FactionId::Kayi);
+
+    for (entity, pos, unit) in units.iter() {
+        if unit.faction != caster_faction {
+            let dist = pos.world_2d.0.distance(center);
+            if dist <= RADIUS {
+                damage_events.send(DamageDealt {
+                    attacker: caster,
+                    target: entity,
+                    amount: ARROW_DAMAGE,
+                    damage_type: DamageType::Ranged,
+                });
+            }
+        }
+    }
+
+    100.0
 }
 
 // ─── Orhan ability implementations ──────────────────────────────────────────
@@ -446,13 +836,13 @@ fn execute_tactical_genius(
         .unwrap_or(FactionId::Kayi);
 
     // Apply buff to all friendly units (same faction) within radius
-    for (_e, pos, unit) in units.iter() {
+    for (e, pos, unit) in units.iter() {
         if unit.faction == caster_faction {
             let dist = pos.world_2d.0.distance(_caster_pos.world_2d.0);
             if dist <= RADIUS {
                 let mut buff = Buff::new(AbilityId::TacticalGenius, DURATION);
                 buff.attack_speed_bonus = SPEED_BONUS;
-                commands.entity(caster).insert(ActiveBuffs {
+                commands.entity(e).insert(ActiveBuffs {
                     buffs: vec![buff],
                 });
             }
@@ -484,13 +874,13 @@ fn execute_shield_wall(
         .map(|(_, _, u)| u.faction)
         .unwrap_or(FactionId::Kayi);
 
-    for (_e, pos, unit) in units.iter() {
+    for (e, pos, unit) in units.iter() {
         if unit.faction == caster_faction {
             let dist = pos.world_2d.0.distance(_caster_pos.world_2d.0);
             if dist <= RADIUS {
                 let mut buff = Buff::new(AbilityId::ShieldWall, DURATION);
                 buff.damage_reduction = DR;
-                commands.entity(caster).insert(ActiveBuffs {
+                commands.entity(e).insert(ActiveBuffs {
                     buffs: vec![buff],
                 });
             }

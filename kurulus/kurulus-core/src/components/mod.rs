@@ -13,6 +13,10 @@ pub mod naval;
 pub mod city;
 pub mod corule;
 pub mod population;
+pub mod mission_phase;
+pub mod romance_loyalty;
+pub mod next_gen;
+pub mod succession;
 
 pub use unit::*;
 pub use hero::*;
@@ -29,6 +33,10 @@ pub use naval::*;
 pub use city::*;
 pub use corule::*;
 pub use population::*;
+pub use mission_phase::*;
+pub use romance_loyalty::*;
+pub use next_gen::*;
+pub use succession::*;
 
 pub mod prelude {
     pub use crate::components::unit::*;
@@ -46,5 +54,9 @@ pub mod prelude {
     pub use crate::components::city::*;
     pub use crate::components::corule::*;
     pub use crate::components::population::*;
+    pub use crate::components::mission_phase::*;
+    pub use crate::components::romance_loyalty::*;
+    pub use crate::components::next_gen::*;
+    pub use crate::components::succession::*;
     // Re-export from unit module (Path, Destination already there via unit::*)
 }

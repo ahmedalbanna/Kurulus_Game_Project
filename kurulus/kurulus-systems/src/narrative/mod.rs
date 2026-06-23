@@ -76,11 +76,12 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             skill_points: 0,
             unlocked_abilities: vec![
                 AbilityId::WarCry,
-                AbilityId::SovereignStrike,
-                AbilityId::LionsHeart,
-                AbilityId::TreesVision,
+                AbilityId::CallOfTheTribe,
+                AbilityId::Lionheart,
+                AbilityId::DreamOfTheTree,
             ],
             active_cooldowns: HashMap::new(),
+            ..Default::default()
         },
         Unit {
             archetype: UnitArchetype::LightInfantry,
@@ -109,6 +110,7 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             skill_points: 0,
             unlocked_abilities: vec![AbilityId::AdministrativeMind, AbilityId::TaxReform],
             active_cooldowns: HashMap::new(),
+            ..Default::default()
         },
         Unit {
             archetype: UnitArchetype::LightInfantry,
@@ -300,11 +302,12 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
             skill_points: 0,
             unlocked_abilities: vec![
                 AbilityId::WarCry,
-                AbilityId::SovereignStrike,
-                AbilityId::LionsHeart,
-                AbilityId::TreesVision,
+                AbilityId::CallOfTheTribe,
+                AbilityId::Lionheart,
+                AbilityId::DreamOfTheTree,
             ],
             active_cooldowns: HashMap::new(),
+            ..Default::default()
         },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
         WorldPosition::new(IVec2::new(4, 4), CELL_SIZE),
@@ -329,6 +332,7 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
                 AbilityId::FortressBuilder,
             ],
             active_cooldowns: HashMap::new(),
+            ..Default::default()
         },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
         WorldPosition::new(IVec2::new(3, 5), CELL_SIZE),
@@ -484,11 +488,12 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
             skill_points: 0,
             unlocked_abilities: vec![
                 AbilityId::WarCry,
-                AbilityId::SovereignStrike,
-                AbilityId::LionsHeart,
-                AbilityId::TreesVision,
+                AbilityId::CallOfTheTribe,
+                AbilityId::Lionheart,
+                AbilityId::DreamOfTheTree,
             ],
             active_cooldowns: HashMap::new(),
+            ..Default::default()
         },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
         WorldPosition::new(IVec2::new(5, 5), CELL_SIZE),
@@ -513,6 +518,7 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
                 AbilityId::FortressBuilder,
             ],
             active_cooldowns: HashMap::new(),
+            ..Default::default()
         },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
         WorldPosition::new(IVec2::new(4, 4), CELL_SIZE),
@@ -537,6 +543,7 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
                 AbilityId::CulturalRenaissance,
             ],
             active_cooldowns: HashMap::new(),
+            ..Default::default()
         },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Defensive },
         WorldPosition::new(IVec2::new(6, 6), CELL_SIZE),
@@ -696,11 +703,12 @@ pub fn setup_mission1_scenario(commands: &mut Commands) {
             skill_points: 1,
             unlocked_abilities: vec![
                 AbilityId::WarCry,
-                AbilityId::SovereignStrike,
-                AbilityId::LionsHeart,
-                AbilityId::TreesVision,
+                AbilityId::CallOfTheTribe,
+                AbilityId::Lionheart,
+                AbilityId::DreamOfTheTree,
             ],
             active_cooldowns: std::collections::HashMap::new(),
+            ..Default::default()
         },
         Unit {
             archetype: UnitArchetype::LightInfantry,
@@ -737,7 +745,7 @@ pub fn setup_mission1_scenario(commands: &mut Commands) {
                 SkillNode {
                     id: SkillNodeId::SwordMastery,
                     name: "Sword Mastery".into(),
-                    description: "Unlocks SovereignStrike".into(),
+                    description: "Unlocks CallOfTheTribe".into(),
                     cost: 1,
                     prerequisites: vec![],
                     unlocked: false,
@@ -753,7 +761,7 @@ pub fn setup_mission1_scenario(commands: &mut Commands) {
                 SkillNode {
                     id: SkillNodeId::TribalUnity,
                     name: "Tribal Unity".into(),
-                    description: "Unlocks LionsHeart".into(),
+                    description: "Unlocks Lionheart".into(),
                     cost: 1,
                     prerequisites: vec![SkillNodeId::SwordMastery],
                     unlocked: false,
@@ -1027,11 +1035,12 @@ pub fn setup_mission2_scenario(commands: &mut Commands) {
             skill_points: 1,
             unlocked_abilities: vec![
                 AbilityId::WarCry,
-                AbilityId::SovereignStrike,
-                AbilityId::LionsHeart,
-                AbilityId::TreesVision,
+                AbilityId::CallOfTheTribe,
+                AbilityId::Lionheart,
+                AbilityId::DreamOfTheTree,
             ],
             active_cooldowns: std::collections::HashMap::new(),
+            ..Default::default()
         },
         Unit {
             archetype: UnitArchetype::LightInfantry,
@@ -1068,7 +1077,7 @@ pub fn setup_mission2_scenario(commands: &mut Commands) {
                 SkillNode {
                     id: SkillNodeId::SwordMastery,
                     name: "Sword Mastery".into(),
-                    description: "Unlocks SovereignStrike".into(),
+                    description: "Unlocks CallOfTheTribe".into(),
                     cost: 1,
                     prerequisites: vec![],
                     unlocked: true,
@@ -1084,7 +1093,7 @@ pub fn setup_mission2_scenario(commands: &mut Commands) {
                 SkillNode {
                     id: SkillNodeId::TribalUnity,
                     name: "Tribal Unity".into(),
-                    description: "Unlocks LionsHeart".into(),
+                    description: "Unlocks Lionheart".into(),
                     cost: 1,
                     prerequisites: vec![SkillNodeId::SwordMastery],
                     unlocked: true,
@@ -1111,6 +1120,7 @@ pub fn setup_mission2_scenario(commands: &mut Commands) {
             skill_points: 0,
             unlocked_abilities: vec![AbilityId::TacticalGenius, AbilityId::ShieldWall],
             active_cooldowns: std::collections::HashMap::new(),
+            ..Default::default()
         },
         Unit {
             archetype: UnitArchetype::LightInfantry,
@@ -1494,11 +1504,12 @@ pub fn setup_mission3_scenario(commands: &mut Commands) {
             skill_points: 0,
             unlocked_abilities: vec![
                 AbilityId::WarCry,
-                AbilityId::SovereignStrike,
-                AbilityId::LionsHeart,
-                AbilityId::TreesVision,
+                AbilityId::CallOfTheTribe,
+                AbilityId::Lionheart,
+                AbilityId::DreamOfTheTree,
             ],
             active_cooldowns: std::collections::HashMap::new(),
+            ..Default::default()
         },
         Unit {
             archetype: UnitArchetype::LightInfantry,
@@ -1535,7 +1546,7 @@ pub fn setup_mission3_scenario(commands: &mut Commands) {
                 SkillNode {
                     id: SkillNodeId::SwordMastery,
                     name: "Sword Mastery".into(),
-                    description: "Unlocks SovereignStrike".into(),
+                    description: "Unlocks CallOfTheTribe".into(),
                     cost: 1,
                     prerequisites: vec![],
                     unlocked: true,
@@ -1551,7 +1562,7 @@ pub fn setup_mission3_scenario(commands: &mut Commands) {
                 SkillNode {
                     id: SkillNodeId::TribalUnity,
                     name: "Tribal Unity".into(),
-                    description: "Unlocks LionsHeart".into(),
+                    description: "Unlocks Lionheart".into(),
                     cost: 1,
                     prerequisites: vec![SkillNodeId::SwordMastery],
                     unlocked: true,
@@ -1578,6 +1589,7 @@ pub fn setup_mission3_scenario(commands: &mut Commands) {
             skill_points: 0,
             unlocked_abilities: vec![],
             active_cooldowns: std::collections::HashMap::new(),
+            ..Default::default()
         },
         Unit {
             archetype: UnitArchetype::LightInfantry,

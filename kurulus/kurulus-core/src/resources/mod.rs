@@ -9,6 +9,8 @@ pub mod ai_config;
 pub mod terrain;
 pub mod world_map;
 pub mod population;
+pub mod phase;
+pub mod selection;
 
 pub use city::*;
 pub use economy::*;
@@ -20,6 +22,8 @@ pub use campaign::*;
 pub use ai_config::*;
 pub use terrain::*;
 pub use world_map::*;
+pub use phase::*;
+pub use selection::*;
 
 pub mod prelude {
     pub use crate::resources::city::*;
@@ -33,6 +37,8 @@ pub mod prelude {
     pub use crate::resources::terrain::*;
     pub use crate::resources::world_map::*;
     pub use crate::resources::population::*;
+    pub use crate::resources::phase::*;
+    pub use crate::resources::selection::*;
     pub use crate::resources::config::{
         PhaseTransitionConfig, CombatActivityTracker, OrdersIssuedDuringPlanning,
     };

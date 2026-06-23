@@ -62,7 +62,7 @@ fn spawn_m6_minimal(app: &mut App) {
 
     // Osman (hero, level 4)
     app.world_mut().spawn((
-        Hero { hero_id: HeroId::Osman, level: 4, xp: 0, skill_points: 0, unlocked_abilities: vec![], active_cooldowns: HashMap::new() },
+        Hero { hero_id: HeroId::Osman, level: 4, xp: 0, skill_points: 0, unlocked_abilities: vec![], active_cooldowns: HashMap::new(), ..Default::default() },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
         WorldPosition::new(IVec2::new(5, 5), CELL_SIZE),
         Health { current: 400.0, max: 400.0, armor: 20.0, armor_type: ArmorType::Medium },
@@ -73,7 +73,7 @@ fn spawn_m6_minimal(app: &mut App) {
 
     // Orhan (hero, level 3)
     app.world_mut().spawn((
-        Hero { hero_id: HeroId::Orhan, level: 3, xp: 0, skill_points: 0, unlocked_abilities: vec![], active_cooldowns: HashMap::new() },
+        Hero { hero_id: HeroId::Orhan, level: 3, xp: 0, skill_points: 0, unlocked_abilities: vec![], active_cooldowns: HashMap::new(), ..Default::default() },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
         WorldPosition::new(IVec2::new(4, 4), CELL_SIZE),
         Health { current: 280.0, max: 280.0, armor: 14.0, armor_type: ArmorType::Medium },
@@ -84,7 +84,7 @@ fn spawn_m6_minimal(app: &mut App) {
 
     // Alaeddin (hero, level 2)
     app.world_mut().spawn((
-        Hero { hero_id: HeroId::Alaeddin, level: 2, xp: 0, skill_points: 0, unlocked_abilities: vec![], active_cooldowns: HashMap::new() },
+        Hero { hero_id: HeroId::Alaeddin, level: 2, xp: 0, skill_points: 0, unlocked_abilities: vec![], active_cooldowns: HashMap::new(), ..Default::default() },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Defensive },
         WorldPosition::new(IVec2::new(6, 6), CELL_SIZE),
         Health { current: 200.0, max: 200.0, armor: 10.0, armor_type: ArmorType::Medium },

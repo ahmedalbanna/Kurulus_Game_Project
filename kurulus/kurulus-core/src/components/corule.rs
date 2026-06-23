@@ -5,7 +5,8 @@ use super::unit::FactionId;
 use super::world::RegionId;
 use super::building::BuildingType;
 
-#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(Component)]
 pub struct CoCommand {
     pub primary_hero: Entity,
     pub secondary_hero: Entity,
@@ -13,7 +14,8 @@ pub struct CoCommand {
     pub delegated_orders: Vec<DelegationOrder>,
 }
 
-#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(Component)]
 pub struct CoCommandStateComponent {
     pub primary_hero: Entity,
     pub secondary_hero: Entity,
@@ -22,7 +24,8 @@ pub struct CoCommandStateComponent {
     pub synergy_bonus: f32,
 }
 
-#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(Component)]
 pub struct TrustMeter {
     pub primary_trust: f32,
     pub secondary_trust: f32,
@@ -33,14 +36,14 @@ pub struct TrustMeter {
 
 // --- Enums & Structs ---
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum CoCommandMode {
     Solo,
     Delegated,
     Joint,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Reflect)]
 pub struct DelegationOrder {
     pub from_hero: Entity,
     pub to_hero: Entity,
@@ -50,7 +53,7 @@ pub struct DelegationOrder {
     pub expires_at: Option<f32>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum DelegationType {
     Move,
     Attack,
@@ -62,7 +65,7 @@ pub enum DelegationType {
     Gather,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Reflect)]
 pub enum DelegationTarget {
     Position(GridPos),
     Entity(Entity),

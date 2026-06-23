@@ -35,11 +35,12 @@ fn spawn_kayi_hero(app: &mut App, hero_id: HeroId, x: i32, y: i32) -> Entity {
             skill_points: 0,
             unlocked_abilities: vec![],
             active_cooldowns: std::collections::HashMap::new(),
+            ..Default::default()
         },
         Unit {
             archetype: UnitArchetype::LightInfantry,
             faction: FactionId::Kayi,
-            formation: FormationType::Skirmish,
+            formation: FormationType::Scatter,
             stance: CombatStance::Defensive,
         },
         WorldPosition::new(IVec2::new(x, y), 1.0),
@@ -58,6 +59,7 @@ fn spawn_enemy_hero(app: &mut App) -> Entity {
             skill_points: 0,
             unlocked_abilities: vec![],
             active_cooldowns: std::collections::HashMap::new(),
+            ..Default::default()
         },
         Unit {
             archetype: UnitArchetype::LightInfantry,

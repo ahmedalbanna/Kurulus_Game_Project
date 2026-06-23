@@ -76,6 +76,9 @@ fn register_common_events(app: &mut bevy::prelude::App) {
         .add_event::<RegionCaptured>()
         .add_event::<WarDeclared>()
         .add_event::<SelectionChanged>()
+        .add_event::<SelectEvent>()
+        .add_event::<BoxSelectEvent>()
+        .add_event::<ControlGroupEvent>()
         .add_event::<Notification>()
         .add_event::<TreatySigned>()
         .add_event::<SeasonChanged>()
@@ -93,7 +96,30 @@ fn register_common_events(app: &mut bevy::prelude::App) {
         .add_event::<EncounterTriggered>()
         .add_event::<ScoutOrdered>()
         .add_event::<RecallScout>()
-        .add_event::<ScoutEncounterResolved>();
+        .add_event::<ScoutEncounterResolved>()
+        // Core loop events
+        .add_event::<GamePhaseChanged>()
+        .add_event::<TacticalPhaseChanged>()
+        .add_event::<HarvestStarted>()
+        .add_event::<HarvestCompleted>()
+        .add_event::<HarvestXpAwarded>()
+        .add_event::<HeroMomentTriggered>()
+        .add_event::<HeroMomentCompleted>()
+        .add_event::<MissionSetupComplete>()
+        .add_event::<ComplicationStarted>()
+        .add_event::<ClimaxTriggered>()
+        .add_event::<ResolutionStarted>()
+        .add_event::<GameSaved>()
+        .add_event::<GameLoaded>()
+        // Phase B command events
+        .add_event::<StopCommand>()
+        .add_event::<HoldCommand>()
+        .add_event::<RetreatCommand>()
+        .add_event::<ScatterCommand>()
+        .add_event::<FormationCommand>()
+        .add_event::<StanceChangeCommand>()
+        .add_event::<AttackMoveOrder>()
+        .add_event::<FormationBreakEvent>();
 }
 
 /// Register all logic plugins (no render) — used by headless test harness.
@@ -124,6 +150,12 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         .init_resource::<ResourcePersistence>()
         .init_resource::<TerrainGrid>()
         .init_resource::<WorldMap>()
+        // Core loop resources
+        .init_resource::<TacticalPhaseTracker>()
+        .init_resource::<HarvestState>()
+        .init_resource::<LootTable>()
+        .init_resource::<DifficultyConfig>()
+        .init_resource::<HeroMomentsForMission>()
         // Register types for BRP/MCP reflection debugging
         .register_type::<Stealth>()
         .register_type::<Detection>()
@@ -170,7 +202,19 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         .register_type::<ZoneDefinition>()
         .register_type::<ZoneUnlockRequirement>()
         .register_type::<PopulationRegistry>()
-        .register_type::<WorkerRole>();
+        .register_type::<WorkerRole>()
+        // Core loop types
+        .register_type::<TacticalPhaseTracker>()
+        .register_type::<DifficultyLevel>()
+        .register_type::<DifficultyConfig>()
+        .register_type::<HarvestState>()
+        .register_type::<LootTable>()
+        .register_type::<TacticalPhase>()
+        // Selection types
+        .register_type::<Selected>();
+    // NOTE: HeroMomentsForMission registration skipped because HeroMomentConfig
+    // contains non-Reflect types (HeroId, AbilityId). Reflect those types if
+    // BRP introspection is needed for hero moments.
 
     register_common_events(app);
 

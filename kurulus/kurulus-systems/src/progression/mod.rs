@@ -544,6 +544,7 @@ mod tests {
             skill_points: 3,
             unlocked_abilities: Vec::new(),
             active_cooldowns: std::collections::HashMap::new(),
+            ..Default::default()
         }).id();
 
         let mut tree_hero = TechTree::default();

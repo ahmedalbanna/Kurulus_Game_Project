@@ -36,7 +36,7 @@ fn test_stealth_detection_in_range() {
         Unit {
             archetype: UnitArchetype::Scout,
             faction: FactionId::Kayi,
-            formation: FormationType::Skirmish,
+            formation: FormationType::Scatter,
             stance: CombatStance::Defensive,
         },
         Stats::default(),
@@ -54,7 +54,7 @@ fn test_stealth_detection_in_range() {
         Unit {
             archetype: UnitArchetype::Scout,
             faction: FactionId::Byzantine,
-            formation: FormationType::Skirmish,
+            formation: FormationType::Scatter,
             stance: CombatStance::Aggressive,
         },
         Stats::default(),
@@ -103,7 +103,7 @@ fn test_stealth_stays_hidden_out_of_range() {
         Unit {
             archetype: UnitArchetype::Scout,
             faction: FactionId::Kayi,
-            formation: FormationType::Skirmish,
+            formation: FormationType::Scatter,
             stance: CombatStance::Defensive,
         },
         Stats::default(),
@@ -121,7 +121,7 @@ fn test_stealth_stays_hidden_out_of_range() {
         Unit {
             archetype: UnitArchetype::Scout,
             faction: FactionId::Byzantine,
-            formation: FormationType::Skirmish,
+            formation: FormationType::Scatter,
             stance: CombatStance::Aggressive,
         },
         Stats::default(),

@@ -62,7 +62,7 @@ fn spawn_m3_minimal(app: &mut App) {
 
     // Osman (hero, level 3)
     app.world_mut().spawn((
-        Hero { hero_id: HeroId::Osman, level: 3, xp: 0, skill_points: 0, unlocked_abilities: vec![], active_cooldowns: HashMap::new() },
+        Hero { hero_id: HeroId::Osman, level: 3, xp: 0, skill_points: 0, unlocked_abilities: vec![], active_cooldowns: HashMap::new(), ..Default::default() },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
         WorldPosition::new(IVec2::new(6, 5), CELL_SIZE),
         Health { current: 300.0, max: 300.0, armor: 15.0, armor_type: ArmorType::Medium },
@@ -73,7 +73,7 @@ fn spawn_m3_minimal(app: &mut App) {
 
     // Bamsi (hero, level 2)
     app.world_mut().spawn((
-        Hero { hero_id: HeroId::Bamsi, level: 2, xp: 0, skill_points: 0, unlocked_abilities: vec![], active_cooldowns: HashMap::new() },
+        Hero { hero_id: HeroId::Bamsi, level: 2, xp: 0, skill_points: 0, unlocked_abilities: vec![], active_cooldowns: HashMap::new(), ..Default::default() },
         Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
         WorldPosition::new(IVec2::new(5, 4), CELL_SIZE),
         Health { current: 220.0, max: 220.0, armor: 12.0, armor_type: ArmorType::Medium },

@@ -1,18 +1,80 @@
+mod commands;
+mod engagement;
+mod formation;
 mod pathfinding;
+mod selection;
 
 use bevy::prelude::*;
+use commands::*;
+use engagement::*;
+use formation::*;
 use kurulus_core::prelude::*;
 use pathfinding::{a_star, collect_obstacles, ObstacleMap};
+use selection::*;
 
 pub struct UnitCommandPlugin;
 
 impl Plugin for UnitCommandPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ObstacleMap>()
+            .init_resource::<SelectionState>()
+            .init_resource::<EngagementConfig>()
             .add_systems(
                 FixedUpdate,
-                // Phase 1b: Respond to move orders by inserting Destination
-                process_move_orders_system.in_set(SimulationSet::CommandQueueing),
+                (
+                    // ── Phase 1a: Input Processing (Selection) ─────────────
+                    process_selection_system
+                        .in_set(SimulationSet::InputProcessing),
+                    process_control_groups_system
+                        .in_set(SimulationSet::InputProcessing),
+                    // ── Phase 1b: Input Processing (Core Commands) ──────────
+                    process_attack_order_system
+                        .in_set(SimulationSet::InputProcessing),
+                    process_attack_move_order_system
+                        .in_set(SimulationSet::InputProcessing),
+                    process_stop_command_system
+                        .in_set(SimulationSet::InputProcessing),
+                    process_hold_command_system
+                        .in_set(SimulationSet::InputProcessing),
+                    process_retreat_command_system
+                        .in_set(SimulationSet::InputProcessing),
+                    process_scatter_command_system
+                        .in_set(SimulationSet::InputProcessing),
+                    process_formation_command_system
+                        .in_set(SimulationSet::InputProcessing),
+                    process_stance_change_system
+                        .in_set(SimulationSet::InputProcessing),
+                    // ── Phase D: Formation auto-form & type sync ──────────
+                    auto_form_system
+                        .in_set(SimulationSet::InputProcessing),
+                    sync_formation_type_system
+                        .in_set(SimulationSet::InputProcessing),
+                    // ── Phase 1c: Command Queueing ────────────────────────
+                    process_move_orders_system
+                        .in_set(SimulationSet::CommandQueueing),
+                    // Phase C1: Engagement movement runs after move orders so
+                    // it can set Destination for units approaching their target
+                    engagement_movement_system
+                        .in_set(SimulationSet::CommandQueueing),
+                ),
+            )
+            .add_systems(
+                FixedUpdate,
+                (
+                    // ── Phase 5: Attack Timers (target acquisition) ────────
+                    // Phase C2: HoldPosition auto-target
+                    hold_position_auto_target_system
+                        .in_set(SimulationSet::AttackTimers),
+                    // Phase C3: Attack-move interrupt
+                    attack_move_interrupt_system
+                        .in_set(SimulationSet::AttackTimers),
+                    // Phase C4: Target priority / re-targeting
+                    target_priority_system
+                        .in_set(SimulationSet::AttackTimers),
+                    // Phase D: Formation breaking detection
+                    formation_breaking_system
+                        .in_set(SimulationSet::AttackTimers),
+                ),
             )
             .add_systems(
                 FixedUpdate,
@@ -21,13 +83,30 @@ impl Plugin for UnitCommandPlugin {
                     build_obstacle_map_system.in_set(SimulationSet::Pathfinding),
                     // Phase 3a: Calculate paths for units with a Destination but no Path
                     apply_paths_system.in_set(SimulationSet::Pathfinding),
+                    // Phase D: Formation slot & bonus assignment (before movement)
+                    assign_formation_slots_system
+                        .in_set(SimulationSet::FormationMovement),
+                    assign_formation_bonus_system
+                        .in_set(SimulationSet::FormationMovement),
                     // Phase 3b: Move formations
                     formation_movement_system.in_set(SimulationSet::FormationMovement),
+                    // Phase D: Break scatter movement (overrides normal movement)
+                    formation_break_movement_system
+                        .in_set(SimulationSet::FreeFormMovement),
                     // Phase 3c: Move non-formation units along their path
                     free_form_movement_system.in_set(SimulationSet::FreeFormMovement),
                     // Phase 3d: Snap continuous positions back to grid
                     grid_quantization_system.in_set(SimulationSet::GridQuantization),
                 ),
+            )
+            .add_systems(
+                FixedUpdate,
+                // Dead entity cleanup from selection (runs every tick but cheap)
+                (cleanup_dead_selection_system,
+                // Phase D: Formation component cleanup
+                clean_formation_bonus_system,
+                clean_formation_slots_system)
+                    .in_set(SimulationSet::ComponentCleanup),
             );
     }
 }
@@ -93,18 +172,26 @@ fn apply_paths_system(
 // ─── Formation movement ────────────────────────────────────────────────────
 
 /// Moves units in formation relative to their leader.
+/// Uses `FormationSlot` if present (computed by Phase D's formation
+/// positioning system), otherwise defaults to following the leader
+/// with basic spacing.
 fn formation_movement_system(
     time: Res<bevy::time::Time<bevy::time::Fixed>>,
-    _move_events: EventReader<MoveOrder>,
-    leaders: Query<(Entity, &WorldPosition), (With<Unit>, Without<FormationFollower>)>,
+    leaders: Query<&WorldPosition, Without<FormationFollower>>,
     mut followers: Query<
-        (Entity, &mut WorldPosition, &Formation, &Stats),
+        (Entity, &mut WorldPosition, &Formation, Option<&FormationSlot>, &Stats),
         With<FormationFollower>,
     >,
 ) {
-    for (_follower_e, mut follower_pos, formation, stats) in followers.iter_mut() {
-        if let Ok((_leader_e, leader_pos)) = leaders.get(formation.leader) {
-            let target = leader_pos.world_2d.0 + formation.offset;
+    for (_follower_e, mut follower_pos, formation, slot, stats) in followers.iter_mut() {
+        if let Ok(leader_pos) = leaders.get(formation.leader) {
+            // If a FormationSlot has been computed (Phase D+), use its offset.
+            // Otherwise fall back to a simple trailing offset behind the leader.
+            let base_offset = match slot {
+                Some(s) => s.offset,
+                None => Vec2::new(0.0, -1.0), // 1 cell behind leader
+            };
+            let target = leader_pos.world_2d.0 + base_offset;
             let current = follower_pos.world_2d.0;
             let direction = (target - current).normalize_or_zero();
             let distance = stats.move_speed * time.delta_secs();
