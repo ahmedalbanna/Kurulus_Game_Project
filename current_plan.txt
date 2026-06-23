@@ -1,1023 +1,683 @@
-# Hero System — Architecture & Feature Breakdown Plan
+Now I have a comprehensive understanding of the existing stealth/ambush system. Let me synthesize my findings and create a detailed architecture plan.
 
-  
+## Current State Analysis
+
+### What's Already Implemented:
+1. **Core Components** (kurulus-core/src/components/stealth.rs):
+   - `Stealth` - level, is_hidden, hidden_timer, ambush_zone
+   - `Detection` - radius, height_bonus, active
+   - `AmbushZone` - owner, radius, bonus_damage, bonus_morale, duration, remaining
+   - `NoiseLevel` - noise (0.0-1.0)
+   - `UnitVisibility` - footprint (from archetype)
+   - `AmbushMarker` - position, placed_by
+
+2. **Events** (kurulus-core/src/events/combat.rs):
+   - `AmbushTriggered` - ambusher, target, damage_bonus, zone
+   - `StealthRevealed` - entity, revealer
+   - `AttackTriggered` - includes `is_from_stealth` flag
+
+3. **Systems** (kurulus-systems/src/stealth/mod.rs):
+   - `terrain_stealth_system` - no-op hook
+   - `night_stealth_system` - no-op hook
+   - `noise_calculation_system` - calculates noise from move_speed
+   - `vision_calculation_system` - fog of war + terrain blocking
+   - `ambush_auto_hide_system` - auto-hide in ambush zones, applies terrain/night/noise/size modifiers
+   - `stealth_detection_system` - detection with modifiers
+   - `ambush_trigger_system` - bonus damage from ambush zones
+   - `ambush_placement_system` - spawns ambush zones (30 gold)
+
+4. **System Sets**:
+   - `VisionCalculation` → `StealthDetection` → `AmbushTrigger`
+
+### What's Missing (Gap Analysis vs GDD):
+
+#### 1. **Stealth Zones (GDD: 8 types, Code: TerrainType has 6)**
+   - GDD specifies: Dense Forest, Medium Forest, Tall Grass, Night Darkness, Ruins, Caves, Crop Field, Artificial
+   - Code has: OpenField, Forest, Water, Mountain, Road, Building
+   - **Gap**: No distinction between Dense/Medium Forest, no Tall Grass, no Caves, no Crop Field, no Artificial cover
+   - **Gap**: No zone capacity system (how many units per zone)
+   - **Gap**: No zone entry/exit timing (0.5s → 1.5s → 2.0s progression)
+
+#### 2. **Detection System (GDD: Vision Cones, Code: Radius-only)**
+   - GDD specifies: 120° front, 180° peripheral, 0° rear vision cones with multipliers
+   - Code uses: Simple distance-based detection (no vision cones)
+   - **Gap**: No vision cone mechanic (front/side/rear detection multipliers)
+   - **Gap**: No observer factors (Alert, Tired, Sleeping, Frightened, etc.)
+   - **Gap**: No target factors (Open, Forest, Moving, Attacking, etc.)
+   - **Gap**: No detection chain (Suspicion → Confirmation → Alarm)
+   - **Gap**: No silent kill mechanics
+
+#### 3. **Ambush Mechanics (GDD: Full lifecycle, Code: Basic trigger)**
+   - GDD specifies: Setup → Wait → Trigger → Execute → Reward phases
+   - Code has: Basic placement + auto-hide + trigger
+   - **Gap**: No "Ready" state (units stop auto-attacking)
+   - **Gap**: No staged trigger (Manual, Auto, Staged, Solo)
+   - **Gap**: No ambush effects: panic (-30 morale), formation break, shock (2s stun)
+   - **Gap**: No failed ambush penalties
+   - **Gap**: No ambush scoring/rewards system
+
+#### 4. **Decoy/Lure System (GDD: Full system, Code: Not implemented)**
+   - **Gap**: No Bait Rider unit type
+   - **Gap**: No luring mechanics (leash range, AI decision)
+   - **Gap**: No decoy types (Scarecrow, False Fire, etc.)
+
+#### 5. **Night Stealth (GDD: Comprehensive, Code: +0.20 bonus only)**
+   - GDD specifies: Full day/night cycle affecting vision, accuracy, speed, stealth
+   - Code has: Simple boolean is_night() check
+   - **Gap**: No dusk/dawn transitions
+   - **Gap**: No night-specific activities (infiltration, camp burning, assassination)
+   - **Gap**: No enemy night behavior (sleeping guards, fewer patrols)
+
+#### 6. **Hit & Run (GDD: Full tactics, Code: Not implemented)**
+   - **Gap**: No hit-and-run cycle tracking
+   - **Gap**: No withdrawal mechanics
+   - **Gap**: No fatigue system
+
+Now I need to create a comprehensive architecture plan that addresses all these gaps while being realistic about implementation priority.
+
+Now I have a complete picture. Let me compile the comprehensive architecture plan.
+
+---
+
+# Ambush & Stealth System — Architecture & Feature Breakdown Plan
 
 ## Executive Summary
 
-  
-
-The Hero System has a **solid foundation** (core `Hero` component, ability dispatch, XP/leveling, buff tick, hero switching with 10 tests) but has **significant gaps** between the current implementation and the GDD/feature specs. The plan below is organized into 5 phases: first fixing the foundation to match the design docs, then building outward to the advanced subsystems.
-
-  
+The Kurulus Ambush & Stealth system is the game's "X-Factor" — described in the GDD as *"Ambush is the DNA of the game."* The current implementation provides a solid skeleton (components, 8 systems, 2 events, 2 tests) but has significant gaps against the 6-feature-spec document suite. This plan proposes the ECS structures, plugin architecture, and phased implementation to close those gaps.
 
 ---
 
-  
+## 1. Current Implementation State
 
-## 1. Current State Audit
+### 1.1 What Exists (Working)
 
-  
+| Layer | Item | Status |
+|-------|------|--------|
+| **Components** | `Stealth`, `Detection`, `AmbushZone`, `NoiseLevel`, `UnitVisibility`, `AmbushMarker` | ✅ Implemented |
+| **Events** | `AmbushTriggered`, `StealthRevealed`, `AttackTriggered.is_from_stealth` | ✅ Implemented |
+| **Systems** | `noise_calculation_system`, `vision_calculation_system`, `ambush_auto_hide_system`, `stealth_detection_system`, `ambush_trigger_system`, `ambush_placement_system` | ✅ Implemented |
+| **System Sets** | `VisionCalculation → StealthDetection → AmbushTrigger` | ✅ Ordered |
+| **Tests** | 2 integration tests (detection in-range, stays-hidden out-of-range) | ✅ Passing |
 
-### 1.1 What Exists & Works
+### 1.2 Gap Analysis vs GDD Specs
 
-  
-
-| Area | Status | Location |
-
-|------|--------|----------|
-
-| `Hero` component | ✅ Core fields (hero_id, level, xp, skill_points, unlocked_abilities, active_cooldowns) | `kurulus-core/src/components/hero.rs` |
-
-| `Ability` component | ✅ Full (id, type, target, range, cooldown, cost, effect) | Same file |
-
-| `SkillTree` + `SkillNode` | ✅ Structure exists, but auto-unlocks (no player choice) | Same file |
-
-| `Buff` + `ActiveBuffs` | ✅ Duration ticking, stat bonuses | Same file |
-
-| `ActiveHero` resource | ✅ Tracks controlled hero | Same file |
-
-| `XpConfig` resource | ✅ XP thresholds | Same file |
-
-| Hero switching | ✅ Forward/backward/direct with 10 passing tests | `kurulus-systems/src/hero/mod.rs`, `kurulus-app/tests/hero_switch_tests.rs` |
-
-| 11 ability implementations | ✅ WarCry, SovereignStrike, LionsHeart, TacticalGenius, ShieldWall, CavalryCharge, FortressBuilder, AdministrativeMind, TaxReform, DiplomaticImmunity, CulturalRenaissance | `kurulus-systems/src/hero/mod.rs` |
-
-| Events | ✅ HeroLeveledUp, HeroSwitchEvent, AbilityUsed, HeroMomentTriggered, HeroMomentCompleted | `kurulus-core/src/events/` |
-
-| Config (RON) | ⚠️ Only `hero_osman.ron` — stats don't match GDD | `kurulus-config/assets/heroes/` |
-
-| TODO Plugin Stubs | ⚠️ NextGenHeroes, RomanceLoyalty, SuccessionLegacy, CoRule — all empty | `kurulus-systems/src/` |
-
-  
-
-### 1.2 Critical Gaps (Foundation)
-
-  
-
-| Gap | Impact | Details |
-
-|-----|--------|---------|
-
-| **HeroId enum mismatch** | 🔴 Blocks Turgut/Buran abilities | Code has Osman, Orhan, Alaeddin, Malhun, Bala, Turgut, Bamsi, Abdurrahman, Gunduz, Savci. Missing: `Buran`. The GDD's core 3 are Osman/Turgut/Buran. |
-
-| **Missing 12 abilities** | 🔴 Turgut (4) + Buran (4) + Osman partial rework needed | Turgut: GroundStrike, EarthquakeChallenge, IronWall, BullsWrath. Buran: FlamingArrow, BlindingShot, ShadowLightness, DeathVolley. |
-
-| **No per-hero stats** | 🔴 GDD specifies unique stat progressions per hero | `Hero` component has no HP/damage/defense/speed fields. Stats come from shared `Stats` component. |
-
-| **No hero resource system** | 🟡 Abilities cost `stamina` but GDD says hero-specific (Inspiration/Fury/Focus) | `AbilityCost.stamina` is generic. |
-
-| **Buff system bug** | 🔴 Stat inflation every frame | `buff_tick_system` adds `damage_bonus` to stats every tick without tracking baseline. |
-
-| **Tactical Genius bug** | 🟡 Buff applied to caster not affected units | `execute_tactical_genius` inserts buff on caster entity in the AoE loop. |
-
-| **Skill tree auto-unlocks** | 🟡 No player agency | `skill_tree_system` auto-unlocks first available node. GDD requires player choice. |
-
-| **No hero death/recovery flow** | 🟡 Knockout → 30s → Recovering → Dead chain missing | No KO timer, no death blow mechanic, no recovery system. |
-
-| **No equipment system** | 🟡 Full GDD spec exists (weapons, armor, accessories, rarity, crafting) but zero code. |
-
-| **No hero states component** | 🟡 No state machine for Idle/Moving/Attacking/Channeling/KO/Dead |
-
-| **XpConfig thresholds don't match GDD** | 🟡 Minor but should sync | GDD: 200→450→750→1200→1800→2500→3500→5000→7500. Code: 100→250→500→1000→1800→3000→5000→8000→12000. |
-
-| **Level cap is 10** | 🟡 GDD specifies 10 for v1, 45 for S6 expansion |
-
-  
-
-### 1.3 Critical Gaps (Advanced Systems — All TODO)
-
-  
-
-| Plugin | Systems (all TODO) |
-
-|--------|--------------------|
-
-| `NextGenHeroesPlugin` | `hero_legacy_system`, `hero_marriage_system`, `child_growth_system` |
-
-| `RomanceLoyaltyPlugin` | `loyalty_calculation_system`, `romance_progression_system`, `relationship_event_system` |
-
-| `SuccessionLegacyPlugin` | `succession_order_system`, `legacy_scoring_system`, `dynasty_tree_system` |
-
-| `CoRulePlugin` | `co_command_dispatch_system`, `trust_update_system`, `synergy_calculation_system`, `delegation_order_system` |
-
-  
+| Feature Area | GDD Spec | Current Code | Gap Severity |
+|-------------|----------|-------------|-------------|
+| **Stealth Zones** | 8 types with capacities, entry/exit timing, overcrowding | `TerrainType` has 6 variants (no Dense/Medium Forest split, no Tall Grass, no Caves, no Crop Field) | 🔴 High |
+| **Vision Cones** | 120° front, 180° peripheral, 0° rear with multipliers | Simple radius-only distance check | 🔴 High |
+| **Observer Factors** | Alert, Tired, Sleeping, Frightened, In Formation, etc. (8 states) | Not implemented | 🔴 High |
+| **Target Factors** | Open, Forest, Moving, Attacking, Size (11 states) | Partially via `UnitVisibility.footprint` | 🟡 Medium |
+| **Detection Chain** | Suspicion (1-3s) → Confirmation (1s) → Alarm chain | Instant reveal on proximity | 🔴 High |
+| **Silent Kill** | 6 methods with different alarm probabilities | Not implemented | 🟡 Medium |
+| **Ambush Phases** | Setup → Wait → Trigger → Execute → Reward | Basic placement + auto-trigger only | 🔴 High |
+| **Ready State** | Units stop auto-attacking, noise suppressed | Not implemented | 🔴 High |
+| **Staged Trigger** | Manual, Auto-First-Contact, Staged (3-wave), Solo | Only manual placement | 🔴 High |
+| **Ambush Effects** | ×2 damage (10s), Panic (-30 morale), Formation Break (3s), Shock (2s stun) | Only bonus damage | 🔴 High |
+| **Failed Ambush** | Discovery penalties, early trigger, alternative routes | Not implemented | 🟡 Medium |
+| **Decoy/Lure** | Bait Rider unit, leash range, 5 lure methods, 4 decoy types | Not implemented | 🔴 High |
+| **Night Stealth** | Full day/night cycle, 4 phases, sleeping guards, camp fires | Only `+0.20` boolean bonus | 🟡 Medium |
+| **Ambush Scoring** | Points for kills, no-detection, staged use, hero involvement | Not implemented | 🟢 Low |
+| **Hit & Run** | 6-phase cycle, withdrawal rules, fatigue | Not implemented | 🟢 Low (stretch) |
 
 ---
 
-  
+## 2. Proposed ECS Architecture
 
-## 2. Proposed Architecture — Component Layout
+### 2.1 Component Changes (kurulus-core)
 
-  
+#### A. Expand `TerrainType` Enum
 
-### 2.1 Core Hero Component (`kurulus-core/src/components/hero.rs`)
+```
+Current:  OpenField | Forest | Water | Mountain | Road | Building
+Proposed: OpenField | DenseForest | MediumForest | TallGrass | NightDarkness
+          | Ruins | Caves | CropField | ArtificialCover | Water | Mountain | Road | Building
+```
 
-  
+**Rationale**: The GDD distinguishes 8 stealth zone types with different detection ranges and capacities. A single `Forest` variant cannot express Dense (5m) vs Medium (8m) detection differences.
+
+**Alternative (less invasive)**: Keep `TerrainType` as-is, add a new `StealthZoneType` enum and a `StealthZone` component on terrain tiles:
 
 ```rust
-
-// Rework Hero to carry per-hero stats
-
-#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
-
-pub struct Hero {
-
-    pub hero_id: HeroId,
-
-    pub level: u8,
-
-    pub xp: u32,
-
-    pub skill_points: u8,
-
-    pub unlocked_abilities: Vec<AbilityId>,
-
-    pub active_cooldowns: HashMap<AbilityId, f32>,
-
-    pub resource_type: HeroResource,  // NEW: Inspiration/Fury/Focus
-
-    pub resource_current: f32,        // NEW: current resource
-
-    pub resource_max: f32,            // NEW: max resource
-
-    pub resource_regen: f32,          // NEW: regen per second
-
-    pub talent Choices: HashMap<u8, TalentChoice>,  // NEW: level → chosen talent
-
-    pub specialization: Option<SpecializationPath>, // NEW: chosen at lvl 8
-
+#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
+pub struct StealthZone {
+    pub zone_type: StealthZoneType,
+    pub capacity: u32,
+    pub current_occupancy: u32,
+    pub detection_range_static: f32,   // 5m for dense forest
+    pub detection_range_moving: f32,   // 8m for dense forest
+    pub destructible: bool,
 }
 
-  
-
-// NEW: Hero-specific resource types
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-
-pub enum HeroResource {
-
-    Inspiration,  // Osman
-
-    Fury,         // Turgut
-
-    Focus,        // Buran
-
+pub enum StealthZoneType {
+    DenseForest,
+    MediumForest,
+    TallGrass,
+    NightDarkness,
+    Ruins,
+    Caves,
+    CropField,
+    ArtificialCover,
 }
-
-  
-
-// NEW: Per-hero base stats (loaded from RON config)
-
-#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
-
-pub struct HeroStats {
-
-    pub base_health: f32,
-
-    pub base_damage: f32,
-
-    pub base_defense: f32,
-
-    pub base_speed: f32,
-
-    pub base_vision: f32,
-
-    pub base_attack_speed: f32,
-
-    pub health_per_level: f32,
-
-    pub damage_per_level: f32,
-
-    pub defense_per_level: f32,
-
-    pub damage_type: DamageType,       // Slash/Blunt/Pierce per hero
-
-}
-
-  
-
-// NEW: Equipment slots
-
-#[derive(Component, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
-
-pub struct Equipment {
-
-    pub weapon: Option<EquipmentItem>,
-
-    pub armor: Option<EquipmentItem>,
-
-    pub accessory_1: Option<EquipmentItem>,
-
-    pub accessory_2: Option<EquipmentItem>,  // unlocked at level 7
-
-}
-
-  
-
-#[derive(Clone, Debug, Serialize, Deserialize, Reflect)]
-
-pub struct EquipmentItem {
-
-    pub item_id: String,
-
-    pub name: String,
-
-    pub rarity: Rarity,
-
-    pub slot: EquipmentSlot,
-
-    pub stats: EquipmentStats,
-
-    pub passive_effect: Option<String>,
-
-}
-
-  
-
-// NEW: Hero state machine
-
-#[derive(Component, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-
-pub enum HeroState {
-
-    Idle,
-
-    Moving,
-
-    Running,
-
-    Attacking,
-
-    UsingAbility,
-
-    Channeling,
-
-    KnockedOut { timer: f32 },     // 30s countdown
-
-    Recovering { timer: f32 },     // 5s countdown
-
-    Dead,                           // for current mission
-
-}
-
-  
-
-// NEW: Hero death tracking (per-mission)
-
-#[derive(Component, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
-
-pub struct HeroDeathState {
-
-    pub is_dead_this_mission: bool,
-
-    pub knockout_timer: f32,
-
-    pub death_blow_chance: f32,
-
-}
-
-  
-
-// NEW: Named unit marker (distinct from Hero)
-
-#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
-
-pub struct NamedUnit {
-
-    pub unit_id: NamedUnitId,
-
-    pub is_permanently_dead: bool,  // Named units CAN permadeath
-
-}
-
-  
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-
-pub enum NamedUnitId {
-
-    KonurAlp,
-
-    Ayazbey,
-
-    BamsiBeyrek,
-
-    Salvador, // → AbuBakr after conversion
-
-    SalurAlp,
-
-}
-
 ```
 
-  
+**Recommended**: The alternative approach — keeps `TerrainType` clean for movement/pathfinding while adding a parallel stealth zone layer. This avoids a massive refactor of all terrain-consuming systems.
 
-### 2.2 Updated Enums
-
-  
+#### B. New Component: `VisionCone`
 
 ```rust
-
-// Add Buran to HeroId
-
-pub enum HeroId {
-
-    Osman,
-
-    Turgut,
-
-    Buran,
-
-    // Season 2+ (future)
-
-    Orhan,
-
-    Alaeddin,
-
-    Fatma,
-
-    // Named units are NOT heroes — use NamedUnitId
-
+#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
+pub struct VisionCone {
+    pub front_angle: f32,      // degrees, default 120°
+    pub side_angle: f32,       // degrees, default 180° (peripheral)
+    pub front_mult: f32,       // 1.0
+    pub peripheral_mult: f32,  // 0.7
+    pub side_mult: f32,        // 0.4
+    pub rear_mult: f32,        // 0.0 (blind behind)
+    pub facing: Vec2,          // direction the unit faces
 }
-
-  
-
-// Add Turgut + Buran abilities
-
-pub enum AbilityId {
-
-    // Osman
-
-    WarCry,           // Q — Active
-
-    CallOfTheTribe,   // W — Active (renamed from SovereignStrike for accuracy)
-
-    Lionheart,        // E — Passive
-
-    DreamOfTheTree,   // R — Ultimate
-
-    // Turgut
-
-    GroundStrike,     // Q — Active
-
-    EarthquakeChallenge, // W — Active
-
-    IronWall,         // E — Passive
-
-    BullsWrath,       // R — Ultimate
-
-    // Buran
-
-    FlamingArrow,     // Q — Active
-
-    BlindingShot,     // W — Active
-
-    ShadowLightness,  // E — Passive
-
-    DeathVolley,      // R — Ultimate
-
-}
-
-  
-
-// Talent system
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-
-pub enum TalentChoice {
-
-    OptionA,
-
-    OptionB,
-
-}
-
-  
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-
-pub enum SpecializationPath {
-
-    // Osman
-
-    Conquest, Sovereignty, Faith,
-
-    // Turgut
-
-    Mountain, Storm, Guardian,
-
-    // Buran
-
-    Fire, Shadow, Eye,
-
-}
-
 ```
 
-  
+**Purpose**: Replaces simple radius checks with angular detection multipliers. The `stealth_detection_system` will compute the angle between detector→target and the detector's `facing`, then apply the appropriate multiplier.
 
-### 2.3 New Resources
+**Lifetime/Sync Risk**: `facing` must be read from `Formation.facing` or `Unit` direction. No mutability conflicts — `VisionCone.facing` is updated by a separate system in `FormationMovement` set, before `StealthDetection`.
 
-  
+#### C. New Component: `ObserverState`
 
 ```rust
-
-// Loot table for equipment drops
-
-#[derive(Resource, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
-
-pub struct EquipmentLootTable {
-
-    pub entries: Vec<LootEntry>,
-
+#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
+pub struct ObserverState {
+    pub alert_level: AlertLevel,
+    pub fatigue: f32,           // 0.0 = fresh, 1.0 = exhausted
+    pub in_formation: bool,
+    pub is_alone: bool,
+    pub morale_state: MoraleState, // from existing morale system
 }
 
-  
-
-// Track hero death penalties across missions
-
-#[derive(Resource, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
-
-pub struct HeroDeathPenalties {
-
-    pub penalties: HashMap<HeroId, DeathPenalty>,
-
+pub enum AlertLevel {
+    Unaware,    // ×0.8 — normal patrol
+    Suspicious, // ×1.0 — heard something
+    Alert,      // ×1.2 — after alarm
+    Combat,     // ×1.3 — in active combat
 }
-
-  
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
-
-pub struct DeathPenalty {
-
-    pub rating_loss: f32,        // -10% score
-
-    pub xp_loss: u32,           // XP lost this mission
-
-    pub morale_penalty: f32,    // -15 morale next mission
-
-}
-
 ```
 
-  
+**Purpose**: Multiplied into the detection formula per the GDD's "Observer Factors" table.
 
----
+**Sync Risk**: `AlertLevel` is mutated by the detection chain system (Phase 4b) and by alarm events (Phase 4c). Must run sequentially within `StealthDetection` set.
 
-  
+#### D. New Component: `StealthState` (extends `Stealth`)
 
-## 3. Systems Architecture
-
-  
-
-### 3.1 System Set Ordering
-
-  
-
-The hero systems should run within the existing `SimulationSet` ordering:
-
-  
-
-```
-
-InputProcessing → AbilityActivation → Movement → Combat → BuffApplication →
-
-ComponentCleanup
-
-```
-
-  
-
-**Hero systems mapped to sets:**
-
-  
-
-| System | Set | Notes |
-
-|--------|-----|-------|
-
-| `hero_resource_regen_system` | `SimulationSet::InputProcessing` | Regen resources each tick |
-
-| `hero_ability_system` | `SimulationSet::AbilityActivation` (new) | Validate & dispatch abilities |
-
-| `hero_state_machine_system` | `SimulationSet::Movement` | Transition hero states |
-
-| `hero_knockout_system` | `SimulationSet::Combat` | Handle KO → death blow → recovery |
-
-| `buff_tick_system` | `SimulationSet::BuffApplication` | Tick durations, apply/remove stats |
-
-| `hero_xp_system` | `SimulationSet::HarvestProcessing` | Award XP from kills/objectives |
-
-| `hero_level_up_system` | `SimulationSet::ComponentCleanup` | Check XP, grant levels |
-
-| `equipment_stat_system` | `SimulationSet::BuffApplication` | Apply equipment stat bonuses |
-
-| `hero_death_penalty_system` | `SimulationSet::ComponentCleanup` | Track death penalties |
-
-  
-
-### 3.2 Plugin Registration
-
-  
-
-```
-
-Group 1: Core Systems (1-8)
-
-  7. HeroPlugin  ←  expanded from current
-
-  
-
-Group 2: Feature Systems (9-16)
-
-  11. NextGenHeroesPlugin  ←  implement
-
-  12. RomanceLoyaltyPlugin  ←  implement
-
-  13. SuccessionLegacyPlugin  ←  implement
-
-  
-
-Group 3: Advanced Systems (17-22)
-
-  20. CoRulePlugin  ←  implement
-
-```
-
-  
-
----
-
-  
-
-## 4. Phase-by-Phase Implementation Plan
-
-  
-
-### Phase 1: Foundation Fix (Critical — Do First)
-
-  
-
-**Goal:** Align code with GDD, fix bugs, make the core 3 heroes playable.
-
-  
-
-| # | Task | Files | Est. Complexity |
-
-|---|------|-------|----------------|
-
-| 1.1 | **Fix HeroId enum** — Remove Orhan/Alaeddin/Malhun/Bala/Abdurrahman/Gunduz/Savci. Keep Osman, Turgut, Buran. Add season-2+ heroes behind `#[cfg(feature = "season2")]` or just keep them for future. | `hero.rs` | Low |
-
-| 1.2 | **Add Buran's 4 abilities** — FlamingArrow (AoE fire DoT + reveal), BlindingShot (single target blind+silence), ShadowLightness (passive stealth after 3s still), Death Volley (20 arrows on area) | `hero/mod.rs` | Medium |
-
-| 1.3 | **Add Turgut's 4 abilities** — GroundStrike (AoE blunt + knockback), EarthquakeChallenge (leap + taunt + self-def buff), IronWall (passive damage reduction scaling with stillness), BullsWrath (dash + enrage) | `hero/mod.rs` | Medium |
-
-| 1.4 | **Rework Osman's abilities** to match GDD exactly — WarCry radius/effects, CallOfTheTribe (summon 5 alps), Lionheart (trigger at <30% HP, not manual), DreamOfTheTree (area reveal+buff) | `hero/mod.rs` | Medium |
-
-| 1.5 | **Add `HeroStats` component** — Per-hero base stats loaded from RON. Update stat calculations in ability system. | `hero.rs`, `hero/mod.rs` | Medium |
-
-| 1.6 | **Add `HeroResource` system** — Inspiration/Fury/Focus per hero. Replace generic `stamina` in `AbilityCost`. | `hero.rs` | Medium |
-
-| 1.7 | **Fix buff_tick_system stat inflation bug** — Track baseline stats, add/remove deltas instead of accumulating. | `hero/mod.rs` | Medium |
-
-| 1.8 | **Fix Tactical Genius buff target bug** — Insert buff on each affected unit, not caster. | `hero/mod.rs` | Low |
-
-| 1.9 | **Sync XpConfig thresholds** with GDD | `hero.rs` | Low |
-
-| 1.10 | **Add RON configs** for Turgut and Buran | `kurulus-config/assets/heroes/` | Low |
-
-  
-
-**Bug Details:**
-
-  
-
-**Buff stat inflation** (1.7): Currently `buff_tick_system` does:
+The existing `Stealth` component is adequate for basic hidden/not-hidden. Add fields for the GDD's stealth phases:
 
 ```rust
-
-stats.attack_damage = (stats.attack_damage + buff.damage_bonus).max(1.0);
-
+// Extend existing Stealth component:
+pub struct Stealth {
+    pub level: f32,
+    pub is_hidden: bool,
+    pub hidden_timer: f32,
+    pub ambush_zone: Option<Entity>,
+    // NEW fields:
+    pub entry_timer: f32,           // 0-2s entry progression
+    pub is_ready: bool,             // Ready state for ambush
+    pub stealth_type: StealthType,  // Passive, Active, Group
+    pub zone_type: Option<StealthZoneType>,  // current zone
+    pub partial_stealth: bool,      // overcrowded zone
+}
 ```
 
-This adds `damage_bonus` every tick. Fix: store original stats on buff application, restore on removal, or use a separate `EffectiveStats` computed resource.
+#### E. New Component: `AmbushState` (for units in an ambush)
 
-  
+```rust
+#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
+pub struct AmbushState {
+    pub phase: AmbushPhase,
+    pub trigger_type: TriggerType,
+    pub staged_wave: u8,            // 0=not staged, 1/2/3=current wave
+    pub ready_since: f32,           // time entered ready state
+    pub bonus_damage_remaining: f32, // 10s countdown after trigger
+    pub shock_remaining: f32,        // 2s stun on targets
+}
 
-**Tactical Genius target** (1.8): Line 455 inserts buff on `caster` instead of `_e` (the affected unit).
+pub enum AmbushPhase {
+    Idle,
+    Setup,
+    Ready,
+    Triggered,
+    Executing,
+    Cooldown,
+}
 
-  
+pub enum TriggerType {
+    Manual,
+    AutoFirstContact,
+    Staged,
+    Solo,  // Boran only
+}
+```
 
-### Phase 2: Hero Progression & States
+#### F. New Component: `LureTarget` (for bait/decoy mechanics)
 
-  
+```rust
+#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
+pub struct LureTarget {
+    pub leash_range: f32,       // max follow distance
+    pub origin_point: Vec2,     // where to return if leash breaks
+    pub is_bait_rider: bool,
+    pub taunt_cooldown: Timer,
+    pub sprint_cooldown: Timer,
+}
+```
 
-**Goal:** Implement talent choices, equipment, hero death flow, hero states.
+#### G. New Component: `DetectionChain`
 
-  
+```rust
+#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
+pub struct DetectionChain {
+    pub suspicion_level: f32,   // 0.0 = none, 1.0 = confirmed
+    pub suspicion_timer: f32,   // 1-3s to confirm
+    pub alarm_raised: bool,
+    pub alarm_timer: f32,       // time since alarm raised
+}
+```
 
-| # | Task | Files | Est. Complexity |
+**Purpose**: Implements the GDD's 3-stage detection chain: Suspicion → Confirmation → Alarm.
 
-|---|------|-------|----------------|
+### 2.2 Event Changes (kurulus-core)
 
-| 2.1 | **Add `HeroState` component + state machine** — Idle → Moving → Attacking → UsingAbility → Channeling. KO → Recovering → Dead transitions. | `hero.rs`, new `hero/state_machine.rs` | Medium |
+#### New Events
 
-| 2.2 | **Implement talent choice system** — Player selects OptionA/OptionB at levels 6 and 10. Store choices in `Hero.talent_choices`. Apply talent modifiers to abilities. | `hero/mod.rs`, new `hero/talents.rs` | High |
+```rust
+/// Emitted when a unit enters suspicion phase
+pub struct UnitSuspicionRaised {
+    pub observer: Entity,
+    pub suspected: Entity,
+    pub suspicion_level: f32,
+}
 
-| 2.3 | **Implement specialization paths** — At level 8, player chooses one of 3 paths. Each path adds a unique ability + stat bonuses. | New `hero/specialization.rs` | High |
+/// Emitted when alarm is raised (alerts all nearby enemies)
+pub struct AlarmRaised {
+    pub raiser: Entity,
+    pub position: Vec2,
+    pub radius: f32,           // 50m default
+    pub duration: f32,         // 30s alert boost
+}
 
-| 2.4 | **Implement hero death flow** — HP→0 → KnockedOut (30s timer) → DeathBlow check → Dead OR Recovering (5s, 20% HP). Per-mission tracking. | New `hero/death.rs` | High |
+/// Emitted when an ambush phase changes
+pub struct AmbushPhaseChanged {
+    pub ambush_entity: Entity,
+    pub old_phase: AmbushPhase,
+    pub new_phase: AmbushPhase,
+}
 
-| 2.5 | **Implement equipment system** — Equipment component, 4 slots (weapon/armor/acc1/acc2). Stat application. Rarity tiers. | New `hero/equipment.rs` | High |
+/// Emitted when a lure target is engaged by AI
+pub struct LureEngaged {
+    pub lure_entity: Entity,
+    pub pursuers: Vec<Entity>,
+}
 
-| 2.6 | **Implement equipment crafting** — Blacksmith building integration. Recipes from GDD. Material costs. | New `hero/crafting.rs` | Medium |
+/// Emitted when a silent kill occurs
+pub struct SilentKill {
+    pub killer: Entity,
+    pub victim: Entity,
+    pub alarm_probability: f32,
+}
 
-| 2.7 | **Implement equipment loot drops** — From enemy kills (5-100% chance by enemy type). | New `hero/loot.rs` | Medium |
+/// Emitted when a staged ambush wave triggers
+pub struct StagedAmbushWave {
+    pub ambusher: Entity,
+    pub wave_number: u8,
+    pub units: Vec<Entity>,
+}
+```
 
-| 2.8 | **Implement hero resource regen** — Inspiration (+1/s, +3/s in combat), Fury (+0.8/s, +2 on hit taken), Focus (+1.5/s, +5 in stealth). | `hero/mod.rs` | Low |
+### 2.3 Resource Changes (kurulus-core)
 
-  
+```rust
+/// Global ambush configuration (loaded from RON)
+#[derive(Resource, Reflect, Clone, Serialize, Deserialize)]
+pub struct AmbushConfig {
+    pub zone_defaults: ZoneDefaults,
+    pub detection: DetectionConfig,
+    pub effects: AmbushEffectsConfig,
+    pub lure: LureConfig,
+}
 
-### Phase 3: Named Units
+pub struct ZoneDefaults {
+    pub dense_forest_detection_static: f32,  // 5.0
+    pub dense_forest_detection_moving: f32,  // 8.0
+    pub medium_forest_detection_static: f32, // 8.0
+    pub medium_forest_detection_moving: f32, // 12.0
+    pub tall_grass_detection: f32,           // 4.0
+    pub night_detection: f32,                // 3.0
+    pub ruins_detection: f32,                // 6.0
+    pub caves_detection: f32,                // 3.0
+    // ... capacities per zone type
+}
 
-  
+pub struct DetectionConfig {
+    pub vision_cone_front_angle: f32,    // 120°
+    pub vision_cone_peripheral_angle: f32, // 180°
+    pub front_mult: f32,                 // 1.0
+    pub peripheral_mult: f32,            // 0.7
+    pub side_mult: f32,                  // 0.4
+    pub rear_mult: f32,                  // 0.0
+    pub noise_detection_mult: f32,       // 0.3
+    pub alarm_radius: f32,               // 50.0
+    pub alarm_duration: f32,             // 30.0
+    pub suspicion_time_min: f32,         // 1.0
+    pub suspicion_time_max: f32,         // 3.0
+}
 
-**Goal:** Implement the 5 named units with unique passives and permadeath.
+pub struct AmbushEffectsConfig {
+    pub damage_multiplier: f32,          // 2.0
+    pub damage_duration: f32,            // 10.0
+    pub panic_morale_penalty: f32,       // -30.0
+    pub panic_threshold: f32,            // triggers if morale below this
+    pub formation_break_duration: f32,   // 3.0
+    pub shock_duration: f32,             // 2.0
+    pub failed_ambush_enemy_bonus: f32,  // 1.5
+    pub placement_cost: f32,             // 30.0
+}
 
-  
+pub struct LureConfig {
+    pub bait_rider_speed: f32,           // 6.0
+    pub bait_rider_hp: f32,              // 100.0
+    pub bait_rider_cost: f32,            // 50.0
+    pub max_bait_riders: u32,            // 2
+    pub default_leash_range: f32,        // 40.0
+    pub mongol_leash_range: f32,         // 60.0
+    pub byzantine_leash_range: f32,      // 40.0
+}
+```
 
-| # | Task | Files | Est. Complexity |
+### 2.4 System Changes (kurulus-systems)
 
-|---|------|-------|----------------|
+#### Modified Systems
 
-| 3.1 | **Add `NamedUnit` component + `NamedUnitId` enum** | `hero.rs` | Low |
+| System | Set | Change |
+|--------|-----|--------|
+| `terrain_stealth_system` | VisionCalculation | **Implement** — read `StealthZone` component, compute zone-specific detection ranges |
+| `night_stealth_system` | VisionCalculation | **Implement** — read `GameTime` phase (Day/Dusk/Night/Dawn), apply graduated modifiers |
+| `noise_calculation_system` | VisionCalculation | **Enhance** — account for running vs walking, combat noise, ability noise per GDD table |
+| `vision_calculation_system` | VisionCalculation | **Enhance** — use `VisionCone` angular checks instead of pure distance |
+| `ambush_auto_hide_system` | StealthDetection | **Enhance** — implement zone entry timer (0.5→1.5→2.0s), capacity overflow, zone destruction |
+| `stealth_detection_system` | StealthDetection | **Major rewrite** — integrate vision cones, observer factors, target factors, detection chain |
+| `ambush_trigger_system` | AmbushTrigger | **Enhance** — add panic, formation break, shock effects; support staged triggers |
+| `ambush_placement_system` | AmbushTrigger | **Enhance** — validate terrain (must be stealth zone), support ready state |
 
-| 3.2 | **Implement Konur Alp** — Light cavalry, Rider's Swiftness passive (+15% damage on charge, +20% speed on kill) | New `hero/named_units.rs` | Medium |
+#### New Systems
 
-| 3.3 | **Implement Ayazbey** — Archer, Hawk's Eye passive (+25% range, +5m stealth detection) | Same file | Medium |
+| System | Set | Purpose |
+|--------|-----|---------|
+| `detection_chain_system` | StealthDetection | Manages Suspicion→Confirmation→Alarm progression |
+| `alarm_broadcast_system` | AmbushTrigger | Propagates alarm to all enemies within 50m |
+| `ambush_phase_system` | AmbushTrigger | Manages ambush state machine (Idle→Setup→Ready→Triggered→Executing→Cooldown) |
+| `staged_ambush_system` | AmbushTrigger | Handles 3-wave staged triggers |
+| `silent_kill_system` | AmbushTrigger | Processes stealth kills with alarm probability |
+| `lure_ai_system` | AIDecision | AI decision to pursue bait riders (personality-based) |
+| `lure_pursuit_system` | Pathfinding | Moves pursuing AI units toward lure target |
+| `lure_leash_system` | Pathfinding | Breaks pursuit when leash range exceeded |
+| `ambush_scoring_system` | MissionObjectiveCheck | Tracks ambush score for mission evaluation |
+| `zone_capacity_system` | StealthDetection | Tracks occupancy, applies overcrowding penalties |
+| `zone_destruction_system` | DamageApplication | Handles fire arrows destroying forests, siege destroying ruins |
+| `ready_state_enforcement_system` | CommandQueueing | Prevents auto-attack for units in Ready state |
 
-| 3.4 | **Implement Bamsı Beyrek** — Veteran infantry, Veteran's Cry aura (+15% morale, +10% defense to adjacent) | Same file | Low |
+### 2.5 Updated System Set Architecture
 
-| 3.5 | **Implement Salvador/Abu Bakr** — Heavy infantry, Roman Tactics passive (+15% defense aura, -10% siege damage taken). Name changes on conversion. | Same file | Medium |
-
-| 3.6 | **Implement Salur Alp** — Scout leader, Tribe's Eye passive (+20% scout range, +5% speed to squad) | Same file | Low |
-
-| 3.7 | **Permadeath system for named units** — If killed → removed for rest of campaign. Different from heroes (who return next mission). | `hero/named_units.rs` | Medium |
-
-| 3.8 | **Mission availability matrix** — GDD specifies which named units are available per mission. | `hero/named_units.rs` | Low |
-
-  
-
-### Phase 4: Advanced Hero Systems (TODO → Real)
-
-  
-
-**Goal:** Implement the 4 stubbed plugins.
-
-  
-
-| # | Task | Files | Est. Complexity |
-
-|---|------|-------|----------------|
-
-| 4.1 | **RomanceLoyaltyPlugin** — Relationship meters between characters. Loyalty calculations. Marriage mechanics. Choice impact system. | `romance_loyalty/mod.rs` | High |
-
-| 4.2 | **NextGenHeroesPlugin** — Hero legacy/lineage. Marriage alliances. Child growth system. | `next_gen_heroes/mod.rs` | High |
-
-| 4.3 | **SuccessionLegacyPlugin** — Succession order on ruler death. Legacy scoring. Dynasty tree tracking. | `succession_legacy/mod.rs` | High |
-
-| 4.4 | **CoRulePlugin** — Co-command dispatch. Trust updates. Synergy calculations. Delegation orders. | `corule/mod.rs` | High |
-
-| 4.5 | **Hero Moments system** — Trigger conditions, cinematic playback integration, rewards. | `hero/mod.rs` or new file | Medium |
-
-  
-
-### Phase 5: Expansion Systems (Future)
-
-  
-
-**Goal:** Season 6+ systems — Age, Ruler class, Level 45 cap.
-
-  
-
-| # | Task | Description |
-
-|---|------|-------------|
-
-| 5.1 | **Age Mechanic** — Youth→Warrior→Veteran→Elder→Sage stages. Combat stat penalties, strategic stat bonuses. |
-
-| 5.2 | **Ruler Classification** — Orhan/Alaeddin get "Ruler" class with expanded influence radius, Tier 6-8 abilities, level cap 45. |
-
-| 5.3 | **Osman's Decline** — Gradual stat reduction (HP, damage, defense, speed) from levels 30→45. Wisdom stat introduced. |
-
-| 5.4 | **Osman's Legacy Abilities** — Post-death permanent buffs (Eternal Tree Dream, Founder's Blessing, etc.) |
-
-| 5.5 | **Level Cap 45 expansion** — XP table extension, Ruler talent trees at 32/36/41. |
-
-  
+```
+Phase 4: Detection & Stealth (existing)
+  VisionCalculation
+    ├── terrain_stealth_system          [ENHANCED]
+    ├── night_stealth_system            [ENHANCED]
+    ├── noise_calculation_system        [ENHANCED]
+    ├── vision_calculation_system       [ENHANCED with VisionCone]
+    └── zone_capacity_system            [NEW]
+  StealthDetection
+    ├── ambush_auto_hide_system         [ENHANCED]
+    ├── detection_chain_system          [NEW]
+    └── stealth_detection_system        [MAJOR REWRITE]
+  AmbushTrigger
+    ├── ready_state_enforcement_system  [NEW]
+    ├── ambush_phase_system             [NEW]
+    ├── staged_ambush_system            [NEW]
+    ├── ambush_trigger_system           [ENHANCED]
+    ├── silent_kill_system              [NEW]
+    ├── alarm_broadcast_system          [NEW]
+    └── ambush_placement_system         [ENHANCED]
+```
 
 ---
 
-  
-
-## 5. Data Layout — Entity Component Design
-
-  
-
-### Hero Entity Composition
-
-  
+## 3. Data Flow Diagram
 
 ```
-
-Entity: Osman
-
-├── Hero { hero_id: Osman, level: 5, xp: 800, ... }
-
-├── HeroStats { base_health: 1200, base_damage: 35, ... }
-
-├── HeroState::Idle
-
-├── HeroDeathState::default()
-
-├── Unit { archetype: HeavyInfantry, faction: Kayi, ... }
-
-├── Health { current: 1800, max: 1800, armor: 35, ... }
-
-├── Stats { move_speed: 3.2, attack_damage: 50, ... }
-
-├── ActiveBuffs { buffs: [...] }
-
-├── Equipment { weapon: Some(DamascusSword), armor: Some(LeatherArmor), ... }
-
-├── SkillTree { hero_id: Osman, nodes: [...], available_points: 2 }
-
-├── WorldPosition(IVec2(10, 15))
-
-├── GridPos(IVec2(10, 15))
-
-├── Selected (when player selects)
-
-└── [Optional] CoCommand { primary: Entity, secondary: Entity, ... }
-
+                    ┌─────────────────┐
+                    │   GameTime      │
+                    │ (day/night)     │
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │ VisionCalculation│
+                    │                 │
+                    │ TerrainGrid ────┼──► terrain_stealth_system
+                    │ GameTime ───────┼──► night_stealth_system
+                    │ Stats ──────────┼──► noise_calculation_system
+                    │ VisionCone ─────┼──► vision_calculation_system
+                    │ StealthZone ────┼──► zone_capacity_system
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │StealthDetection │
+                    │                 │
+                    │ ObserverState ──┼──► detection_chain_system
+                    │ Stealth ────────┼──► ambush_auto_hide_system
+                    │ Detection ──────┼──► stealth_detection_system
+                    │ VisionCone ─────┤
+                    │ NoiseLevel ─────┤
+                    └────────┬────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              │              │              │
+     ┌────────▼───┐  ┌──────▼──────┐  ┌───▼────────┐
+     │StealthRevealed│ │UnitSuspicion│  │AmbushTrigger│
+     │  Event     │  │  Raised     │  │  System     │
+     └────────────┘  └──────┬──────┘  └───┬────────┘
+                            │              │
+                   ┌────────▼───┐  ┌──────▼──────┐
+                   │AlarmRaised │  │AmbushPhase  │
+                   │  Event     │  │  System     │
+                   └────────────┘  └──────┬──────┘
+                                          │
+                                 ┌────────▼────────┐
+                                 │ AmbushTrigger    │
+                                 │ (Damage ×2,      │
+                                 │  Panic, Break,   │
+                                 │  Shock)          │
+                                 └─────────────────┘
 ```
-
-  
-
-### Named Unit Entity Composition
-
-  
-
-```
-
-Entity: KonurAlp
-
-├── NamedUnit { unit_id: KonurAlp, is_permanently_dead: false }
-
-├── Unit { archetype: LightCavalry, faction: Kayi, ... }
-
-├── Health { current: 250, max: 250, armor: 15, ... }
-
-├── Stats { move_speed: 5.2, attack_damage: 22, ... }
-
-├── WorldPosition(...)
-
-└── GridPos(...)
-
-```
-
-  
-
-### Resource Dependencies
-
-  
-
-```
-
-XpConfig (Resource)
-
-  └── read by: hero_level_up_system
-
-  
-
-ActiveHero (Resource)
-
-  └── read by: hero_switch_system, UI systems
-
-  
-
-AdministrativeMindBuff (Resource)
-
-  └── read/written by: admin_mind_tick_system, execute_administrative_mind
-
-  
-
-CulturalRenaissanceBuff (Resource)
-
-  └── read/written by: cultural_renaissance_tick_system, execute_cultural_renaissance
-
-  
-
-HeroDeathPenalties (Resource) — NEW
-
-  └── read/written by: hero_death_penalty_system
-
-  
-
-EquipmentLootTable (Resource) — NEW
-
-  └── read by: loot drop system
-
-  
-
-TrustMatrix (Resource) — exists
-
-  └── read/written by: CoRulePlugin systems
-
-  
-
-CoCommandState (Resource) — exists
-
-  └── read/written by: CoRulePlugin systems
-
-```
-
-  
 
 ---
 
-  
+## 4. Phased Implementation Plan
 
-## 6. Threading & Lifetime Risks
+### Phase 1: Foundation (Week 1-2) — Core Detection Overhaul
+**Goal**: Replace radius-only detection with vision cones + observer factors
 
-  
+| Task | Crate | Complexity |
+|------|-------|-----------|
+| Add `StealthZone` component + `StealthZoneType` enum | core | Low |
+| Add `VisionCone` component | core | Low |
+| Add `ObserverState` component + `AlertLevel` enum | core | Low |
+| Add `DetectionChain` component | core | Low |
+| Create `AmbushConfig` resource with RON schema | core + config | Medium |
+| Implement `terrain_stealth_system` (read StealthZone) | systems | Low |
+| Implement `vision_calculation_system` with VisionCone | systems | High |
+| Implement `detection_chain_system` | systems | Medium |
+| Rewrite `stealth_detection_system` with all factors | systems | High |
+| Add 10+ integration tests | app | Medium |
+
+**Verification**: `cargo test` passes, `cargo check` emits 0 warnings.
+
+### Phase 2: Ambush Lifecycle (Week 3-4) — Full Ambush Phases
+**Goal**: Implement Setup → Ready → Trigger → Execute → Reward
+
+| Task | Crate | Complexity |
+|------|-------|-----------|
+| Add `AmbushState` component + phase enum | core | Low |
+| Add `AmbushPhaseChanged`, `StagedAmbushWave` events | core | Low |
+| Implement `ambush_phase_system` (state machine) | systems | Medium |
+| Implement `ready_state_enforcement_system` | systems | Low |
+| Enhance `ambush_trigger_system` with panic/break/shock | systems | High |
+| Implement `staged_ambush_system` (3-wave) | systems | Medium |
+| Implement `silent_kill_system` | systems | Medium |
+| Implement `alarm_broadcast_system` | systems | Low |
+| Enhance `ambush_placement_system` with terrain validation | systems | Low |
+| Implement `night_stealth_system` (graduated day/night) | systems | Medium |
+| Add 15+ integration tests | app | Medium |
+
+**Verification**: Full ambush lifecycle works in headless test.
+
+### Phase 3: Decoy & Lure (Week 5-6) — AI Pursuit
+**Goal**: Implement bait rider + AI lure response
+
+| Task | Crate | Complexity |
+|------|-------|-----------|
+| Add `LureTarget` component | core | Low |
+| Add `LureEngaged` event | core | Low |
+| Implement `lure_ai_system` (personality-based decisions) | systems | High |
+| Implement `lure_pursuit_system` (pathfinding toward bait) | systems | Medium |
+| Implement `lure_leash_system` (leash range enforcement) | systems | Low |
+| Implement `zone_capacity_system` + overcrowding | systems | Medium |
+| Implement `zone_destruction_system` (fire arrows) | systems | Medium |
+| Add config RON files for lure parameters | config | Low |
+| Add 10+ integration tests | app | Medium |
+
+### Phase 4: Polish & Scoring (Week 7) — Rewards + Hit&Run
+**Goal**: Ambush scoring, hit-and-run tracking, final polish
+
+| Task | Crate | Complexity |
+|------|-------|-----------|
+| Implement `ambush_scoring_system` | systems | Low |
+| Add ambush reward events + mission integration | systems + core | Medium |
+| Implement basic hit-and-run cycle tracking (stretch) | systems | High |
+| Final integration tests (20+ new) | app | Medium |
+| Debug rendering for vision cones, stealth zones | render-2d | Medium |
+
+---
+
+## 5. Cross-Cutting Concerns
+
+### 5.1 Lifetime & Sync Risks
 
 | Risk | Mitigation |
-
-|------|------------|
-
-| `buff_tick_system` mutates both `ActiveBuffs` and `Stats` in same query — B0001 conflict with other systems that read Stats | Split into two systems: one to tick durations (read Stats, write ActiveBuffs), one to apply stat modifiers (write Stats via a `StatModifier` resource) |
-
-| `hero_ability_system` takes 13 parameters — potential B0003/B0005 conflicts | Already using two-phase approach (collect activations, then execute). Continue this pattern. Consider `SystemParam` derive for grouping. |
-
-| `equipment_stat_system` writing to `Stats` while `buff_tick_system` also writes to `Stats` | Use an `EffectiveStats` computed resource updated once per frame, or order systems strictly via system sets |
-
-| `Hero.active_cooldowns: HashMap<AbilityId, f32>` — HashMap iteration during mutation | Use `iter_mut()` pattern which is safe in Bevy ECS |
-
-| Co-rule systems need to access two hero entities simultaneously | Use `Query::get()` with explicit entity IDs from `CoCommand` component, not parallel iteration |
-
-| Named unit permadeath persists across missions — needs save/load support | Store in `CampaignState` resource, serialize with `serde` |
-
-  
-
----
-
-  
-
-## 7. Testing Strategy
-
-  
-
-### Existing Tests (keep & extend)
-
-- `hero_switch_tests.rs` — 10 tests for hero cycling. Add cases for KO heroes, dead heroes.
-
-  
-
-### New Test Files Needed
-
-  
-
-| File | Tests | Coverage |
-
-|------|-------|----------|
-
-| `hero_ability_tests.rs` | Test each ability: cost deduction, cooldown application, buff application, effect values | 12+ tests |
-
-| `hero_leveling_tests.rs` | XP gain, level-up thresholds, skill point grants, stat growth | 8+ tests |
-
-| `hero_death_tests.rs` | Knockout timer, death blow chance, recovery, cross-mission reset | 8+ tests |
-
-| `buff_system_tests.rs` | Buff stacking, duration expiry, stat restoration (no inflation) | 6+ tests |
-
-| `equipment_tests.rs` | Equip/unequip, stat bonuses, rarity effects, crafting | 10+ tests |
-
-| `named_unit_tests.rs` | Permadeath, mission availability, passive effects | 6+ tests |
-
-| `talent_tests.rs` | Talent selection at correct levels, effect application, reset | 6+ tests |
-
-  
-
----
-
-  
-
-## 8. Key Design Decisions to Confirm
-
-  
-
-Before implementation, these should be resolved:
-
-  
-
-1. **HeroId alignment**: Should we keep the extra hero IDs (Orhan, Alaeddin, etc.) in the enum for forward compatibility, or strip them to just Osman/Turgut/Buran and add later? *Recommendation: Keep them — they're harmless and prevent future enum migration.*
-
-  
-
-2. **Buff baseline tracking**: Two approaches:
-
-   - **(A) Store baseline stats on entity** — Add `BaseStats` component, `Stats` is always derived. Clean but requires recalculation.
-
-   - **(B) StatModifier resource** — Centralized stat modification queue processed once per frame. More Bevy-idiomatic but more complex.
-
-   *Recommendation: (A) — simpler, less cross-system coupling.*
-
-  
-
-3. **Equipment RON config format**: Should equipment be defined in per-hero RON files or a global equipment catalog?
-
-   *Recommendation: Global catalog (`equipment.ron`) + per-hero loadout reference.*
-
-  
-
-4. **Named units: separate plugin or inside HeroPlugin?**
-
-   *Recommendation: Inside HeroPlugin — they share stat/combat infrastructure and are not complex enough to warrant a separate crate.*
-
-  
-
-5. **Talent choice UX**: How does the player select talents? Full-screen UI? Quick-select popup?
-
-   *Recommendation: Quick-select popup on level-up (2-3 options), pausing the game briefly. Implement as event-driven UI trigger.*
-
-  
-
----
-
-  
-
-## 9. File Change Summary
-
-  
-
-| Crate | Files to Modify | Files to Create |
-
-|-------|----------------|-----------------|
-
-| `kurulus-core` | `components/hero.rs`, `components/mod.rs` | — |
-
-| `kurulus-systems` | `hero/mod.rs` | `hero/state_machine.rs`, `hero/talents.rs`, `hero/specialization.rs`, `hero/death.rs`, `hero/equipment.rs`, `hero/crafting.rs`, `hero/loot.rs`, `hero/named_units.rs` |
-
-| `kurulus-config` | — | `assets/heroes/hero_turgut.ron`, `assets/heroes/hero_buran.ron`, `assets/equipment.ron` |
-
-| `kurulus-app/tests` | `hero_switch_tests.rs` (extend) | `hero_ability_tests.rs`, `hero_leveling_tests.rs`, `hero_death_tests.rs`, `buff_system_tests.rs`, `equipment_tests.rs`, `named_unit_tests.rs`, `talent_tests.rs` |
-
-  
-
----
-
-  
-
-## 10. Recommended Implementation Order
-
-  
-
+|------|-----------|
+| `VisionCone.facing` mutated by FormationMovement, read by StealthDetection | Ensure `FormationMovement` set runs before `VisionCalculation` (already ordered) |
+| `ObserverState.alert_level` mutated by detection_chain, read by stealth_detection | Both in same `StealthDetection` set — use ordering `.chain()` |
+| `AmbushState` mutated by multiple systems (phase, trigger, staged) | Centralize mutations in `ambush_phase_system`, other systems only read |
+| `DetectionChain` concurrent mutation from multiple detectors | Use `&mut` query with `for` loop — Bevy guarantees exclusive access per entity |
+| `StealthZone.current_occupancy` updated by zone_capacity, read by ambush_auto_hide | Same set, sequential — safe |
+
+### 5.2 Performance Considerations
+
+| Concern | Approach |
+|---------|----------|
+| Vision cone angle computation per detector-target pair | O(detectors × stealth_units) — acceptable for <1000 units. Use spatial hashing if needed later |
+| Detection chain timers | Only active for units with `DetectionChain` component (sparse) |
+| Zone capacity tracking | Increment/decrement on entry/exit events, not per-frame recalculation |
+
+### 5.3 Config-Driven Design
+
+All GDD magic numbers (detection ranges, damage multipliers, durations, costs) will live in `AmbushConfig` loaded from `kurulus-config/assets/ambush_config.ron`. This enables:
+- Balance tuning without code changes
+- Mission-specific overrides
+- Easy A/B testing
+
+### 5.4 BRP/MCP Integration
+
+All new components and events will be registered for BRP reflection in `register_logic_plugins()`:
+```rust
+app.register_type::<VisionCone>()
+   .register_type::<ObserverState>()
+   .register_type::<DetectionChain>()
+   .register_type::<AmbushState>()
+   .register_type::<LureTarget>()
+   .register_type::<StealthZone>();
 ```
 
-Phase 1.1-1.3  →  HeroId fix + Turgut/Buran abilities     [1-2 days]
+---
 
-Phase 1.4-1.6  →  Osman rework + HeroStats + HeroResource [1-2 days]
+## 6. Testing Strategy
 
-Phase 1.7-1.8  →  Bug fixes (buff inflation, tact. genius) [0.5 day]
+### 6.1 Unit Tests (per system)
+- Vision cone angle calculation (front/side/rear detection)
+- Observer factor multiplication
+- Detection chain progression (suspicion → confirmation → alarm)
+- Zone capacity overflow penalties
+- Ambush phase state machine transitions
+- Staged wave sequencing
+- Silent kill alarm probability
 
-Phase 1.9-1.10 →  XpConfig sync + RON configs              [0.5 day]
+### 6.2 Integration Tests (full pipeline)
+- Hidden unit in dense forest: detected only within 5m
+- Hidden unit behind detector (rear): not detected even at 2m
+- Alarm propagation: one detector raises alarm, all enemies within 50m go alert
+- Ready state: units in ambush don't auto-attack
+- Staged ambush: 3 waves fire in sequence
+- Failed ambush: enemy discovers units, gets ×1.5 damage bonus
+- Night stealth: detection ranges reduced by 60%
+- Lure pursuit: AI follows bait rider up to leash range, then returns
 
-Phase 2.1      →  HeroState machine                        [1 day]
-
-Phase 2.4      →  Hero death flow                          [1 day]
-
-Phase 2.8      →  Hero resource regen                      [0.5 day]
-
-Phase 2.2-2.3  →  Talent choices + Specialization          [2 days]
-
-Phase 2.5-2.7  →  Equipment system                         [3 days]
-
-Phase 3.1-3.8  →  Named units                              [2 days]
-
-Phase 4.1-4.5  →  Advanced systems (4 plugins)             [5-8 days]
-
-Phase 5        →  Expansion systems (defer to later)       [deferred]
-
-                ─────────────────────────────────────────
-
-                TOTAL (Phases 1-4):                        ~18-25 days
-
-```
-
-  
+### 6.3 Target: 30+ new tests (total 96+ → 126+)
 
 ---
 
-  
+## 7. Files to Create/Modify
 
-This plan provides a structured path from the current working foundation to a complete Hero System that matches the GDD specifications. The critical path is Phase 1 (foundation fix) — everything else builds on top of correct core data structures.
+### New Files
+| Path | Purpose |
+|------|---------|
+| `kurulus-core/src/components/stealth_zone.rs` | `StealthZone`, `StealthZoneType` |
+| `kurulus-core/src/components/vision_cone.rs` | `VisionCone` |
+| `kurulus-core/src/components/observer.rs` | `ObserverState`, `AlertLevel` |
+| `kurulus-core/src/components/detection_chain.rs` | `DetectionChain` |
+| `kurulus-core/src/components/ambush_state.rs` | `AmbushState`, `AmbushPhase`, `TriggerType` |
+| `kurulus-core/src/components/lure.rs` | `LureTarget` |
+| `kurulus-core/src/resources/ambush_config.rs` | `AmbushConfig` and sub-configs |
+| `kurulus-core/src/events/stealth.rs` | New stealth events (split from combat.rs) |
+| `kurulus-config/assets/ambush_config.ron` | Default config values |
+| `kurulus-systems/src/stealth/detection.rs` | Detection chain + vision cone systems |
+| `kurulus-systems/src/stealth/ambush_lifecycle.rs` | Ambush phase + staged + scoring systems |
+| `kurulus-systems/src/stealth/lure.rs` | Lure AI + pursuit + leash systems |
+| `kurulus-app/tests/stealth_detection_tests.rs` | Vision cone + observer factor tests |
+| `kurulus-app/tests/ambush_lifecycle_tests.rs` | Full ambush phase tests |
+| `kurulus-app/tests/lure_tests.rs` | Decoy + lure pursuit tests |
+
+### Modified Files
+| Path | Changes |
+|------|---------|
+| `kurulus-core/src/components/stealth.rs` | Add `entry_timer`, `is_ready`, `stealth_type`, `zone_type`, `partial_stealth` fields |
+| `kurulus-core/src/components/mod.rs` | Export new modules |
+| `kurulus-core/src/events/combat.rs` | Move `AmbushTriggered`/`StealthRevealed` to `events/stealth.rs` |
+| `kurulus-core/src/resources/mod.rs` | Export `AmbushConfig` |
+| `kurulus-systems/src/stealth/mod.rs` | Register new systems, restructure plugin |
+| `kurulus-systems/src/lib.rs` | Register new events/types for BRP |
+| `kurulus-app/src/plugins.rs` | Add new event registrations |
+| `kurulus-app/tests/stealth_tests.rs` | Update to use new components |
+
+---
+
+## 8. Open Questions for the User
+
+Before proceeding to implementation, I'd like to clarify a few design decisions:
+
+1. **TerrainType expansion vs parallel StealthZone layer**: The GDD needs 8 stealth zone types but the current `TerrainType` only has 6 variants. Do you prefer expanding `TerrainType` directly (simpler but touches many systems) or adding a parallel `StealthZone` component on tiles (more modular, less invasive)?
+
+2. **Hit & Run scope**: The GDD has a full hit-and-run system (6-phase cycle, fatigue, withdrawal rules). This is marked as stretch in Phase 4. Should it be included in this sprint or deferred?
+
+3. **Bait Rider as new UnitArchetype**: The GDD defines a Bait Rider unit with unique stats (6 m/s, 100 HP, doesn't stop under fire). Should this be a new `UnitArchetype::BaitRider` variant, or a special entity with custom components?
+
+4. **Config RON location**: Should the ambush config live in `kurulus-config/assets/ambush_config.ron` (loaded at runtime) or be hardcoded initially with config as a follow-up?
+
+5. **Priority**: Given the gap analysis, should I prioritize the **detection overhaul** (vision cones + observer factors) or the **ambush lifecycle** (phases + staged triggers) first? The detection system is more foundational but the ambush lifecycle is more visible to players.
+
+---

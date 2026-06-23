@@ -386,6 +386,9 @@ pub enum UnitArchetype {
     LightCavalry,
     HeavyCavalry,
     Scout,
+    /// Bait rider — fast, fragile unit used for luring enemies into ambushes.
+    /// GDD: 6 m/s speed, 100 HP, 8 damage, doesn't stop under fire.
+    BaitRider,
     SiegeCrew,
     Worker,
 }

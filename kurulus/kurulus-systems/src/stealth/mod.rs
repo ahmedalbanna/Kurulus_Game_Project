@@ -5,7 +5,7 @@ pub struct StealthPlugin;
 
 impl Plugin for StealthPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.insert_resource(AmbushConfig::default()).add_systems(
             FixedUpdate,
             (
                 // Phase 4a: Pre-detection modifiers (terrain, night, noise)
@@ -14,9 +14,12 @@ impl Plugin for StealthPlugin {
                 noise_calculation_system.in_set(SimulationSet::VisionCalculation),
                 // Phase 4b: Vision & Detection
                 vision_calculation_system.in_set(SimulationSet::VisionCalculation),
+                detection_chain_system.in_set(SimulationSet::StealthDetection),
                 ambush_auto_hide_system.in_set(SimulationSet::StealthDetection),
                 stealth_detection_system.in_set(SimulationSet::StealthDetection),
                 // Phase 4c: Ambush
+                ambush_phase_system.in_set(SimulationSet::AmbushTrigger),
+                ready_state_enforcement_system.in_set(SimulationSet::AmbushTrigger),
                 ambush_trigger_system.in_set(SimulationSet::AmbushTrigger),
                 ambush_placement_system.in_set(SimulationSet::AmbushTrigger),
             ),
@@ -25,104 +28,189 @@ impl Plugin for StealthPlugin {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  TERRAIN STEALTH MODIFIER
+//  TERRAIN STEALTH MODIFIER (ENHANCED)
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// The effective stealth level (base + terrain + night − noise − size) is
-/// computed inside `ambush_auto_hide_system` and `stealth_detection_system`.
-/// This system exists as a hook for future visual feedback (e.g. a UI icon
-/// showing the current terrain bonus) and is deliberately a no-op for now.
+/// Computes and applies terrain stealth modifiers based on `StealthZone` tiles.
 fn terrain_stealth_system(
-    _stealth_query: Query<(&WorldPosition, &Stealth), (With<Stealth>, Without<Dead>)>,
-    _terrain: Res<TerrainGrid>,
+    mut stealth_query: Query<(&WorldPosition, &mut Stealth)>,
+    stealth_zones: Query<(&GridPos, &StealthZone)>,
+    terrain: Res<TerrainGrid>,
 ) {
-}
+    let zone_map: std::collections::HashMap<IVec2, &StealthZone> =
+        stealth_zones.iter().map(|(g, z)| (g.0, z)).collect();
 
-// ═════════════════════════════════════════════════════════════════════════════
-//  NIGHT STEALTH BONUS
-// ═════════════════════════════════════════════════════════════════════════════
+    for (pos, mut stealth) in stealth_query.iter_mut() {
+        let cell = pos.grid.0;
+        let terrain_mod = terrain.stealth_modifier(cell);
 
-/// The night stealth bonus (+0.20) is applied inside
-/// `ambush_auto_hide_system` and `stealth_detection_system`.
-/// This system exists as a hook for future visual effects (e.g. dimming the
-/// scene overlay) and is deliberately a no-op for now.
-fn night_stealth_system(
-    _stealth_query: Query<&Stealth, (With<Stealth>, Without<Dead>)>,
-    _game_time: Res<GameTime>,
-) {
-}
+        if let Some(zone) = zone_map.get(&cell) {
+            if zone.destroyed {
+                stealth.zone_type = None;
+                stealth.partial_stealth = false;
+                continue;
+            }
+            stealth.zone_type = Some(zone.zone_type);
+            stealth.partial_stealth = zone.is_overcrowded();
 
-// ═════════════════════════════════════════════════════════════════════════════
-//  NOISE CALCULATION
-// ═════════════════════════════════════════════════════════════════════════════
-
-/// Calculates noise level from movement speed.
-/// Units with higher `move_speed` generate more noise.
-/// Noise is stored on the `NoiseLevel` component.
-fn noise_calculation_system(
-    mut units: Query<(&Stats, &mut NoiseLevel), (With<Unit>, Without<Dead>)>,
-) {
-    for (stats, mut noise) in units.iter_mut() {
-        // Noise scales linearly with move speed: 0 at speed 0, 1.0 at speed 10+
-        noise.noise = (stats.move_speed / 10.0).clamp(0.0, 1.0);
+            let zone_bonus = zone.zone_type.stealth_bonus();
+            let effective_terrain = terrain_mod.max(zone_bonus);
+            stealth.level = (stealth.level + effective_terrain).clamp(0.0, 1.0);
+        } else {
+            stealth.zone_type = None;
+            stealth.partial_stealth = false;
+            stealth.level = (stealth.level + terrain_mod).clamp(0.0, 1.0);
+        }
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  VISION CALCULATION (enhanced with terrain blocking)
+//  NIGHT STEALTH BONUS (ENHANCED)
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// Updates `FogOfWar` and determines which entities are visible to each
-/// faction based on unit vision ranges, height bonuses, and terrain blocking.
+/// Applies graduated night stealth bonus based on day/night cycle.
+fn night_stealth_system(
+    mut stealth_query: Query<&mut Stealth, (With<Stealth>, Without<Dead>)>,
+    game_time: Res<GameTime>,
+) {
+    let night_mod: f32 = if game_time.is_night() {
+        if game_time.hour < 6 || game_time.hour >= 20 {
+            0.20
+        } else if game_time.hour >= 18 {
+            0.10
+        } else {
+            0.0
+        }
+    } else if game_time.hour >= 6 && game_time.hour < 8 {
+        0.10
+    } else {
+        0.0
+    };
+
+    if night_mod > 0.0 {
+        for mut stealth in stealth_query.iter_mut() {
+            stealth.level = (stealth.level + night_mod).clamp(0.0, 1.0);
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  NOISE CALCULATION (ENHANCED)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Calculates noise level from movement speed, using archetype-based thresholds.
+fn noise_calculation_system(
+    mut units: Query<(&Stats, &Unit, &mut NoiseLevel), (With<Unit>, Without<Dead>)>,
+) {
+    for (stats, unit, mut noise) in units.iter_mut() {
+        let max_speed: f32 = match unit.archetype {
+            UnitArchetype::Scout => 4.5,
+            UnitArchetype::BaitRider => 6.0, // GDD: fastest unit
+            UnitArchetype::LightInfantry => 3.5,
+            UnitArchetype::Archer => 3.0,
+            UnitArchetype::Worker => 2.5,
+            UnitArchetype::LightCavalry => 5.5,
+            UnitArchetype::HeavyInfantry => 2.5,
+            UnitArchetype::HeavyCavalry => 4.0,
+            UnitArchetype::SiegeCrew => 2.0,
+        };
+
+        let speed_ratio: f32 = if max_speed > 0.0 {
+            (stats.move_speed / max_speed).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+
+        let is_cavalry = matches!(
+            unit.archetype,
+            UnitArchetype::LightCavalry | UnitArchetype::HeavyCavalry | UnitArchetype::BaitRider
+        );
+        let cavalry_base: f32 = if is_cavalry { 0.2 } else { 0.0 };
+
+        if speed_ratio < 0.5 {
+            noise.noise = (0.1_f32 + cavalry_base + speed_ratio * 0.2).clamp(0.0, 1.0);
+        } else {
+            noise.noise = (0.3_f32 + cavalry_base + speed_ratio * 0.4).clamp(0.0, 1.0);
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  VISION CALCULATION (ENHANCED with VisionCone)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Updates fog of war using vision cones, height bonuses, and terrain blocking.
 fn vision_calculation_system(
-    units: Query<(&WorldPosition, &Stats, &Unit, Option<&HeightLevel>)>,
+    units: Query<(
+        &WorldPosition,
+        &Stats,
+        &Unit,
+        Option<&HeightLevel>,
+        Option<&VisionCone>,
+    )>,
     mut fog_tiles: Query<(&GridPos, &mut FogOfWar)>,
     terrain: Res<TerrainGrid>,
 ) {
     let mut visible_cells: std::collections::HashSet<IVec2> = std::collections::HashSet::new();
 
-    for (pos, stats, unit, height) in units.iter() {
-        let vision = if unit.faction == FactionId::Kayi {
-            let height_bonus = match height {
-                Some(HeightLevel::Ground) | None => 1.0,
-                Some(HeightLevel::Wall) => 2.0,
-                Some(HeightLevel::Tower) => 3.0,
-                Some(HeightLevel::Mountain) => 4.0,
-            };
-            stats.vision_range * height_bonus
-        } else {
-            0.0
+    for (pos, stats, unit, height, vision_cone) in units.iter() {
+        let is_player_unit = unit.faction == FactionId::Kayi;
+        if !is_player_unit {
+            continue;
+        }
+
+        let height_bonus: f32 = match height {
+            Some(HeightLevel::Ground) | None => 1.0,
+            Some(HeightLevel::Wall) => 2.0,
+            Some(HeightLevel::Tower) => 3.0,
+            Some(HeightLevel::Mountain) => 4.0,
         };
 
-        if vision <= 0.0 {
+        let base_vision = stats.vision_range * height_bonus;
+        if base_vision <= 0.0 {
             continue;
         }
 
         let gx = pos.grid.0.x;
         let gy = pos.grid.0.y;
-        let range_i = vision.ceil() as i32;
+        let range_i = base_vision.ceil() as i32;
+
+        let cone = vision_cone.map_or_else(|| VisionCone::default(), |c| c.clone());
+
         for dx in -range_i..=range_i {
             for dy in -range_i..=range_i {
-                let d_sq = dx * dx + dy * dy;
-                if (d_sq as f32) > vision * vision {
+                let d_sq = (dx * dx + dy * dy) as f32;
+                if d_sq > base_vision * base_vision {
                     continue;
                 }
                 let cell = IVec2::new(gx + dx, gy + dy);
 
-                // Terrain vision blocking: if mountain or building blocks the ray,
-                // don't mark cells behind it (simplified: check cell itself)
                 if terrain.blocks_vision(cell) && (dx.abs() > 1 || dy.abs() > 1) {
                     continue;
                 }
 
-                visible_cells.insert(cell);
+                let target_vec = Vec2::new(dx as f32, dy as f32);
+                let angle: f32 =
+                    if cone.facing.length_squared() > 0.0 && target_vec.length_squared() > 0.0 {
+                        // angle_to returns a signed angle in radians; convert to degrees absolute
+                        target_vec.angle_to(cone.facing).abs().to_degrees()
+                    } else {
+                        0.0
+                    };
+                let cone_mult = cone.detection_mult(angle);
+
+                if cone_mult > 0.0 {
+                    let effective_range = base_vision * cone_mult;
+                    if d_sq <= effective_range * effective_range {
+                        visible_cells.insert(cell);
+                    }
+                }
             }
         }
     }
 
     for (grid_pos, mut fog) in fog_tiles.iter_mut() {
-        let is_visible = visible_cells.contains(&grid_pos.0);
-        if is_visible {
+        if visible_cells.contains(&grid_pos.0) {
             fog.visible = true;
             fog.explored = true;
         }
@@ -130,11 +218,119 @@ fn vision_calculation_system(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  AMBUSH AUTO-HIDE
+//  DETECTION CHAIN SYSTEM (NEW)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Manages the Suspicion → Confirmation → Alarm progression for detection.
+fn detection_chain_system(
+    mut commands: Commands,
+    mut chains: Query<(Entity, &mut DetectionChain)>,
+    stealth_query: Query<(Entity, &WorldPosition, &Stealth), (With<Stealth>, Without<Dead>)>,
+    detectors: Query<
+        (
+            Entity,
+            &WorldPosition,
+            &Detection,
+            Option<&VisionCone>,
+            Option<&ObserverState>,
+        ),
+        (With<Unit>, Without<Stealth>, Without<Dead>),
+    >,
+    time: Res<Time>,
+    config: Res<AmbushConfig>,
+    mut suspicion_events: EventWriter<UnitSuspicionRaised>,
+    mut confirm_events: EventWriter<UnitConfirmed>,
+    mut alarm_events: EventWriter<AlarmRaised>,
+    mut reveal_events: EventWriter<StealthRevealed>,
+) {
+    let dt = time.delta_secs();
+    let detector_list: Vec<(
+        Entity,
+        &WorldPosition,
+        &Detection,
+        Option<&VisionCone>,
+        Option<&ObserverState>,
+    )> = detectors
+        .iter()
+        .filter(|(_, _, det, _, _)| det.active)
+        .collect();
+
+    for (chain_e, mut chain) in chains.iter_mut() {
+        if chain.alarm_raised || chain.alarm_prevented {
+            continue;
+        }
+
+        let Some(tracked) = chain.tracked_entity else {
+            continue;
+        };
+
+        let still_detected = detector_list.iter().any(|(_det_e, det_pos, det, _, _)| {
+            // Allow self-detection — the chain owner uses its own detection to track
+            let Ok(stealth_pos) = stealth_query.get(tracked) else {
+                return false;
+            };
+            let dist = stealth_pos.1.world_2d.0.distance(det_pos.world_2d.0);
+            let effective_radius = det.radius + det.height_bonus;
+            dist <= effective_radius * 1.5
+        });
+
+        if !still_detected {
+            chain.suspicion_level = (chain.suspicion_level - dt * 2.0).max(0.0);
+            chain.timer = 0.0;
+            if chain.suspicion_level <= 0.0 {
+                commands.entity(chain_e).remove::<DetectionChain>();
+            }
+            continue;
+        }
+
+        chain.timer += dt;
+
+        if chain.timer >= chain.confirmation_time {
+            chain.suspicion_level = 1.0;
+            if let Ok((_, _, _stealth)) = stealth_query.get(tracked) {
+                // Confirmed detection — stealth state will be updated by
+                // stealth_detection_system which runs in the same set
+            }
+
+            // Use direct entity access via commands or separate query
+            confirm_events.send(UnitConfirmed {
+                observer: chain_e,
+                target: tracked,
+            });
+            reveal_events.send(StealthRevealed {
+                entity: tracked,
+                revealer: chain_e,
+            });
+
+            chain.alarm_raised = true;
+            if let Ok((_, det_pos, _, _, _)) = detectors.get(chain_e) {
+                alarm_events.send(AlarmRaised {
+                    raiser: chain_e,
+                    position: det_pos.world_2d.0,
+                    radius: config.detection.alarm_radius,
+                    duration: config.detection.alarm_duration,
+                });
+            }
+
+            commands.entity(chain_e).remove::<DetectionChain>();
+        } else {
+            let progress = chain.timer / chain.confirmation_time;
+            chain.suspicion_level = 0.3 + progress * 0.7;
+            suspicion_events.send(UnitSuspicionRaised {
+                observer: chain_e,
+                suspected: tracked,
+                suspicion_level: chain.suspicion_level,
+            });
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  AMBUSH AUTO-HIDE (ENHANCED)
 // ═════════════════════════════════════════════════════════════════════════════
 
 /// Units with `Stealth` inside an `AmbushZone` are automatically hidden.
-/// Units outside any zone or too far from all zones are revealed.
+/// Enhanced with zone entry timer (0.5s → 1.5s → 2.0s progression).
 fn ambush_auto_hide_system(
     mut stealth_query: Query<(
         Entity,
@@ -146,25 +342,24 @@ fn ambush_auto_hide_system(
     ambush_zones: Query<(Entity, &AmbushZone, &WorldPosition)>,
     terrain: Res<TerrainGrid>,
     game_time: Res<GameTime>,
+    time: Res<Time>,
 ) {
+    let dt = time.delta_secs();
     let zone_list: Vec<(Entity, &AmbushZone, &WorldPosition)> = ambush_zones
         .iter()
         .filter(|(_, zone, _)| zone.remaining > 0.0)
         .collect();
 
     for (_entity, pos, mut stealth, noise_opt, vis_opt) in stealth_query.iter_mut() {
-        // Calculate effective stealth considering all modifiers
         let terrain_mod = terrain.stealth_modifier(pos.grid.0);
-        let night_mod = if game_time.is_night() { 0.20 } else { 0.0 };
+        let night_mod: f32 = if game_time.is_night() { 0.20 } else { 0.0 };
         let noise_factor = noise_opt.map(|n| n.noise * 0.5).unwrap_or(0.0);
         let size_factor = vis_opt.map(|v| v.footprint * 0.3).unwrap_or(0.0);
         let effective_level =
             (stealth.level + terrain_mod + night_mod - noise_factor - size_factor).clamp(0.0, 1.0);
 
-        // Update the level for detection system
         stealth.level = effective_level;
 
-        // Check if inside any ambush zone
         let mut inside_zone = false;
         for (zone_e, zone, zone_pos) in &zone_list {
             let dist = pos.world_2d.0.distance(zone_pos.world_2d.0);
@@ -176,8 +371,13 @@ fn ambush_auto_hide_system(
         }
 
         if inside_zone {
-            // Auto-hide inside ambush zones (even if previously revealed)
-            if !stealth.is_hidden {
+            // GDD entry progression: enter (0→0.5s) → settle (0.5→1.5s) → hidden (1.5→2.0s)
+            if stealth.entry_timer < 2.0 {
+                stealth.entry_timer += dt;
+            }
+
+            // Fully hidden once timer reaches 2.0s
+            if stealth.entry_timer >= 2.0 && !stealth.is_hidden {
                 stealth.is_hidden = true;
                 stealth.hidden_timer = zone_list
                     .first()
@@ -185,17 +385,33 @@ fn ambush_auto_hide_system(
                     .unwrap_or(30.0);
             }
         } else if stealth.ambush_zone.is_some() {
-            // Left the zone — reveal
-            stealth.ambush_zone = None;
+            // Left the zone — start exit decay from current entry_timer value
+            let _prev_zone = stealth.ambush_zone.take();
+            if stealth.is_hidden {
+                stealth.entry_timer -= dt * 2.0; // exit twice as fast as entry
+                if stealth.entry_timer <= -0.5 {
+                    stealth.is_hidden = false;
+                    stealth.hidden_timer = 0.0;
+                }
+            } else {
+                stealth.entry_timer = 0.0;
+            }
+        } else if stealth.is_hidden && stealth.zone_type.is_none() {
+            // Out in the open — unhide after brief delay
+            stealth.entry_timer -= dt * 2.0;
+            if stealth.entry_timer <= -0.5 {
+                stealth.is_hidden = false;
+                stealth.hidden_timer = 0.0;
+            }
         }
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  STEALTH DETECTION (enhanced with noise, unit size, terrain, night)
+//  STEALTH DETECTION (REWRITTEN with VisionCone, ObserverState)
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// Enhanced detection that accounts for terrain, night, noise, and unit size.
+/// Enhanced detection with vision cones, observer factors, target factors.
 fn stealth_detection_system(
     mut stealth_query: Query<
         (
@@ -208,68 +424,120 @@ fn stealth_detection_system(
         (With<Stealth>, Without<Dead>),
     >,
     detectors: Query<
-        (Entity, &WorldPosition, &Detection),
+        (
+            Entity,
+            &WorldPosition,
+            &Detection,
+            Option<&VisionCone>,
+            Option<&ObserverState>,
+        ),
         (With<Unit>, Without<Stealth>, Without<Dead>),
     >,
     terrain: Res<TerrainGrid>,
     game_time: Res<GameTime>,
+    _config: Res<AmbushConfig>,
     mut reveal_events: EventWriter<StealthRevealed>,
 ) {
-    let detector_list: Vec<(Entity, &WorldPosition, &Detection)> =
-        detectors.iter().filter(|(_, _, det)| det.active).collect();
+    let detector_list: Vec<(
+        Entity,
+        &WorldPosition,
+        &Detection,
+        Option<&VisionCone>,
+        Option<&ObserverState>,
+    )> = detectors
+        .iter()
+        .filter(|(_, _, det, _, _)| det.active)
+        .collect();
 
     for (stealth_e, stealth_pos, mut stealth, noise_opt, vis_opt) in stealth_query.iter_mut() {
         if !stealth.is_hidden {
             continue;
         }
 
-        // Calculate all modifiers for this stealth unit
         let terrain_mod = terrain.stealth_modifier(stealth_pos.grid.0);
-        let night_mod = if game_time.is_night() { 0.20 } else { 0.0 };
-        let noise_factor = noise_opt.map(|n| n.noise * 0.5).unwrap_or(0.0);
+        let zone_bonus = stealth.zone_type.map(|z| z.stealth_bonus()).unwrap_or(0.0);
+        let night_mod: f32 = if game_time.is_night() { 0.20 } else { 0.0 };
+        let noise_factor = noise_opt.map(|n| n.noise * 0.3).unwrap_or(0.0);
         let size_factor = vis_opt.map(|v| v.footprint * 0.3).unwrap_or(0.0);
 
-        // Effective stealth (0.0 = easily spotted, 1.0 = nearly invisible)
+        let best_terrain = terrain_mod.max(zone_bonus);
         let effective_stealth =
-            (stealth.level + terrain_mod + night_mod - noise_factor - size_factor).clamp(0.0, 1.0);
+            (stealth.level + best_terrain + night_mod - noise_factor - size_factor).clamp(0.0, 1.0);
 
-        for (detector_e, detector_pos, detector_detection) in &detector_list {
+        let target_factor = 1.0 - effective_stealth;
+
+        for (detector_e, detector_pos, detector_detection, cone_opt, obs_opt) in &detector_list {
             if *detector_e == stealth_e {
                 continue;
             }
 
             let dist = stealth_pos.world_2d.0.distance(detector_pos.world_2d.0);
-            let effective_radius = detector_detection.radius + detector_detection.height_bonus;
+
+            let cone_mult = if let Some(cone) = cone_opt {
+                let to_target = stealth_pos.world_2d.0 - detector_pos.world_2d.0;
+                let angle: f32 =
+                    if cone.facing.length_squared() > 0.0 && to_target.length_squared() > 0.0 {
+                        to_target.angle_to(cone.facing).abs().to_degrees()
+                    } else {
+                        0.0
+                    };
+                cone.detection_mult(angle)
+            } else {
+                1.0
+            };
+
+            if cone_mult <= 0.0 {
+                continue;
+            }
+
+            let observer_factor = obs_opt
+                .map(|obs| obs.effective_detection_mult())
+                .unwrap_or(1.0);
+
+            let env_factor: f32 = if game_time.is_night() { 0.6 } else { 1.0 };
+
+            let base_radius = detector_detection.radius + detector_detection.height_bonus;
+            let effective_radius =
+                base_radius * observer_factor * target_factor * env_factor * cone_mult;
 
             if effective_radius <= 0.0 {
                 continue;
             }
 
-            // Normalised detection chance: 0.0 (certain) → large (impossible)
-            // When dist >> radius, detection_chance is large → impossible to detect.
-            // Higher stealth = lower numerator = harder to detect.
-            let detection_chance = (dist / effective_radius) * (1.0 - effective_stealth);
+            let detection_ratio = dist / effective_radius;
 
-            if detection_chance < 0.5 {
+            if detection_ratio < 0.5 {
                 stealth.is_hidden = false;
                 stealth.hidden_timer = 0.0;
                 reveal_events.send(StealthRevealed {
                     entity: stealth_e,
                     revealer: *detector_e,
                 });
-                break; // Only one reveal needed
+                break;
+            } else if detection_ratio < 1.0 {
+                let detection_chance = 1.0 - (detection_ratio * 0.5) - (effective_stealth * 0.3);
+                if detection_chance > 0.5 {
+                    stealth.is_hidden = false;
+                    stealth.hidden_timer = 0.0;
+                    reveal_events.send(StealthRevealed {
+                        entity: stealth_e,
+                        revealer: *detector_e,
+                    });
+                    break;
+                }
             }
         }
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  AMBUSH TRIGGER (fixed — uses actual MeleeWeapon damage)
+//  AMBUSH TRIGGER (enhanced with morale panic)
 // ═════════════════════════════════════════════════════════════════════════════
 
 /// When a hidden unit attacks from inside an `AmbushZone`, apply bonus
-/// damage based on the attacker's actual weapon, then fire `AmbushTriggered`.
+/// damage and trigger morale panic on the target.
 fn ambush_trigger_system(
+    mut commands: Commands,
     mut attack_events: EventReader<AttackTriggered>,
     positions: Query<&WorldPosition>,
     ambush_zones: Query<(Entity, &AmbushZone, &WorldPosition)>,
@@ -277,6 +545,8 @@ fn ambush_trigger_system(
     weapons: Query<&MeleeWeapon>,
     mut damage_events: EventWriter<DamageDealt>,
     mut ambush_events: EventWriter<AmbushTriggered>,
+    mut morale_events: EventWriter<MoraleCheckTriggered>,
+    config: Res<AmbushConfig>,
 ) {
     for attack in attack_events.read() {
         let Ok(stealth) = stealth_units.get(attack.attacker) else {
@@ -290,7 +560,6 @@ fn ambush_trigger_system(
             continue;
         };
 
-        // Check if attacker is inside an AmbushZone
         let mut bonus = AmbushBonus::default();
         for (zone_e, zone, zone_pos) in ambush_zones.iter() {
             let dist = attacker_pos.world_2d.0.distance(zone_pos.world_2d.0);
@@ -303,11 +572,10 @@ fn ambush_trigger_system(
         }
 
         if let Some(zone_entity) = bonus.ambush_zone {
-            // Read actual weapon damage instead of hardcoding 10.0
             let weapon_damage = weapons
                 .get(attack.attacker)
                 .map(|w| w.damage)
-                .unwrap_or(10.0); // fallback
+                .unwrap_or(10.0);
 
             let bonus_damage = weapon_damage * (bonus.damage_multiplier - 1.0);
 
@@ -327,40 +595,76 @@ fn ambush_trigger_system(
                 damage_bonus: bonus.damage_multiplier,
                 zone: zone_entity,
             });
+
+            morale_events.send(MoraleCheckTriggered {
+                entity: attack.target,
+                trigger: MoraleCheckTrigger::AmbushReceived,
+                panic_multiplier: config.effects.panic_morale_check_mult,
+            });
+
+            // GDD: Formation break (3s after ambush)
+            commands.entity(attack.target).insert(FormationBreak {
+                remaining: config.effects.formation_break_duration,
+                total_duration: config.effects.formation_break_duration,
+                panic: false,
+            });
+
+            // GDD: Shock (2s stun — target cannot attack/respond)
+            commands.entity(attack.target).insert(Shock {
+                remaining: config.effects.shock_duration,
+                total_duration: config.effects.shock_duration,
+            });
         }
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  AMBUSH PLACEMENT
+//  AMBUSH PLACEMENT (enhanced with terrain validation)
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// Handles `PlaceAmbushOrder` events: spawns an AmbushZone entity
-/// and consumes a resource (gold or special resource).
+/// Handles `PlaceAmbushOrder` events with terrain validation.
 fn ambush_placement_system(
     mut placement_events: EventReader<PlaceAmbushOrder>,
     mut commands: Commands,
     mut stockpile: ResMut<ResourceStockpile>,
+    terrain: Res<TerrainGrid>,
+    stealth_zones: Query<(&GridPos, &StealthZone)>,
+    config: Res<AmbushConfig>,
 ) {
-    for order in placement_events.read() {
-        // Cost: 30 gold to place an ambush zone
-        let ambush_cost = 30.0;
+    let zone_map: std::collections::HashMap<IVec2, &StealthZone> =
+        stealth_zones.iter().map(|(g, z)| (g.0, z)).collect();
 
-        if stockpile.gold < ambush_cost {
+    for order in placement_events.read() {
+        let cost = config.effects.placement_cost_gold;
+
+        if stockpile.gold < cost {
             continue;
         }
-        stockpile.gold -= ambush_cost;
 
-        // Spawn the ambush zone
+        let cell = order.position.0;
+        let terrain_type = terrain.get(cell);
+
+        let valid_terrain = matches!(
+            terrain_type,
+            TerrainType::Forest | TerrainType::Mountain | TerrainType::Building
+        );
+        let has_stealth_zone = zone_map.contains_key(&cell);
+
+        if !valid_terrain && !has_stealth_zone {
+            continue;
+        }
+
+        stockpile.gold -= cost;
+
         let pos = WorldPosition::new(order.position.0, 1.0);
         commands.spawn((
             AmbushZone {
                 owner: order.entity,
-                radius: 4.0,
-                bonus_damage: 1.5, // +50% damage
-                bonus_morale: 0.2,
-                duration: 60.0,
-                remaining: 60.0,
+                radius: config.effects.default_zone_radius,
+                bonus_damage: config.effects.default_bonus_damage,
+                bonus_morale: config.effects.default_bonus_morale,
+                duration: config.effects.default_zone_duration,
+                remaining: config.effects.default_zone_duration,
             },
             pos,
             AmbushMarker {
@@ -368,6 +672,140 @@ fn ambush_placement_system(
                 placed_by: order.entity,
             },
         ));
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  AMBUSH PHASE SYSTEM (NEW — Phase 1)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Drives the `AmbushState` state machine: Idle → Setup → Ready → Triggered
+/// → Executing → Cooldown → Idle. Emits `AmbushPhaseChanged` events on every
+/// transition. Auto-triggers for `AutoFirstContact` trigger type when an enemy
+/// enters the ambush zone's radius.
+fn ambush_phase_system(
+    mut query: Query<(
+        Entity,
+        &Unit,
+        &mut AmbushState,
+        &mut Stealth,
+        &WorldPosition,
+    )>,
+    ambush_zones: Query<(Entity, &AmbushZone, &WorldPosition)>,
+    enemies: Query<(&Unit, &WorldPosition), (Without<AmbushState>, Without<Dead>)>,
+    config: Res<AmbushConfig>,
+    time: Res<Time>,
+    mut phase_events: EventWriter<AmbushPhaseChanged>,
+) {
+    let dt = time.delta_secs();
+
+    for (entity, unit, mut state, mut stealth, _pos) in query.iter_mut() {
+        let old_phase = state.phase;
+
+        match state.phase {
+            AmbushPhase::Idle => {
+                // Transition to Setup when placed in an ambush zone with active stealth
+                if stealth.ambush_zone.is_some() && stealth.entry_timer > 0.0 {
+                    state.phase = AmbushPhase::Setup;
+                }
+            }
+            AmbushPhase::Setup => {
+                // Wait for the 2.0s entry timer to complete, then become ready
+                if stealth.entry_timer >= 2.0 && stealth.is_hidden {
+                    state.phase = AmbushPhase::Ready;
+                    state.ready_since = 0.0;
+                    stealth.is_ready = true;
+                }
+                // If the zone was removed or the unit was revealed, abort setup
+                if stealth.ambush_zone.is_none() || !stealth.is_hidden {
+                    state.phase = AmbushPhase::Idle;
+                }
+            }
+            AmbushPhase::Ready => {
+                state.ready_since += dt;
+
+                // Only auto-trigger for AutoFirstContact type
+                let should_trigger = match state.trigger_type {
+                    TriggerType::AutoFirstContact => {
+                        // Check if any enemy unit is inside the ambush zone radius
+                        // Note: zone entity is stored on Stealth.ambush_zone (set by ambush_auto_hide_system)
+                        if let Some(zone_e) = stealth.ambush_zone {
+                            if let Ok((_, zone_data, zone_pos)) = ambush_zones.get(zone_e) {
+                                enemies.iter().any(|(e_unit, e_pos)| {
+                                    e_unit.faction != unit.faction
+                                        && zone_pos.world_2d.0.distance(e_pos.world_2d.0)
+                                            <= zone_data.radius
+                                })
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    }
+                    TriggerType::Manual | TriggerType::Staged | TriggerType::Solo => false,
+                };
+
+                if should_trigger {
+                    state.phase = AmbushPhase::Triggered;
+                }
+
+                // If revealed, abort ambush
+                if !stealth.is_hidden {
+                    state.discovered = true;
+                    state.phase = AmbushPhase::Idle;
+                }
+            }
+            AmbushPhase::Triggered => {
+                // Immediately enter execution phase with bonuses active
+                state.bonus_damage_remaining = config.effects.damage_duration;
+                state.shock_remaining = config.effects.shock_duration;
+                stealth.is_ready = false;
+                state.phase = AmbushPhase::Executing;
+            }
+            AmbushPhase::Executing => {
+                // Countdown bonus damage window and shock duration
+                state.bonus_damage_remaining -= dt;
+                state.shock_remaining -= dt;
+
+                if state.bonus_damage_remaining <= 0.0 {
+                    state.phase = AmbushPhase::Cooldown;
+                }
+            }
+            AmbushPhase::Cooldown => {
+                // Cooldown timer before re-entering Idle
+                state.ready_since += dt;
+                if state.ready_since >= 5.0 {
+                    state.phase = AmbushPhase::Idle;
+                }
+            }
+        }
+
+        if old_phase != state.phase {
+            phase_events.send(AmbushPhaseChanged {
+                entity,
+                old_phase,
+                new_phase: state.phase,
+            });
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  READY STATE ENFORCEMENT SYSTEM (NEW — Phase 1)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Prevents auto-attack for units in the Ready ambush state by removing their
+/// `AttackTarget` component. This enforces the GDD rule that ambushers in
+/// Ready state suppress all attacks until the trigger condition is met.
+fn ready_state_enforcement_system(
+    mut commands: Commands,
+    ready_units: Query<(Entity, &Stealth, Option<&AttackTarget>)>,
+) {
+    for (entity, stealth, attack_target) in ready_units.iter() {
+        if stealth.is_ready && attack_target.is_some() {
+            commands.entity(entity).remove::<AttackTarget>();
+        }
     }
 }
 

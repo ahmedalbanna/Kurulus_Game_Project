@@ -584,6 +584,26 @@ impl Default for PanicState {
     }
 }
 
+/// Shock state — unit is stunned and cannot attack/respond.
+/// Applied by ambush trigger effects (GDD: 2s shock on ambush targets).
+#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
+#[reflect(Component)]
+pub struct Shock {
+    /// Remaining shock duration in seconds.
+    pub remaining: f32,
+    /// Total shock duration (for UI / effects reference).
+    pub total_duration: f32,
+}
+
+impl Default for Shock {
+    fn default() -> Self {
+        Self {
+            remaining: 2.0,
+            total_duration: 2.0,
+        }
+    }
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 //  DAMAGE TRACKER (Resource)
 // ═════════════════════════════════════════════════════════════════════════════

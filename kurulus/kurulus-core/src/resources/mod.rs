@@ -1,4 +1,5 @@
 pub mod ai_config;
+pub mod ambush_config;
 pub mod campaign;
 pub mod city;
 pub mod config;
@@ -13,6 +14,7 @@ pub mod time;
 pub mod world_map;
 
 pub use ai_config::*;
+pub use ambush_config::*;
 pub use campaign::*;
 pub use city::*;
 pub use config::*;
@@ -27,6 +29,7 @@ pub use world_map::*;
 
 pub mod prelude {
     pub use crate::resources::ai_config::*;
+    pub use crate::resources::ambush_config::*;
     pub use crate::resources::campaign::*;
     pub use crate::resources::city::*;
     pub use crate::resources::config::*;

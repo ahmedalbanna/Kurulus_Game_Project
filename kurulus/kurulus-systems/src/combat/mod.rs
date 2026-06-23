@@ -59,8 +59,7 @@ impl Plugin for CombatPlugin {
                     // Phase 5f: Feedback
                     feedback::hit_feedback_system.in_set(SimulationSet::HitFeedback),
                     // Phase 5g: Hero knockout recovery (runs every frame)
-                    hero_combat::hero_knockout_recovery_system
-                        .in_set(SimulationSet::HitFeedback),
+                    hero_combat::hero_knockout_recovery_system.in_set(SimulationSet::HitFeedback),
                 ),
             );
     }
@@ -127,7 +126,9 @@ fn death_queue_system(
             let loot = match unit.archetype {
                 UnitArchetype::LightInfantry | UnitArchetype::Archer => (5.0, 2.0),
                 UnitArchetype::HeavyInfantry | UnitArchetype::HeavyCavalry => (10.0, 5.0),
-                UnitArchetype::LightCavalry | UnitArchetype::Scout => (3.0, 5.0),
+                UnitArchetype::LightCavalry | UnitArchetype::Scout | UnitArchetype::BaitRider => {
+                    (3.0, 5.0)
+                }
                 UnitArchetype::Worker => (15.0, 0.0),
                 UnitArchetype::SiegeCrew => (0.0, 10.0),
             };

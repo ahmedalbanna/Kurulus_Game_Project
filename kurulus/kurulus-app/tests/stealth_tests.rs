@@ -29,7 +29,7 @@ fn test_stealth_detection_in_range() {
                 level: 0.3,
                 is_hidden: true,
                 hidden_timer: 10.0,
-                ambush_zone: None,
+                ..Default::default()
             },
             Detection {
                 radius: 5.0,
@@ -104,7 +104,7 @@ fn test_stealth_stays_hidden_out_of_range() {
                 level: 0.9,
                 is_hidden: true,
                 hidden_timer: 10.0,
-                ambush_zone: None,
+                ..Default::default()
             },
             Detection {
                 radius: 5.0,
