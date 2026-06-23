@@ -411,10 +411,10 @@ fn evaluate_condition(
             blackboard.get("army_strength").unwrap_or(0.0) < *threshold
         }
         BehaviorCondition::ResourceLow(resource_type) => match resource_type {
-            ResourceType::Food => stockpile.food < 100.0,
-            ResourceType::Gold => stockpile.gold < 50.0,
-            ResourceType::Wood => stockpile.wood < 80.0,
-            ResourceType::Stone => stockpile.stone < 40.0,
+            AiResourceType::Food => stockpile.food < 100.0,
+            AiResourceType::Gold => stockpile.gold < 50.0,
+            AiResourceType::Wood => stockpile.wood < 80.0,
+            AiResourceType::Stone => stockpile.stone < 40.0,
         },
         BehaviorCondition::HasBuilding(building_type) => {
             let _ = building_type;
@@ -452,7 +452,7 @@ fn execute_action(
 ) -> BehaviorState {
     match action {
         BehaviorAction::MoveTo(pos) => {
-            for (entity, _, _, _world_pos, _, _) in units.iter() {
+            if let Some((entity, _, _, _world_pos, _, _)) = units.iter().next() {
                 move_events.send(MoveOrder {
                     entity,
                     target: *pos,
@@ -471,7 +471,7 @@ fn execute_action(
             BehaviorState::Running
         }
         BehaviorAction::Build(building_type, pos) => {
-            for (entity, _, _, _world_pos, _, _) in units.iter() {
+            if let Some((entity, _, _, _world_pos, _, _)) = units.iter().next() {
                 build_events.send(BuildOrder {
                     entity,
                     building_type: *building_type,
@@ -491,7 +491,7 @@ fn execute_action(
         }
         BehaviorAction::Research(_) => BehaviorState::Success,
         BehaviorAction::Retreat(pos) => {
-            for (entity, _, _, _, _, _) in units.iter() {
+            if let Some((entity, _, _, _, _, _)) = units.iter().next() {
                 move_events.send(MoveOrder {
                     entity,
                     target: *pos,
@@ -502,7 +502,7 @@ fn execute_action(
             BehaviorState::Failure
         }
         BehaviorAction::Patrol(a, b) => {
-            for (entity, _, _, world_pos, _, _) in units.iter() {
+            if let Some((entity, _, _, world_pos, _, _)) = units.iter().next() {
                 let target = if world_pos.grid.0.distance_squared(a.0)
                     < world_pos.grid.0.distance_squared(b.0)
                 {

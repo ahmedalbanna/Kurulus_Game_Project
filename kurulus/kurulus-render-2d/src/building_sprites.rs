@@ -18,6 +18,7 @@
 use bevy::prelude::*;
 use kurulus_core::components::building::Building;
 use kurulus_core::components::city::{ServiceBuilding, Zone, ZoneType};
+use kurulus_core::components::unit::Health;
 use kurulus_core::coord::*;
 use kurulus_core::resources::city::{overlay_colors, CityState, OverlayMode, OverlaySettings};
 
@@ -141,6 +142,27 @@ pub fn update_building_sprite_colors(
     }
 }
 
+/// Apply a damage overlay tint to building sprites based on their health.
+///
+/// Buildings below 50 % HP get a progressively redder tint.  Runs after
+/// `update_building_sprite_colors` so the overlay-mode logic applies first.
+pub fn apply_damage_tint_to_buildings(mut sprites: Query<(&Health, &mut Sprite), With<Building>>) {
+    for (health, mut sprite) in sprites.iter_mut() {
+        if health.max <= 0.0 {
+            continue;
+        }
+        let hp_ratio = (health.current / health.max).clamp(0.0, 1.0);
+        if hp_ratio >= 0.5 {
+            continue; // Healthy enough — no tint
+        }
+
+        // Blend red into the sprite colour: more red = more damaged
+        let damage_factor = 1.0 - hp_ratio * 2.0; // 0.0 → 1.0 as HP goes 50% → 0%
+        let red_tint = Color::srgb(1.0, 1.0 - damage_factor * 0.6, 1.0 - damage_factor * 0.6);
+        sprite.color = sprite.color.mix(&red_tint, damage_factor * 0.5);
+    }
+}
+
 // ─── Plugin ──────────────────────────────────────────────────────────────────
 
 /// Plugin that adds building sprite systems to the [`Update`] schedule.
@@ -153,6 +175,8 @@ impl Plugin for BuildingSpritePlugin {
             (
                 ensure_building_sprites,
                 update_building_sprite_colors.after(ensure_building_sprites),
+                // Phase 5 — Damage tint overlay
+                apply_damage_tint_to_buildings.after(update_building_sprite_colors),
             ),
         );
     }

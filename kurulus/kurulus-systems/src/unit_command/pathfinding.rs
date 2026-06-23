@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use kurulus_core::prelude::*;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
+const SQRT_2: f32 = std::f32::consts::SQRT_2;
+
 /// Heuristic cost estimate (octile distance — allows 8-directional movement).
 fn heuristic(a: IVec2, b: IVec2) -> f32 {
     let dx = (a.x - b.x).abs() as f32;
@@ -9,7 +11,7 @@ fn heuristic(a: IVec2, b: IVec2) -> f32 {
     // Octile distance: accounts for sqrt(2) diagonal cost
     let d = dx.max(dy);
     let s = dx.min(dy);
-    (d - s) + s * 1.41421356
+    (d - s) + s * SQRT_2
 }
 
 /// 8-directional neighbours of a grid cell.
@@ -19,10 +21,10 @@ fn neighbours(pos: IVec2) -> [(IVec2, f32); 8] {
         (IVec2::new(pos.x - 1, pos.y), 1.0),
         (IVec2::new(pos.x, pos.y + 1), 1.0),
         (IVec2::new(pos.x, pos.y - 1), 1.0),
-        (IVec2::new(pos.x + 1, pos.y + 1), 1.41421356),
-        (IVec2::new(pos.x - 1, pos.y + 1), 1.41421356),
-        (IVec2::new(pos.x + 1, pos.y - 1), 1.41421356),
-        (IVec2::new(pos.x - 1, pos.y - 1), 1.41421356),
+        (IVec2::new(pos.x + 1, pos.y + 1), SQRT_2),
+        (IVec2::new(pos.x - 1, pos.y + 1), SQRT_2),
+        (IVec2::new(pos.x + 1, pos.y - 1), SQRT_2),
+        (IVec2::new(pos.x - 1, pos.y - 1), SQRT_2),
     ]
 }
 

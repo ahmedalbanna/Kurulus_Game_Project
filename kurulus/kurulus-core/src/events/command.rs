@@ -1,5 +1,6 @@
 use crate::components::{
-    AbilityId, BuildingType, CombatStance, FormationType, UnitArchetype, ZoneType,
+    AbilityId, BuildCost, BuildingCategory, BuildingType, CardinalDirection, CombatStance,
+    FormationType, ResourceType, SiegeEngineType, UnitArchetype, ZoneType,
 };
 use crate::coord::GridPos;
 use bevy::prelude::*;
@@ -147,4 +148,100 @@ pub struct StanceChangeCommand {
 pub struct AttackMoveOrder {
     pub entity: Entity,
     pub target: GridPos,
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase C: Building & Construction Events
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Cancel an in-progress construction. Refunds resources proportional
+/// to how early the cancellation occurs.
+#[derive(Event, Clone, Debug)]
+pub struct CancelBuildOrder {
+    /// Entity of the `ConstructionSite` to cancel.
+    pub entity: Entity,
+}
+
+/// Demolish a completed building, recovering a fraction of its cost.
+#[derive(Event, Clone, Debug)]
+pub struct DemolishOrder {
+    /// Entity of the completed `Building` to demolish.
+    pub entity: Entity,
+}
+
+/// Assign a worker to repair a damaged building.
+#[derive(Event, Clone, Debug)]
+pub struct RepairOrder {
+    pub building: Entity,
+    pub worker: Option<Entity>,
+}
+
+/// Fired when a build order is rejected due to insufficient resources.
+#[derive(Event, Clone, Debug)]
+pub struct InsufficientResources {
+    pub building_type: BuildingType,
+    pub needed: BuildCost,
+}
+
+/// Fired when a building is destroyed (either by combat or by demolition).
+#[derive(Event, Clone, Debug)]
+pub struct BuildingDestroyed {
+    pub entity: Entity,
+    pub building_type: BuildingType,
+    pub position: GridPos,
+    pub destroyer: Option<Entity>,
+}
+
+/// Execute a trade at a Market building.
+#[derive(Event, Clone, Debug)]
+pub struct TradeOrder {
+    pub market: Entity,
+    pub give_resource: ResourceType,
+    pub give_amount: f32,
+    pub receive_resource: ResourceType,
+}
+
+/// Order the Siege Workshop to begin producing a siege engine.
+#[derive(Event, Clone, Debug)]
+pub struct SiegeProductionOrder {
+    pub building: Entity,
+    pub engine_type: SiegeEngineType,
+    pub count: u32,
+}
+
+/// Fired when siege engine production completes at a Siege Workshop.
+#[derive(Event, Clone, Debug)]
+pub struct SiegeUnitComplete {
+    pub building: Entity,
+    pub engine_type: SiegeEngineType,
+}
+
+/// Rotate an existing building to face a new cardinal direction.
+#[derive(Event, Clone, Debug)]
+pub struct RotateBuildingOrder {
+    pub building: Entity,
+    pub direction: CardinalDirection,
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase D: Build-Rejection Events
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// An extension of `BuildRejected` for resource/limit/dependency failures.
+#[derive(Event, Clone, Debug)]
+pub struct BuildOrderFailed {
+    pub building_type: BuildingType,
+    pub position: GridPos,
+    pub reason: BuildFailureReason,
+}
+
+/// Why a build order was rejected beyond simple zone/cell checks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BuildFailureReason {
+    /// Not enough resources in the stockpile.
+    InsufficientResources,
+    /// Building limit for this category has been reached.
+    LimitExceeded(BuildingCategory),
+    /// A prerequisite building has not been constructed.
+    MissingPrerequisite(BuildingType, u8),
 }

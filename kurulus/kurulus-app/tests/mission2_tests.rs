@@ -262,6 +262,7 @@ fn spawn_m2_minimal(app: &mut App) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -409,6 +410,7 @@ fn test_m2_objective_build_barracks() {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -447,6 +449,7 @@ fn test_m2_objective_recruit_infantry() {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -562,6 +565,7 @@ fn test_m2_objective_capture_region() {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));

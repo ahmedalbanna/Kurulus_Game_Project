@@ -262,6 +262,7 @@ fn spawn_m5_minimal(app: &mut App) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -408,6 +409,7 @@ fn test_m5_objective_build_barracks() {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -444,6 +446,7 @@ fn test_m5_objective_recruit_infantry() {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -516,6 +519,7 @@ fn test_m5_objective_destroy_wall() {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -543,6 +547,7 @@ fn test_m5_objective_destroy_wall() {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -670,6 +675,7 @@ fn test_m5_objective_kill_enemy_hero() {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));

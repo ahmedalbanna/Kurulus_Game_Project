@@ -135,7 +135,15 @@ fn register_common_events(app: &mut bevy::prelude::App) {
         .add_event::<FormationCommand>()
         .add_event::<StanceChangeCommand>()
         .add_event::<AttackMoveOrder>()
-        .add_event::<FormationBreakEvent>();
+        .add_event::<FormationBreakEvent>()
+        // Building & construction events (Phase C)
+        .add_event::<BuildOrderFailed>()
+        .add_event::<CancelBuildOrder>()
+        .add_event::<DemolishOrder>()
+        .add_event::<RepairOrder>()
+        .add_event::<InsufficientResources>()
+        .add_event::<BuildingDestroyed>()
+        .add_event::<TradeOrder>();
 }
 
 /// Register all logic plugins (no render) — used by headless test harness.
@@ -166,6 +174,8 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         .init_resource::<ResourcePersistence>()
         .init_resource::<TerrainGrid>()
         .init_resource::<WorldMap>()
+        .init_resource::<BuildingCatalog>()
+        .init_resource::<BuildingLimits>()
         // Core loop resources
         .init_resource::<TacticalPhaseTracker>()
         .init_resource::<HarvestState>()

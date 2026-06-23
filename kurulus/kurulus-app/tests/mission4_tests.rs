@@ -248,6 +248,7 @@ fn spawn_m4_minimal(app: &mut App) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -419,6 +420,7 @@ fn test_m4_objective_destroy_sentry() {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));

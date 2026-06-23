@@ -328,6 +328,7 @@ fn spawn_m6_minimal(app: &mut App) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));

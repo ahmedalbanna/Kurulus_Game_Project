@@ -261,6 +261,7 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -286,6 +287,7 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -351,6 +353,7 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -651,6 +654,7 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -784,6 +788,7 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -1153,6 +1158,7 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -1539,6 +1545,7 @@ pub fn setup_mission1_scenario(commands: &mut Commands) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -1951,6 +1958,7 @@ pub fn setup_mission2_scenario(commands: &mut Commands) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -2081,6 +2089,7 @@ pub fn setup_mission2_scenario(commands: &mut Commands) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -2354,6 +2363,7 @@ pub fn setup_mission3_scenario(commands: &mut Commands) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -2379,6 +2389,7 @@ pub fn setup_mission3_scenario(commands: &mut Commands) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));

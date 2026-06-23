@@ -138,27 +138,27 @@ pub enum BehaviorCondition {
     /// Check if current army strength is below threshold.
     ArmyStrengthBelow(f32),
     /// Check if resource stockpile is below threshold for a given resource.
-    ResourceLow(ResourceType),
+    ResourceLow(AiResourceType),
     /// Check if a specific building type exists.
     HasBuilding(BuildingType),
     Custom(String),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ResourceType {
+pub enum AiResourceType {
     Food,
     Gold,
     Wood,
     Stone,
 }
 
-impl std::fmt::Display for ResourceType {
+impl std::fmt::Display for AiResourceType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResourceType::Food => write!(f, "Food"),
-            ResourceType::Gold => write!(f, "Gold"),
-            ResourceType::Wood => write!(f, "Wood"),
-            ResourceType::Stone => write!(f, "Stone"),
+            AiResourceType::Food => write!(f, "Food"),
+            AiResourceType::Gold => write!(f, "Gold"),
+            AiResourceType::Wood => write!(f, "Wood"),
+            AiResourceType::Stone => write!(f, "Stone"),
         }
     }
 }

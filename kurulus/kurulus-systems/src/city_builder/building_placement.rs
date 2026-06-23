@@ -4,7 +4,7 @@
 //! While active, the player can hover the grid, cycle building types with
 //! **Tab** / **Shift+Tab**, and left-click to send a [`BuildOrder`] event.
 //!
-//! The [`BuildOrder`] is consumed by `build_from_order_system` in the
+//! The [`BuildOrder`] is consumed by `process_build_orders_system` in the
 //! `base_building` module, which validates zone compatibility and spawns
 //! a `ConstructionSite` + `Building` pair.
 

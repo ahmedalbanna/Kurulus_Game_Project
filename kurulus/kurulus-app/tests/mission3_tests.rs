@@ -215,6 +215,7 @@ fn spawn_m3_minimal(app: &mut App) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));
@@ -240,6 +241,7 @@ fn spawn_m3_minimal(app: &mut App) {
             gold: 0,
             wood: 0,
             stone: 0,
+            iron: 0,
             population: 0,
         },
     ));

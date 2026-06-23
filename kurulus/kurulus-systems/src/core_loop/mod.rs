@@ -716,8 +716,14 @@ fn harvest_loot_calculation_system(
         gold: gold_reward,
         wood: wood_reward,
         stone: stone_reward,
+        iron: 0.0,
         population: 0,
         max_population: 0,
+        max_food: 0.0,
+        max_gold: 0.0,
+        max_wood: 0.0,
+        max_stone: 0.0,
+        max_iron: 0.0,
         sovereignty_points: 0,
     };
 
