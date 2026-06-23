@@ -18,6 +18,7 @@ pub mod naval_warfare;
 pub mod next_gen_heroes;
 pub mod population;
 pub mod progression;
+pub mod road_infrastructure;
 pub mod romance_loyalty;
 pub mod siege_warfare;
 pub mod stealth;
@@ -43,6 +44,7 @@ pub use naval_warfare::NavalWarfarePlugin;
 pub use next_gen_heroes::NextGenHeroesPlugin;
 pub use population::PopulationPlugin;
 pub use progression::ProgressionPlugin;
+pub use road_infrastructure::RoadInfrastructurePlugin;
 pub use romance_loyalty::RomanceLoyaltyPlugin;
 pub use siege_warfare::SiegeWarfarePlugin;
 pub use stealth::StealthPlugin;
@@ -258,7 +260,10 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         .register_type::<LootTable>()
         .register_type::<TacticalPhase>()
         // Selection types
-        .register_type::<Selected>();
+        .register_type::<Selected>()
+        // Road infrastructure types
+        .register_type::<RoadAccess>()
+        .register_type::<RequiresRoadAccess>();
     // NOTE: HeroMomentsForMission registration skipped because HeroMomentConfig
     // contains non-Reflect types (HeroId, AbilityId). Reflect those types if
     // BRP introspection is needed for hero moments.
@@ -281,6 +286,7 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
     app.add_plugins((
         BaseBuildingPlugin,
         CityBuilderPlugin,
+        RoadInfrastructurePlugin,
         PopulationPlugin,
         ProgressionPlugin,
         NarrativePlugin,

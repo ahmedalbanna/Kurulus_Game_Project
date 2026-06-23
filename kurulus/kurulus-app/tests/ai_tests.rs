@@ -583,6 +583,11 @@ fn test_ai_blackboard_populated() {
         s.food = target_food;
         s.wood = target_wood;
         s.stone = target_stone;
+        // Must also raise caps to prevent max_capacity_enforcement_system from clamping
+        s.max_gold = target_gold;
+        s.max_food = target_food;
+        s.max_wood = target_wood;
+        s.max_stone = target_stone;
     }
 
     update_n(&mut app, 5);
