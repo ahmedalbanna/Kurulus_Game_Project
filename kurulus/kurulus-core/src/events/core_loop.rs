@@ -68,6 +68,18 @@ pub struct HeroMomentCompleted {
     pub bonus_xp: f32,
 }
 
+/// Fired when a cinematic sequence should play for a Hero Moment.
+/// Render systems can watch this to trigger camera cuts/slow-mo/etc.
+#[derive(Event, Clone, Debug)]
+pub struct CinematicTrigger {
+    pub hero_id: HeroId,
+    pub ability_id: AbilityId,
+    pub description: String,
+    pub duration_secs: f32,
+    /// Whether this is a first-time viewing (can skip after first time).
+    pub first_viewing: bool,
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Mission Flow Events
 // ═══════════════════════════════════════════════════════════════════════════

@@ -426,6 +426,15 @@ pub struct DeathPenalty {
     pub morale_penalty: f32,
 }
 
+/// Marker component for visual feedback during/after a Hero Moment.
+/// Render systems can read this to show screen flash, VFX, etc.
+/// Timer counts down; at zero the component should be removed.
+#[derive(Component, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
+pub struct HeroMomentFlash {
+    pub remaining: f32,
+    pub ability_name: String,
+}
+
 // --- Enums ---
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

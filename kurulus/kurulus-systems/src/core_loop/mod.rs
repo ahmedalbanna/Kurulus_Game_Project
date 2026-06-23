@@ -224,7 +224,8 @@ impl Plugin for CoreLoopPlugin {
             .init_resource::<LootTable>()
             .init_resource::<DifficultyConfig>()
             .init_resource::<HeroMomentsForMission>()
-            .init_resource::<PhaseTimers>();
+            .init_resource::<PhaseTimers>()
+            .register_type::<HeroMomentFlash>();
         // CombatActivityTracker needs to start at game_time or Execution→Harvest
         // would immediately trigger. We initialise it in the build callback.
         let game_time = app.world().resource::<GameTime>().total_seconds;
@@ -241,6 +242,7 @@ impl Plugin for CoreLoopPlugin {
             .add_event::<HarvestXpAwarded>()
             .add_event::<HeroMomentTriggered>()
             .add_event::<HeroMomentCompleted>()
+            .add_event::<CinematicTrigger>()
             .add_event::<MissionSetupComplete>()
             .add_event::<ComplicationStarted>()
             .add_event::<ClimaxTriggered>()
@@ -272,6 +274,12 @@ impl Plugin for CoreLoopPlugin {
                     .run_if(in_state(GamePhaseEnum::Execution)),
                 hero_moment_completion_system
                     .in_set(SimulationSet::DeathProcessing)
+                    .run_if(in_state(GamePhaseEnum::Execution)),
+                hero_moment_cinematic_system
+                    .in_set(SimulationSet::DeathProcessing)
+                    .run_if(in_state(GamePhaseEnum::Execution)),
+                hero_moment_vfx_system
+                    .in_set(SimulationSet::ComponentCleanup)
                     .run_if(in_state(GamePhaseEnum::Execution)),
                 // Harvest systems (Harvest phase only)
                 harvest_loot_calculation_system
@@ -591,6 +599,70 @@ fn hero_moment_completion_system(
     // (clears once we've stored more than 100 entries)
     if completed.len() > 100 {
         completed.clear();
+    }
+}
+
+/// Emits CinematicTrigger events when a Hero Moment triggers.
+/// Render systems watch this to play camera cuts, slow-mo, etc.
+fn hero_moment_cinematic_system(
+    mut triggered_events: EventReader<HeroMomentTriggered>,
+    mut cinematic_writer: EventWriter<CinematicTrigger>,
+    moment_config: Res<HeroMomentsForMission>,
+    mut seen_moments: Local<Vec<(HeroId, AbilityId)>>,
+) {
+    for event in triggered_events.read() {
+        let key = (event.hero_id, event.ability_id);
+        let first_viewing = !seen_moments.contains(&key);
+
+        let duration_secs = moment_config
+            .moments
+            .iter()
+            .find(|c| c.hero_id == event.hero_id && c.ability_id == event.ability_id)
+            .map(|c| {
+                // Duration varies by ability — ultimates get longer
+                match c.ability_id {
+                    AbilityId::DreamOfTheTree
+                    | AbilityId::BullsWrath
+                    | AbilityId::DeathVolley => 5.0,
+                    _ => 3.0,
+                }
+            })
+            .unwrap_or(3.0);
+
+        cinematic_writer.send(CinematicTrigger {
+            hero_id: event.hero_id,
+            ability_id: event.ability_id,
+            description: event.description.clone(),
+            duration_secs,
+            first_viewing,
+        });
+
+        if first_viewing {
+            seen_moments.push(key);
+        }
+    }
+
+    // Clean up the seen set to prevent unbounded growth
+    if seen_moments.len() > 200 {
+        seen_moments.clear();
+    }
+}
+
+/// Inserts a HeroMomentFlash component on triggering heroes for VFX.
+fn hero_moment_vfx_system(
+    mut triggered_events: EventReader<HeroMomentTriggered>,
+    mut commands: Commands,
+    heroes: Query<(Entity, &Hero)>,
+) {
+    for event in triggered_events.read() {
+        for (entity, hero) in heroes.iter() {
+            if hero.hero_id == event.hero_id {
+                commands.entity(entity).insert(HeroMomentFlash {
+                    remaining: 2.0,
+                    ability_name: format!("{:?}", event.ability_id),
+                });
+            }
+        }
     }
 }
 

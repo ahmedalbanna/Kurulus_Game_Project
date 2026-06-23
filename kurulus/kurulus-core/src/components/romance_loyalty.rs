@@ -82,3 +82,64 @@ pub struct RomanceStageAdvanced {
     pub hero_b: Entity,
     pub new_stage: RomanceStage,
 }
+
+// ─── Phase 4 Enhancements ───────────────────────────────────────────────────
+
+/// Predefined relationship between two characters (GDD §15).
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(Component)]
+pub struct RelationshipPair {
+    pub hero_a: Entity,
+    pub hero_b: Entity,
+    pub relationship_type: RelationshipType,
+    pub starting_value: f32,
+    pub current_value: f32,
+    pub max_value: f32,
+    pub events_completed: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum RelationshipType {
+    Romantic,
+    Brotherhood,
+    Rivalry,
+    Mentorship,
+    Political,
+}
+
+/// Love impact tier (GDD §15.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum LoveImpactTier {
+    /// >80: +20% morale, special abilities
+    Inspired,
+    /// 50-80: no effect
+    Normal,
+    /// <50: -10% morale, -5% damage
+    Distracted,
+}
+
+/// Special couple ability (unlocked at high love).
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(Component)]
+pub struct CoupleAbility {
+    pub ability_id: String,
+    pub required_tier: LoveImpactTier,
+    pub uses_per_mission: u32,
+    pub remaining_uses: u32,
+}
+
+/// Tracks choice impacts on relationships (mission decisions).
+#[derive(Component, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
+#[reflect(Component)]
+pub struct ChoiceImpactRecord {
+    pub mission_id: String,
+    pub choice_id: String,
+    pub affected_pairs: Vec<(Entity, f32)>,
+}
+
+/// Resource storing the pre-defined relationship matrix for the campaign.
+#[derive(Resource, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
+#[reflect(Resource)]
+pub struct RelationshipMatrix {
+    pub pairs: Vec<(Entity, Entity, RelationshipType, f32)>,
+}

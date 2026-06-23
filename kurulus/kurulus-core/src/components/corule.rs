@@ -74,3 +74,59 @@ pub enum DelegationTarget {
     Tech(String),
     Faction(FactionId),
 }
+
+// ─── Phase 4 Enhancements ───────────────────────────────────────────────────
+
+/// Trust tier levels (GDD §20.4).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum TrustTier {
+    /// 0-20: 30-50% AI efficiency, 15% order refusal
+    Rivalry,
+    /// 21-40: 50-65% AI efficiency, 15% misinterpretation
+    Tension,
+    /// 41-60: 65-80% AI efficiency
+    Neutral,
+    /// 61-80: 80-90% AI efficiency, +20% synergy
+    Cooperation,
+    /// 81-100: 90-100% AI efficiency, +50% synergy, unlock ultimates
+    Brotherhood,
+}
+
+/// Delegation order with full parameters (GDD §20.3).
+#[derive(Clone, Debug, Serialize, Deserialize, Reflect)]
+pub struct DelegationOrderDetailed {
+    pub order_type: DelegationType,
+    pub target: DelegationTarget,
+    pub priority: OrderPriority,
+    pub aggression: AggressionLevel,
+    pub duration_secs: Option<f32>,
+    pub retreat_threshold: f32,
+    pub issued_at: f32,
+    pub expires_at: Option<f32>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum OrderPriority {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum AggressionLevel {
+    Cautious,
+    Normal,
+    Aggressive,
+    Suicidal,
+}
+
+/// Brotherhood ability tiers (GDD §20.5).
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(Component)]
+pub struct BrotherhoodAbility {
+    pub tier: u8,
+    pub trust_required: f32,
+    pub cooldown: f32,
+    pub active: bool,
+}

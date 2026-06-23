@@ -53,3 +53,62 @@ pub struct MarriageFormed {
     pub faction_a: crate::components::FactionId,
     pub faction_b: crate::components::FactionId,
 }
+
+// ─── Phase 4 Enhancements ───────────────────────────────────────────────────
+
+/// Hero tier ability (unlocked at levels 35-45 in Season 6+).
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(Component)]
+pub struct TierAbility {
+    pub tier: u8,
+    pub ability_id: String,
+    pub cooldown: f32,
+    pub trust_required: f32,
+    pub active: bool,
+}
+
+/// Synergy bonus between two heroes when co-located.
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(Component)]
+pub struct SynergyPair {
+    pub hero_a: Entity,
+    pub hero_b: Entity,
+    pub synergy_type: SynergyType,
+    pub bonus_damage: f32,
+    pub bonus_defense: f32,
+    pub range_meters: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum SynergyType {
+    PairBonus,
+    GroupBonus,
+    Brotherhood,
+}
+
+/// Child hero personality traits (inherited from parents).
+#[derive(Component, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
+#[reflect(Component)]
+pub struct ChildTraits {
+    pub combat_affinity: f32,
+    pub diplomacy_affinity: f32,
+    pub ambition: f32,
+    pub loyalty_baseline: f32,
+}
+
+/// Event: a new tier ability became available.
+#[derive(Event, Clone, Debug)]
+pub struct TierAbilityUnlocked {
+    pub hero: Entity,
+    pub tier: u8,
+    pub ability_id: String,
+}
+
+/// Event: synergy bonus applied between two heroes.
+#[derive(Event, Clone, Debug)]
+pub struct SynergyApplied {
+    pub hero_a: Entity,
+    pub hero_b: Entity,
+    pub bonus_damage: f32,
+    pub bonus_defense: f32,
+}
