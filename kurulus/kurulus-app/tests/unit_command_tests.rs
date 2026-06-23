@@ -11,29 +11,32 @@ use std::time::Duration;
 fn test_single_select() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
     // Spawn a player unit
-    let unit = app.world_mut().spawn((
-        Unit {
-            archetype: UnitArchetype::LightInfantry,
-            faction: FactionId::Kayi,
-            formation: FormationType::Line,
-            stance: CombatStance::Defensive,
-        },
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let unit = app
+        .world_mut()
+        .spawn((
+            Unit {
+                archetype: UnitArchetype::LightInfantry,
+                faction: FactionId::Kayi,
+                formation: FormationType::Line,
+                stance: CombatStance::Defensive,
+            },
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     // First update to initialize event readers
     app.update();
@@ -69,24 +72,27 @@ fn test_single_select() {
 fn test_click_empty_ground_deselects() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
     // Spawn a unit and pre-select it
-    let unit = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let unit = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     // Manually select it (simulating prior selection)
     let mut selection = app.world_mut().resource_mut::<SelectionState>();
@@ -121,26 +127,29 @@ fn test_click_empty_ground_deselects() {
 fn test_box_select() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
     // Spawn three player units
     let mut ids = Vec::new();
     for i in 0..3 {
-        let unit = app.world_mut().spawn((
-            Unit::default(),
-            WorldPosition::new(IVec2::new(i, 0), CELL_SIZE),
-            Stats::default(),
-            Health::default(),
-        )).id();
+        let unit = app
+            .world_mut()
+            .spawn((
+                Unit::default(),
+                WorldPosition::new(IVec2::new(i, 0), CELL_SIZE),
+                Stats::default(),
+                Health::default(),
+            ))
+            .id();
         ids.push(unit);
     }
 
@@ -157,7 +166,11 @@ fn test_box_select() {
 
     // Verify all three are selected
     let selection = app.world().resource::<SelectionState>();
-    assert_eq!(selection.selected.len(), 3, "All three units should be selected");
+    assert_eq!(
+        selection.selected.len(),
+        3,
+        "All three units should be selected"
+    );
     for id in &ids {
         assert!(
             selection.selected.contains(id),
@@ -175,30 +188,36 @@ fn test_box_select() {
 fn test_shift_click_toggle() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
     // Spawn two units
-    let unit_a = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
-    let unit_b = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(1, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let unit_a = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
+    let unit_b = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(1, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     // Step 0: Initialize event readers
     app.update();
@@ -219,7 +238,10 @@ fn test_shift_click_toggle() {
     // Step 2: Shift+click unit_b to add it
     app.world_mut().send_event(SelectEvent {
         entity: Some(unit_b),
-        modifiers: SelectModifiers { shift: true, ..default() },
+        modifiers: SelectModifiers {
+            shift: true,
+            ..default()
+        },
     });
     app.update();
     assert_eq!(
@@ -232,13 +254,26 @@ fn test_shift_click_toggle() {
     // Step 3: Shift+click unit_a to remove it
     app.world_mut().send_event(SelectEvent {
         entity: Some(unit_a),
-        modifiers: SelectModifiers { shift: true, ..default() },
+        modifiers: SelectModifiers {
+            shift: true,
+            ..default()
+        },
     });
     app.update();
     let selection = app.world().resource::<SelectionState>();
-    assert_eq!(selection.selected.len(), 1, "Only unit_b remains after shift-toggle off");
-    assert!(!selection.selected.contains(&unit_a), "unit_a should be deselected");
-    assert!(selection.selected.contains(&unit_b), "unit_b should remain selected");
+    assert_eq!(
+        selection.selected.len(),
+        1,
+        "Only unit_b remains after shift-toggle off"
+    );
+    assert!(
+        !selection.selected.contains(&unit_a),
+        "unit_a should be deselected"
+    );
+    assert!(
+        selection.selected.contains(&unit_b),
+        "unit_b should remain selected"
+    );
 }
 
 // ─── Control Group Tests ───────────────────────────────────────────────────
@@ -248,30 +283,36 @@ fn test_shift_click_toggle() {
 fn test_control_group_create_recall() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
     // Spawn two units
-    let unit_a = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
-    let unit_b = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(1, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let unit_a = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
+    let unit_b = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(1, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     // Step 0: Initialize event readers
     app.update();
@@ -325,7 +366,11 @@ fn test_control_group_create_recall() {
     app.update();
 
     let selection = app.world().resource::<SelectionState>();
-    assert_eq!(selection.selected.len(), 2, "Both units restored from group");
+    assert_eq!(
+        selection.selected.len(),
+        2,
+        "Both units restored from group"
+    );
     assert!(selection.selected.contains(&unit_a), "unit_a restored");
     assert!(selection.selected.contains(&unit_b), "unit_b restored");
     assert!(app.world().get::<Selected>(unit_a).is_some());
@@ -337,29 +382,35 @@ fn test_control_group_create_recall() {
 fn test_control_group_append() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
-    let unit_a = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
-    let unit_b = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(1, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let unit_a = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
+    let unit_b = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(1, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     // Store unit_a in group 1 manually
     {
@@ -390,9 +441,19 @@ fn test_control_group_append() {
     app.update();
 
     let selection = app.world().resource::<SelectionState>();
-    assert_eq!(selection.selected.len(), 2, "Both units selected after append");
-    assert!(selection.selected.contains(&unit_a), "unit_a should be in selection");
-    assert!(selection.selected.contains(&unit_b), "unit_b should be in selection");
+    assert_eq!(
+        selection.selected.len(),
+        2,
+        "Both units selected after append"
+    );
+    assert!(
+        selection.selected.contains(&unit_a),
+        "unit_a should be in selection"
+    );
+    assert!(
+        selection.selected.contains(&unit_b),
+        "unit_b should be in selection"
+    );
 }
 
 // ─── Dead Entity Cleanup ───────────────────────────────────────────────────
@@ -403,25 +464,28 @@ fn test_control_group_append() {
 fn test_selected_dead_entity_cleanup() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
     // Spawn a unit and select it
-    let unit = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-        Selected,
-    )).id();
+    let unit = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+            Selected,
+        ))
+        .id();
 
     {
         let mut selection = app.world_mut().resource_mut::<SelectionState>();
@@ -450,7 +514,10 @@ fn test_selected_dead_entity_cleanup() {
     );
     // Control group should also be cleaned
     if let Some(group) = selection.control_groups.get(&3) {
-        assert!(!group.contains(&unit), "Dead unit should be removed from control groups");
+        assert!(
+            !group.contains(&unit),
+            "Dead unit should be removed from control groups"
+        );
     }
 }
 
@@ -461,29 +528,41 @@ fn test_selected_dead_entity_cleanup() {
 fn test_attack_order_sets_target() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
-    let attacker = app.world_mut().spawn((
-        Unit { faction: FactionId::Kayi, ..default() },
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
-    let defender = app.world_mut().spawn((
-        Unit { faction: FactionId::Byzantine, ..default() },
-        WorldPosition::new(IVec2::new(5, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let attacker = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Kayi,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
+    let defender = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Byzantine,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(5, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     app.update();
 
@@ -496,7 +575,11 @@ fn test_attack_order_sets_target() {
 
     let target = app.world().get::<AttackTarget>(attacker);
     assert!(target.is_some(), "Attacker should have AttackTarget");
-    assert_eq!(target.unwrap().target, defender, "Target should be defender");
+    assert_eq!(
+        target.unwrap().target,
+        defender,
+        "Target should be defender"
+    );
     assert!(target.unwrap().aggressive, "Attack should be aggressive");
 }
 
@@ -505,35 +588,52 @@ fn test_attack_order_sets_target() {
 fn test_stop_command_clears_components() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
-    let unit = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-        Destination { target: GridPos(IVec2::new(10, 0)) },
-        AttackTarget { target: Entity::PLACEHOLDER, aggressive: false },
-        HoldPosition,
-    )).id();
+    let unit = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+            Destination {
+                target: GridPos(IVec2::new(10, 0)),
+            },
+            AttackTarget {
+                target: Entity::PLACEHOLDER,
+                aggressive: false,
+            },
+            HoldPosition,
+        ))
+        .id();
 
     app.update();
 
     app.world_mut().send_event(StopCommand { entity: unit });
     app.update();
 
-    assert!(app.world().get::<Destination>(unit).is_none(), "Destination should be removed");
-    assert!(app.world().get::<AttackTarget>(unit).is_none(), "AttackTarget should be removed");
-    assert!(app.world().get::<HoldPosition>(unit).is_none(), "HoldPosition should be removed");
+    assert!(
+        app.world().get::<Destination>(unit).is_none(),
+        "Destination should be removed"
+    );
+    assert!(
+        app.world().get::<AttackTarget>(unit).is_none(),
+        "AttackTarget should be removed"
+    );
+    assert!(
+        app.world().get::<HoldPosition>(unit).is_none(),
+        "HoldPosition should be removed"
+    );
 }
 
 /// Hold command sets HoldPosition and clears movement.
@@ -541,32 +641,43 @@ fn test_stop_command_clears_components() {
 fn test_hold_command_engages_hold() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
-    let unit = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-        Destination { target: GridPos(IVec2::new(10, 0)) },
-    )).id();
+    let unit = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+            Destination {
+                target: GridPos(IVec2::new(10, 0)),
+            },
+        ))
+        .id();
 
     app.update();
 
     app.world_mut().send_event(HoldCommand { entity: unit });
     app.update();
 
-    assert!(app.world().get::<HoldPosition>(unit).is_some(), "Should have HoldPosition");
-    assert!(app.world().get::<Destination>(unit).is_none(), "Destination should be cleared");
+    assert!(
+        app.world().get::<HoldPosition>(unit).is_some(),
+        "Should have HoldPosition"
+    );
+    assert!(
+        app.world().get::<Destination>(unit).is_none(),
+        "Destination should be cleared"
+    );
 }
 
 /// Formation command updates Unit.formation.
@@ -574,28 +685,31 @@ fn test_hold_command_engages_hold() {
 fn test_formation_command_changes_type() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
-    let unit = app.world_mut().spawn((
-        Unit {
-            archetype: UnitArchetype::HeavyInfantry,
-            faction: FactionId::Kayi,
-            formation: FormationType::Line,
-            stance: CombatStance::Aggressive,
-        },
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let unit = app
+        .world_mut()
+        .spawn((
+            Unit {
+                archetype: UnitArchetype::HeavyInfantry,
+                faction: FactionId::Kayi,
+                formation: FormationType::Line,
+                stance: CombatStance::Aggressive,
+            },
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     app.update();
 
@@ -607,10 +721,22 @@ fn test_formation_command_changes_type() {
 
     let unit_comp = app.world().get::<Unit>(unit);
     assert!(unit_comp.is_some(), "Unit component should exist");
-    assert_eq!(unit_comp.unwrap().formation, FormationType::Wedge, "Formation should be Wedge");
+    assert_eq!(
+        unit_comp.unwrap().formation,
+        FormationType::Wedge,
+        "Formation should be Wedge"
+    );
     // Other fields should be preserved
-    assert_eq!(unit_comp.unwrap().archetype, UnitArchetype::HeavyInfantry, "Archetype preserved");
-    assert_eq!(unit_comp.unwrap().stance, CombatStance::Aggressive, "Stance preserved");
+    assert_eq!(
+        unit_comp.unwrap().archetype,
+        UnitArchetype::HeavyInfantry,
+        "Archetype preserved"
+    );
+    assert_eq!(
+        unit_comp.unwrap().stance,
+        CombatStance::Aggressive,
+        "Stance preserved"
+    );
 }
 
 /// Stance command updates Unit.stance.
@@ -618,28 +744,31 @@ fn test_formation_command_changes_type() {
 fn test_stance_command_changes_stance() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
-    let unit = app.world_mut().spawn((
-        Unit {
-            archetype: UnitArchetype::Archer,
-            faction: FactionId::Kayi,
-            formation: FormationType::Scatter,
-            stance: CombatStance::Defensive,
-        },
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let unit = app
+        .world_mut()
+        .spawn((
+            Unit {
+                archetype: UnitArchetype::Archer,
+                faction: FactionId::Kayi,
+                formation: FormationType::Scatter,
+                stance: CombatStance::Defensive,
+            },
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     app.update();
 
@@ -651,10 +780,22 @@ fn test_stance_command_changes_stance() {
 
     let unit_comp = app.world().get::<Unit>(unit);
     assert!(unit_comp.is_some(), "Unit component should exist");
-    assert_eq!(unit_comp.unwrap().stance, CombatStance::Aggressive, "Stance should be Aggressive");
+    assert_eq!(
+        unit_comp.unwrap().stance,
+        CombatStance::Aggressive,
+        "Stance should be Aggressive"
+    );
     // Other fields preserved
-    assert_eq!(unit_comp.unwrap().archetype, UnitArchetype::Archer, "Archetype preserved");
-    assert_eq!(unit_comp.unwrap().formation, FormationType::Scatter, "Formation preserved");
+    assert_eq!(
+        unit_comp.unwrap().archetype,
+        UnitArchetype::Archer,
+        "Archetype preserved"
+    );
+    assert_eq!(
+        unit_comp.unwrap().formation,
+        FormationType::Scatter,
+        "Formation preserved"
+    );
 }
 
 /// Scatter command inserts a Destination away from current position.
@@ -662,23 +803,26 @@ fn test_stance_command_changes_stance() {
 fn test_scatter_command_moves_unit() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
-    let unit = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let unit = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     app.update();
 
@@ -690,7 +834,10 @@ fn test_scatter_command_moves_unit() {
     // The destination should be different from (0,0) by 2–4 cells
     let target = dest.unwrap().target.0;
     let distance = ((target.x as f32).powi(2) + (target.y as f32).powi(2)).sqrt();
-    assert!(distance >= 1.5, "Scatter distance should be >= ~2 cells (got {distance})");
+    assert!(
+        distance >= 1.5,
+        "Scatter distance should be >= ~2 cells (got {distance})"
+    );
 }
 
 /// Retreat command clears attack target and sets a Destination.
@@ -698,24 +845,30 @@ fn test_scatter_command_moves_unit() {
 fn test_retreat_command_clears_attack_and_moves() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
-    let unit = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-        AttackTarget { target: Entity::PLACEHOLDER, aggressive: false },
-    )).id();
+    let unit = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+            AttackTarget {
+                target: Entity::PLACEHOLDER,
+                aggressive: false,
+            },
+        ))
+        .id();
 
     app.update();
 
@@ -726,13 +879,19 @@ fn test_retreat_command_clears_attack_and_moves() {
     app.update();
 
     // Attack target should be removed
-    assert!(app.world().get::<AttackTarget>(unit).is_none(), "AttackTarget should be cleared");
+    assert!(
+        app.world().get::<AttackTarget>(unit).is_none(),
+        "AttackTarget should be cleared"
+    );
 
     // Destination should be set in the retreat direction
     let dest = app.world().get::<Destination>(unit);
     assert!(dest.is_some(), "Retreat should produce a Destination");
     // With direction (0, -1), the destination should be south (negative Y)
-    assert!(dest.unwrap().target.0.y < 0, "Should retreat south (negative Y)");
+    assert!(
+        dest.unwrap().target.0.y < 0,
+        "Should retreat south (negative Y)"
+    );
 }
 
 /// Attack-Move inserts both Destination and AttackTargetMarker.
@@ -740,23 +899,26 @@ fn test_retreat_command_clears_attack_and_moves() {
 fn test_attack_move_sets_destination_and_marker() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
-    let unit = app.world_mut().spawn((
-        Unit::default(),
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let unit = app
+        .world_mut()
+        .spawn((
+            Unit::default(),
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     app.update();
 
@@ -768,10 +930,17 @@ fn test_attack_move_sets_destination_and_marker() {
 
     let dest = app.world().get::<Destination>(unit);
     assert!(dest.is_some(), "Attack-move should produce a Destination");
-    assert_eq!(dest.unwrap().target.0, IVec2::new(10, 10), "Destination should be (10,10)");
+    assert_eq!(
+        dest.unwrap().target.0,
+        IVec2::new(10, 10),
+        "Destination should be (10,10)"
+    );
 
     let marker = app.world().get::<AttackTargetMarker>(unit);
-    assert!(marker.is_some(), "Attack-move should have AttackTargetMarker");
+    assert!(
+        marker.is_some(),
+        "Attack-move should have AttackTargetMarker"
+    );
 }
 
 /// Run enough updates for all systems to fire on a fresh App.
@@ -789,34 +958,46 @@ fn run_execution_frame(app: &mut App) {
 fn test_engagement_moves_toward_target() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
     // Attacker at (0,0), target at (10,0) — well outside attack_range (1.0)
-    let attacker = app.world_mut().spawn((
-        Unit { faction: FactionId::Kayi, ..default() },
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-        AttackTarget {
-            target: Entity::PLACEHOLDER,
-            aggressive: true,
-        },
-    )).id();
-    let defender = app.world_mut().spawn((
-        Unit { faction: FactionId::Byzantine, ..default() },
-        WorldPosition::new(IVec2::new(10, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let attacker = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Kayi,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+            AttackTarget {
+                target: Entity::PLACEHOLDER,
+                aggressive: true,
+            },
+        ))
+        .id();
+    let defender = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Byzantine,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(10, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     // Set the real target
     app.world_mut().entity_mut(attacker).insert(AttackTarget {
@@ -829,9 +1010,16 @@ fn test_engagement_moves_toward_target() {
     run_execution_frame(&mut app);
 
     let dest = app.world().get::<Destination>(attacker);
-    assert!(dest.is_some(), "Engagement should set Destination toward target");
+    assert!(
+        dest.is_some(),
+        "Engagement should set Destination toward target"
+    );
     // Destination should be toward (10,0)
-    assert_eq!(dest.unwrap().target.0, IVec2::new(10, 0), "Destination should match target position");
+    assert_eq!(
+        dest.unwrap().target.0,
+        IVec2::new(10, 0),
+        "Destination should match target position"
+    );
 }
 
 /// Engagement does NOT set Destination when already in attack range.
@@ -839,37 +1027,49 @@ fn test_engagement_moves_toward_target() {
 fn test_engagement_does_not_move_when_in_range() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
     // Attacker at (0,0), target at (0,1) — within default attack_range (1.0)
-    let attacker = app.world_mut().spawn((
-        Unit { faction: FactionId::Kayi, ..default() },
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats {
-            attack_range: 2.0,
-            ..default()
-        },
-        Health::default(),
-        AttackTarget {
-            target: Entity::PLACEHOLDER,
-            aggressive: true,
-        },
-    )).id();
-    let defender = app.world_mut().spawn((
-        Unit { faction: FactionId::Byzantine, ..default() },
-        WorldPosition::new(IVec2::new(0, 1), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let attacker = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Kayi,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats {
+                attack_range: 2.0,
+                ..default()
+            },
+            Health::default(),
+            AttackTarget {
+                target: Entity::PLACEHOLDER,
+                aggressive: true,
+            },
+        ))
+        .id();
+    let defender = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Byzantine,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(0, 1), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     // Set real target
     app.world_mut().entity_mut(attacker).insert(AttackTarget {
@@ -881,7 +1081,10 @@ fn test_engagement_does_not_move_when_in_range() {
 
     // Should NOT set Destination because in range
     let dest = app.world().get::<Destination>(attacker);
-    assert!(dest.is_none(), "Should NOT move when target is within attack range");
+    assert!(
+        dest.is_none(),
+        "Should NOT move when target is within attack range"
+    );
 }
 
 /// HoldPosition unit auto-targets nearest enemy in range.
@@ -889,55 +1092,67 @@ fn test_engagement_does_not_move_when_in_range() {
 fn test_hold_position_auto_targets_enemy() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
     // Friendly unit with HoldPosition at (0,0)
-    let holder = app.world_mut().spawn((
-        Unit {
-            faction: FactionId::Kayi,
-            ..default()
-        },
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats {
-            attack_range: 5.0,
-            ..default()
-        },
-        Health::default(),
-        MeleeWeapon {
-            damage: 10.0,
-            weapon_type: WeaponType::Sword,
-            range: 1.0,
-            armor_penetration: 0.0,
-        },
-        AttackTimer::new(1.0, TimerMode::Repeating),
-        HoldPosition,
-    )).id();
+    let holder = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Kayi,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats {
+                attack_range: 5.0,
+                ..default()
+            },
+            Health::default(),
+            MeleeWeapon {
+                damage: 10.0,
+                weapon_type: WeaponType::Sword,
+                range: 1.0,
+                armor_penetration: 0.0,
+            },
+            AttackTimer::new(1.0, TimerMode::Repeating),
+            HoldPosition,
+        ))
+        .id();
 
     // Enemy at (3,0) — within attack_range (5.0)
-    let _enemy = app.world_mut().spawn((
-        Unit {
-            faction: FactionId::Byzantine,
-            ..default()
-        },
-        WorldPosition::new(IVec2::new(3, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let _enemy = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Byzantine,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(3, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     run_execution_frame(&mut app);
 
     let target = app.world().get::<AttackTarget>(holder);
-    assert!(target.is_some(), "HoldPosition unit should auto-acquire a target");
-    assert!(target.unwrap().aggressive, "Auto-target should be aggressive");
+    assert!(
+        target.is_some(),
+        "HoldPosition unit should auto-acquire a target"
+    );
+    assert!(
+        target.unwrap().aggressive,
+        "Auto-target should be aggressive"
+    );
 }
 
 /// Attack-move is interrupted when an enemy is within vision range.
@@ -945,44 +1160,52 @@ fn test_hold_position_auto_targets_enemy() {
 fn test_attack_move_interrupts_on_enemy_contact() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
     // Unit at (0,0) with AttackTargetMarker (attack-moving)
-    let unit = app.world_mut().spawn((
-        Unit {
-            faction: FactionId::Kayi,
-            ..default()
-        },
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats {
-            vision_range: 8.0,
-            attack_range: 1.0,
-            ..default()
-        },
-        Health::default(),
-        Destination { target: GridPos(IVec2::new(20, 0)) },
-        AttackTargetMarker,
-    )).id();
+    let unit = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Kayi,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats {
+                vision_range: 8.0,
+                attack_range: 1.0,
+                ..default()
+            },
+            Health::default(),
+            Destination {
+                target: GridPos(IVec2::new(20, 0)),
+            },
+            AttackTargetMarker,
+        ))
+        .id();
 
     // Enemy at (5,0) — within vision_range (8.0)
-    let _enemy = app.world_mut().spawn((
-        Unit {
-            faction: FactionId::Byzantine,
-            ..default()
-        },
-        WorldPosition::new(IVec2::new(5, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let _enemy = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Byzantine,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(5, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     run_execution_frame(&mut app);
 
@@ -996,7 +1219,10 @@ fn test_attack_move_interrupts_on_enemy_contact() {
         "Destination should be cleared on contact"
     );
     let target = app.world().get::<AttackTarget>(unit);
-    assert!(target.is_some(), "Should acquire AttackTarget on enemy contact");
+    assert!(
+        target.is_some(),
+        "Should acquire AttackTarget on enemy contact"
+    );
 }
 
 /// Target priority re-targets when current target is dead.
@@ -1004,57 +1230,66 @@ fn test_attack_move_interrupts_on_enemy_contact() {
 fn test_target_priority_retargets_on_death() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-       .add_plugins(register_logic_plugins)
-       .insert_resource(TimeUpdateStrategy::ManualDuration(
-           Duration::from_secs_f32(1.0 / 60.0),
-       ))
-       .init_resource::<GameTime>()
-       .init_resource::<ResourceStockpile>()
-       .init_resource::<ProductionRates>()
-       .init_resource::<TaxPolicy>()
-       .init_resource::<TechTree>()
-       .init_resource::<FactionRelations>();
+        .add_plugins(register_logic_plugins)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )))
+        .init_resource::<GameTime>()
+        .init_resource::<ResourceStockpile>()
+        .init_resource::<ProductionRates>()
+        .init_resource::<TaxPolicy>()
+        .init_resource::<TechTree>()
+        .init_resource::<FactionRelations>();
 
     // Attacker at (0,0) with target (already set)
-    let attacker = app.world_mut().spawn((
-        Unit {
-            faction: FactionId::Kayi,
-            ..default()
-        },
-        WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
-        Stats {
-            attack_range: 10.0,
-            ..default()
-        },
-        Health::default(),
-        AttackTarget {
-            target: Entity::PLACEHOLDER, // will be updated
-            aggressive: true,
-        },
-    )).id();
+    let attacker = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Kayi,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+            Stats {
+                attack_range: 10.0,
+                ..default()
+            },
+            Health::default(),
+            AttackTarget {
+                target: Entity::PLACEHOLDER, // will be updated
+                aggressive: true,
+            },
+        ))
+        .id();
 
     // Enemy 1 (initially dead) at (8,0)
-    let enemy1 = app.world_mut().spawn((
-        Unit {
-            faction: FactionId::Byzantine,
-            ..default()
-        },
-        WorldPosition::new(IVec2::new(8, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-        Dead,
-    )).id();
+    let enemy1 = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Byzantine,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(8, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+            Dead,
+        ))
+        .id();
 
     // Enemy 2 (alive) at (5,0) — closer
-    let _enemy2 = app.world_mut().spawn((
-        Unit {
-            faction: FactionId::Byzantine,
-            ..default()
-        },
-        WorldPosition::new(IVec2::new(5, 0), CELL_SIZE),
-        Stats::default(),
-        Health::default(),
-    )).id();
+    let _enemy2 = app
+        .world_mut()
+        .spawn((
+            Unit {
+                faction: FactionId::Byzantine,
+                ..default()
+            },
+            WorldPosition::new(IVec2::new(5, 0), CELL_SIZE),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id();
 
     // Set target to dead enemy1
     app.world_mut().entity_mut(attacker).insert(AttackTarget {

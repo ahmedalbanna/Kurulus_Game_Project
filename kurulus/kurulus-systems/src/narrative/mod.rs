@@ -11,48 +11,54 @@ impl Plugin for NarrativePlugin {
         app.init_state::<MissionStateEnum>()
             .add_event::<MissionStarted>()
             .add_event::<MissionEnded>()
-            .add_systems(FixedUpdate, (
-                // ── M1 tutorial objective trackers ─────────────────
-                track_m1_build_objective_system,
-                track_m1_recruit_objective_system,
-                track_m1_kill_objective_system,
-                track_m1_camera_objective_system,
-                // ── M2 objective trackers ──────────────────────────
-                track_m2_build_barracks_objective_system,
-                track_m2_recruit_infantry_objective_system,
-                track_m2_destroy_watchtower_objective_system,
-                track_m2_capture_region_objective_system,
-                // ── M3 objective trackers ──────────────────────────
-                track_m3_survive_wave_objective_system,
-                track_m3_recruit_mounted_objective_system,
-                track_m3_defeat_mongols_objective_system,
-                // ── M4 objective trackers ──────────────────────────
-                track_m4_survive_wave_objective_system,
-                track_m4_destroy_sentry_objective_system,
-                track_m4_rescue_ally_objective_system,
-            ))
-            .add_systems(FixedUpdate, (
-                // ── Post-mission rewards (applied before campaign save) ──
-                apply_mission_rewards_system,
-                // ── M5 objective trackers ──────────────────────────
-                track_m5_build_barracks_objective_system,
-                track_m5_recruit_infantry_objective_system,
-                track_m5_destroy_watchtower_objective_system,
-                track_m5_kill_enemy_hero_objective_system,
-                // ── M6 objective trackers ──────────────────────────
-                track_m6_kill_enemy_hero_objective_system,
-                track_m6_survive_wave_objective_system,
-                track_m6_capture_region_objective_system,
-                // ── Campaign persistence ───────────────────────────
-                campaign_save_system,
-                campaign_restore_system,
-                // ── Shared systems ─────────────────────────────────
-                mission_objective_check_system,
-                mission_win_loss_system,
-                dialogue_trigger_system,
-                mission_intro_activator_system,
-                mission_state_machine_system,
-            ));
+            .add_systems(
+                FixedUpdate,
+                (
+                    // ── M1 tutorial objective trackers ─────────────────
+                    track_m1_build_objective_system,
+                    track_m1_recruit_objective_system,
+                    track_m1_kill_objective_system,
+                    track_m1_camera_objective_system,
+                    // ── M2 objective trackers ──────────────────────────
+                    track_m2_build_barracks_objective_system,
+                    track_m2_recruit_infantry_objective_system,
+                    track_m2_destroy_watchtower_objective_system,
+                    track_m2_capture_region_objective_system,
+                    // ── M3 objective trackers ──────────────────────────
+                    track_m3_survive_wave_objective_system,
+                    track_m3_recruit_mounted_objective_system,
+                    track_m3_defeat_mongols_objective_system,
+                    // ── M4 objective trackers ──────────────────────────
+                    track_m4_survive_wave_objective_system,
+                    track_m4_destroy_sentry_objective_system,
+                    track_m4_rescue_ally_objective_system,
+                ),
+            )
+            .add_systems(
+                FixedUpdate,
+                (
+                    // ── Post-mission rewards (applied before campaign save) ──
+                    apply_mission_rewards_system,
+                    // ── M5 objective trackers ──────────────────────────
+                    track_m5_build_barracks_objective_system,
+                    track_m5_recruit_infantry_objective_system,
+                    track_m5_destroy_watchtower_objective_system,
+                    track_m5_kill_enemy_hero_objective_system,
+                    // ── M6 objective trackers ──────────────────────────
+                    track_m6_kill_enemy_hero_objective_system,
+                    track_m6_survive_wave_objective_system,
+                    track_m6_capture_region_objective_system,
+                    // ── Campaign persistence ───────────────────────────
+                    campaign_save_system,
+                    campaign_restore_system,
+                    // ── Shared systems ─────────────────────────────────
+                    mission_objective_check_system,
+                    mission_win_loss_system,
+                    dialogue_trigger_system,
+                    mission_intro_activator_system,
+                    mission_state_machine_system,
+                ),
+            );
     }
 }
 
@@ -90,9 +96,27 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             stance: CombatStance::Aggressive,
         },
         WorldPosition::new(IVec2::new(5, 5), CELL_SIZE),
-        Health { current: 300.0, max: 300.0, armor: 15.0, armor_type: ArmorType::Medium },
-        Stats { move_speed: 4.0, attack_range: 2.0, attack_damage: 40.0, attack_speed: 1.4, vision_range: 10.0, morale: 100.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 40.0, weapon_type: WeaponType::Sword, range: 2.0, armor_penetration: 0.4 },
+        Health {
+            current: 300.0,
+            max: 300.0,
+            armor: 15.0,
+            armor_type: ArmorType::Medium,
+        },
+        Stats {
+            move_speed: 4.0,
+            attack_range: 2.0,
+            attack_damage: 40.0,
+            attack_speed: 1.4,
+            vision_range: 10.0,
+            morale: 100.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 40.0,
+            weapon_type: WeaponType::Sword,
+            range: 2.0,
+            armor_penetration: 0.4,
+        },
         AttackTimer(Timer::from_seconds(0.7, TimerMode::Repeating)),
         SkillTree {
             hero_id: HeroId::Osman,
@@ -119,9 +143,27 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             stance: CombatStance::Defensive,
         },
         WorldPosition::new(IVec2::new(6, 6), CELL_SIZE),
-        Health { current: 150.0, max: 150.0, armor: 6.0, armor_type: ArmorType::Medium },
-        Stats { move_speed: 3.5, attack_range: 1.5, attack_damage: 18.0, attack_speed: 1.0, vision_range: 8.0, morale: 80.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 18.0, weapon_type: WeaponType::Sword, range: 1.5, armor_penetration: 0.2 },
+        Health {
+            current: 150.0,
+            max: 150.0,
+            armor: 6.0,
+            armor_type: ArmorType::Medium,
+        },
+        Stats {
+            move_speed: 3.5,
+            attack_range: 1.5,
+            attack_damage: 18.0,
+            attack_speed: 1.0,
+            vision_range: 8.0,
+            morale: 80.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 18.0,
+            weapon_type: WeaponType::Sword,
+            range: 1.5,
+            armor_penetration: 0.2,
+        },
         AttackTimer(Timer::from_seconds(1.0, TimerMode::Repeating)),
         SkillTree {
             hero_id: HeroId::Alaeddin,
@@ -140,9 +182,27 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
                 stance: CombatStance::Defensive,
             },
             WorldPosition::new(IVec2::new(4 + i as i32, 7), CELL_SIZE),
-            Health { current: 80.0, max: 80.0, armor: 3.0, armor_type: ArmorType::Light },
-            Stats { move_speed: 3.5, attack_range: 1.5, attack_damage: 12.0, attack_speed: 1.0, vision_range: 6.0, morale: 50.0, morale_max: 100.0 },
-            MeleeWeapon { damage: 12.0, weapon_type: WeaponType::Sword, range: 1.5, armor_penetration: 0.1 },
+            Health {
+                current: 80.0,
+                max: 80.0,
+                armor: 3.0,
+                armor_type: ArmorType::Light,
+            },
+            Stats {
+                move_speed: 3.5,
+                attack_range: 1.5,
+                attack_damage: 12.0,
+                attack_speed: 1.0,
+                vision_range: 6.0,
+                morale: 50.0,
+                morale_max: 100.0,
+            },
+            MeleeWeapon {
+                damage: 12.0,
+                weapon_type: WeaponType::Sword,
+                range: 1.5,
+                armor_penetration: 0.1,
+            },
             AttackTimer(Timer::from_seconds(1.0, TimerMode::Repeating)),
         ));
     }
@@ -156,9 +216,27 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             stance: CombatStance::Defensive,
         },
         WorldPosition::new(IVec2::new(3, 8), CELL_SIZE),
-        Health { current: 50.0, max: 50.0, armor: 2.0, armor_type: ArmorType::Light },
-        Stats { move_speed: 3.0, attack_range: 1.0, attack_damage: 3.0, attack_speed: 0.5, vision_range: 4.0, morale: 30.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 3.0, weapon_type: WeaponType::Unarmed, range: 1.0, armor_penetration: 0.0 },
+        Health {
+            current: 50.0,
+            max: 50.0,
+            armor: 2.0,
+            armor_type: ArmorType::Light,
+        },
+        Stats {
+            move_speed: 3.0,
+            attack_range: 1.0,
+            attack_damage: 3.0,
+            attack_speed: 0.5,
+            vision_range: 4.0,
+            morale: 30.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 3.0,
+            weapon_type: WeaponType::Unarmed,
+            range: 1.0,
+            armor_penetration: 0.0,
+        },
         AttackTimer(Timer::from_seconds(2.0, TimerMode::Repeating)),
     ));
 
@@ -172,8 +250,19 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             name: "Kayı Obağı — Frontier Outpost".into(),
         },
         WorldPosition::new(IVec2::new(5, 9), CELL_SIZE),
-        Health { current: 750.0, max: 750.0, armor: 25.0, armor_type: ArmorType::Fortification },
-        BuildCost { food: 0, gold: 0, wood: 0, stone: 0, population: 0 },
+        Health {
+            current: 750.0,
+            max: 750.0,
+            armor: 25.0,
+            armor_type: ArmorType::Fortification,
+        },
+        BuildCost {
+            food: 0,
+            gold: 0,
+            wood: 0,
+            stone: 0,
+            population: 0,
+        },
     ));
 
     // Stable (for mounted unit recruitment later)
@@ -186,8 +275,19 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             name: "Kayı Stable".into(),
         },
         WorldPosition::new(IVec2::new(7, 9), CELL_SIZE),
-        Health { current: 200.0, max: 200.0, armor: 10.0, armor_type: ArmorType::Fortification },
-        BuildCost { food: 0, gold: 0, wood: 0, stone: 0, population: 0 },
+        Health {
+            current: 200.0,
+            max: 200.0,
+            armor: 10.0,
+            armor_type: ArmorType::Fortification,
+        },
+        BuildCost {
+            food: 0,
+            gold: 0,
+            wood: 0,
+            stone: 0,
+            population: 0,
+        },
     ));
 
     // ── Enemy forces (Mongol scouts) ────────────────────────────────
@@ -201,10 +301,31 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
                 formation: FormationType::Line,
                 stance: CombatStance::Aggressive,
             },
-            WorldPosition::new(IVec2::new(20 + (i % 3) as i32, 4 + (i / 3) as i32 * 3), CELL_SIZE),
-            Health { current: 70.0, max: 70.0, armor: 2.0, armor_type: ArmorType::Light },
-            Stats { move_speed: 6.0, attack_range: 2.0, attack_damage: 18.0, attack_speed: 1.3, vision_range: 8.0, morale: 60.0, morale_max: 100.0 },
-            MeleeWeapon { damage: 18.0, weapon_type: WeaponType::Spear, range: 2.0, armor_penetration: 0.1 },
+            WorldPosition::new(
+                IVec2::new(20 + (i % 3) as i32, 4 + (i / 3) as i32 * 3),
+                CELL_SIZE,
+            ),
+            Health {
+                current: 70.0,
+                max: 70.0,
+                armor: 2.0,
+                armor_type: ArmorType::Light,
+            },
+            Stats {
+                move_speed: 6.0,
+                attack_range: 2.0,
+                attack_damage: 18.0,
+                attack_speed: 1.3,
+                vision_range: 8.0,
+                morale: 60.0,
+                morale_max: 100.0,
+            },
+            MeleeWeapon {
+                damage: 18.0,
+                weapon_type: WeaponType::Spear,
+                range: 2.0,
+                armor_penetration: 0.1,
+            },
             AttackTimer(Timer::from_seconds(0.8, TimerMode::Repeating)),
         ));
     }
@@ -219,8 +340,19 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             name: "Mongol Sentry Post".into(),
         },
         WorldPosition::new(IVec2::new(22, 6), CELL_SIZE),
-        Health { current: 250.0, max: 250.0, armor: 25.0, armor_type: ArmorType::Fortification },
-        BuildCost { food: 0, gold: 0, wood: 0, stone: 0, population: 0 },
+        Health {
+            current: 250.0,
+            max: 250.0,
+            armor: 25.0,
+            armor_type: ArmorType::Fortification,
+        },
+        BuildCost {
+            food: 0,
+            gold: 0,
+            wood: 0,
+            stone: 0,
+            population: 0,
+        },
     ));
 
     // ── Rescue target ───────────────────────────────────────────────
@@ -235,9 +367,27 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             stance: CombatStance::Defensive,
         },
         WorldPosition::new(IVec2::new(21, 5), CELL_SIZE), // near Mongol camp
-        Health { current: 40.0, max: 40.0, armor: 2.0, armor_type: ArmorType::Light },
-        Stats { move_speed: 3.5, attack_range: 1.5, attack_damage: 8.0, attack_speed: 0.8, vision_range: 5.0, morale: 20.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 8.0, weapon_type: WeaponType::Unarmed, range: 1.0, armor_penetration: 0.0 },
+        Health {
+            current: 40.0,
+            max: 40.0,
+            armor: 2.0,
+            armor_type: ArmorType::Light,
+        },
+        Stats {
+            move_speed: 3.5,
+            attack_range: 1.5,
+            attack_damage: 8.0,
+            attack_speed: 0.8,
+            vision_range: 5.0,
+            morale: 20.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 8.0,
+            weapon_type: WeaponType::Unarmed,
+            range: 1.0,
+            armor_penetration: 0.0,
+        },
         AttackTimer(Timer::from_seconds(1.5, TimerMode::Repeating)),
     ));
 
@@ -251,7 +401,12 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             progress: 0.0,
             required_progress: 30.0,
             completed: false,
-            rewards: MissionRewards { gold: 15, xp: 25, sovereignty_points: 1, item_unlock: None },
+            rewards: MissionRewards {
+                gold: 15,
+                xp: 25,
+                sovereignty_points: 1,
+                item_unlock: None,
+            },
         },
         Objective {
             objective_id: ObjectiveId::DestroyWall,
@@ -260,7 +415,12 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             progress: 0.0,
             required_progress: 1.0,
             completed: false,
-            rewards: MissionRewards { gold: 20, xp: 35, sovereignty_points: 1, item_unlock: None },
+            rewards: MissionRewards {
+                gold: 20,
+                xp: 35,
+                sovereignty_points: 1,
+                item_unlock: None,
+            },
         },
         Objective {
             objective_id: ObjectiveId::RescueAlly,
@@ -269,7 +429,12 @@ pub fn setup_mission4_scenario(commands: &mut Commands) {
             progress: 0.0,
             required_progress: 1.0,
             completed: false,
-            rewards: MissionRewards { gold: 25, xp: 40, sovereignty_points: 3, item_unlock: Some("Mongol_Scout_Map".into()) },
+            rewards: MissionRewards {
+                gold: 25,
+                xp: 40,
+                sovereignty_points: 3,
+                item_unlock: Some("Mongol_Scout_Map".into()),
+            },
         },
     ];
 
@@ -309,13 +474,40 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
             active_cooldowns: HashMap::new(),
             ..Default::default()
         },
-        Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
+        Unit {
+            archetype: UnitArchetype::LightInfantry,
+            faction: FactionId::Kayi,
+            formation: FormationType::Line,
+            stance: CombatStance::Aggressive,
+        },
         WorldPosition::new(IVec2::new(4, 4), CELL_SIZE),
-        Health { current: 350.0, max: 350.0, armor: 18.0, armor_type: ArmorType::Medium },
-        Stats { move_speed: 4.0, attack_range: 2.0, attack_damage: 45.0, attack_speed: 1.4, vision_range: 10.0, morale: 100.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 45.0, weapon_type: WeaponType::Sword, range: 2.0, armor_penetration: 0.4 },
+        Health {
+            current: 350.0,
+            max: 350.0,
+            armor: 18.0,
+            armor_type: ArmorType::Medium,
+        },
+        Stats {
+            move_speed: 4.0,
+            attack_range: 2.0,
+            attack_damage: 45.0,
+            attack_speed: 1.4,
+            vision_range: 10.0,
+            morale: 100.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 45.0,
+            weapon_type: WeaponType::Sword,
+            range: 2.0,
+            armor_penetration: 0.4,
+        },
         AttackTimer(Timer::from_seconds(0.65, TimerMode::Repeating)),
-        SkillTree { hero_id: HeroId::Osman, nodes: vec![], available_points: 3 },
+        SkillTree {
+            hero_id: HeroId::Osman,
+            nodes: vec![],
+            available_points: 3,
+        },
     ));
 
     // Orhan Bey (hero, level 2)
@@ -334,43 +526,133 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
             active_cooldowns: HashMap::new(),
             ..Default::default()
         },
-        Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
+        Unit {
+            archetype: UnitArchetype::LightInfantry,
+            faction: FactionId::Kayi,
+            formation: FormationType::Line,
+            stance: CombatStance::Aggressive,
+        },
         WorldPosition::new(IVec2::new(3, 5), CELL_SIZE),
-        Health { current: 220.0, max: 220.0, armor: 10.0, armor_type: ArmorType::Medium },
-        Stats { move_speed: 4.0, attack_range: 2.0, attack_damage: 30.0, attack_speed: 1.2, vision_range: 10.0, morale: 95.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 30.0, weapon_type: WeaponType::Sword, range: 2.0, armor_penetration: 0.3 },
+        Health {
+            current: 220.0,
+            max: 220.0,
+            armor: 10.0,
+            armor_type: ArmorType::Medium,
+        },
+        Stats {
+            move_speed: 4.0,
+            attack_range: 2.0,
+            attack_damage: 30.0,
+            attack_speed: 1.2,
+            vision_range: 10.0,
+            morale: 95.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 30.0,
+            weapon_type: WeaponType::Sword,
+            range: 2.0,
+            armor_penetration: 0.3,
+        },
         AttackTimer(Timer::from_seconds(0.85, TimerMode::Repeating)),
-        SkillTree { hero_id: HeroId::Orhan, nodes: vec![], available_points: 2 },
+        SkillTree {
+            hero_id: HeroId::Orhan,
+            nodes: vec![],
+            available_points: 2,
+        },
     ));
 
     // 5 Kayi Light Infantry
     for i in 0..5 {
         commands.spawn((
-            Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Defensive },
+            Unit {
+                archetype: UnitArchetype::LightInfantry,
+                faction: FactionId::Kayi,
+                formation: FormationType::Line,
+                stance: CombatStance::Defensive,
+            },
             WorldPosition::new(IVec2::new(3 + i as i32, 6), CELL_SIZE),
-            Health { current: 80.0, max: 80.0, armor: 3.0, armor_type: ArmorType::Light },
-            Stats { move_speed: 3.5, attack_range: 1.5, attack_damage: 12.0, attack_speed: 1.0, vision_range: 6.0, morale: 50.0, morale_max: 100.0 },
-            MeleeWeapon { damage: 12.0, weapon_type: WeaponType::Sword, range: 1.5, armor_penetration: 0.1 },
+            Health {
+                current: 80.0,
+                max: 80.0,
+                armor: 3.0,
+                armor_type: ArmorType::Light,
+            },
+            Stats {
+                move_speed: 3.5,
+                attack_range: 1.5,
+                attack_damage: 12.0,
+                attack_speed: 1.0,
+                vision_range: 6.0,
+                morale: 50.0,
+                morale_max: 100.0,
+            },
+            MeleeWeapon {
+                damage: 12.0,
+                weapon_type: WeaponType::Sword,
+                range: 1.5,
+                armor_penetration: 0.1,
+            },
             AttackTimer(Timer::from_seconds(1.0, TimerMode::Repeating)),
         ));
     }
 
     // 1 Worker
     commands.spawn((
-        Unit { archetype: UnitArchetype::Worker, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Defensive },
+        Unit {
+            archetype: UnitArchetype::Worker,
+            faction: FactionId::Kayi,
+            formation: FormationType::Line,
+            stance: CombatStance::Defensive,
+        },
         WorldPosition::new(IVec2::new(2, 8), CELL_SIZE),
-        Health { current: 50.0, max: 50.0, armor: 2.0, armor_type: ArmorType::Light },
-        Stats { move_speed: 3.0, attack_range: 1.0, attack_damage: 3.0, attack_speed: 0.5, vision_range: 4.0, morale: 30.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 3.0, weapon_type: WeaponType::Unarmed, range: 1.0, armor_penetration: 0.0 },
+        Health {
+            current: 50.0,
+            max: 50.0,
+            armor: 2.0,
+            armor_type: ArmorType::Light,
+        },
+        Stats {
+            move_speed: 3.0,
+            attack_range: 1.0,
+            attack_damage: 3.0,
+            attack_speed: 0.5,
+            vision_range: 4.0,
+            morale: 30.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 3.0,
+            weapon_type: WeaponType::Unarmed,
+            range: 1.0,
+            armor_penetration: 0.0,
+        },
         AttackTimer(Timer::from_seconds(2.0, TimerMode::Repeating)),
     ));
 
     // Player Oba (Level 3)
     commands.spawn((
-        Building { building_type: BuildingType::Oba, faction: FactionId::Kayi, level: 3, max_level: 5, name: "Kayı Obağı — Siege Camp".into() },
+        Building {
+            building_type: BuildingType::Oba,
+            faction: FactionId::Kayi,
+            level: 3,
+            max_level: 5,
+            name: "Kayı Obağı — Siege Camp".into(),
+        },
         WorldPosition::new(IVec2::new(5, 8), CELL_SIZE),
-        Health { current: 1000.0, max: 1000.0, armor: 30.0, armor_type: ArmorType::Fortification },
-        BuildCost { food: 0, gold: 0, wood: 0, stone: 0, population: 0 },
+        Health {
+            current: 1000.0,
+            max: 1000.0,
+            armor: 30.0,
+            armor_type: ArmorType::Fortification,
+        },
+        BuildCost {
+            food: 0,
+            gold: 0,
+            wood: 0,
+            stone: 0,
+            population: 0,
+        },
     ));
 
     // ── Enemy forces (Byzantine Kulucahisar garrison) ────────────────
@@ -378,11 +660,37 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
     // 8 Byzantine Infantry (garrison)
     for i in 0..8 {
         commands.spawn((
-            Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Byzantine, formation: FormationType::Line, stance: CombatStance::Defensive },
-            WorldPosition::new(IVec2::new(20 + (i % 4) as i32, 4 + (i / 4) as i32 * 3), CELL_SIZE),
-            Health { current: 90.0, max: 90.0, armor: 5.0, armor_type: ArmorType::Medium },
-            Stats { move_speed: 3.0, attack_range: 1.5, attack_damage: 12.0, attack_speed: 0.9, vision_range: 6.0, morale: 60.0, morale_max: 100.0 },
-            MeleeWeapon { damage: 12.0, weapon_type: WeaponType::Spear, range: 1.5, armor_penetration: 0.15 },
+            Unit {
+                archetype: UnitArchetype::LightInfantry,
+                faction: FactionId::Byzantine,
+                formation: FormationType::Line,
+                stance: CombatStance::Defensive,
+            },
+            WorldPosition::new(
+                IVec2::new(20 + (i % 4) as i32, 4 + (i / 4) as i32 * 3),
+                CELL_SIZE,
+            ),
+            Health {
+                current: 90.0,
+                max: 90.0,
+                armor: 5.0,
+                armor_type: ArmorType::Medium,
+            },
+            Stats {
+                move_speed: 3.0,
+                attack_range: 1.5,
+                attack_damage: 12.0,
+                attack_speed: 0.9,
+                vision_range: 6.0,
+                morale: 60.0,
+                morale_max: 100.0,
+            },
+            MeleeWeapon {
+                damage: 12.0,
+                weapon_type: WeaponType::Spear,
+                range: 1.5,
+                armor_penetration: 0.15,
+            },
             AttackTimer(Timer::from_seconds(1.1, TimerMode::Repeating)),
         ));
     }
@@ -390,31 +698,94 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
     // 2 Byzantine Archers (on the wall)
     for i in 0..2 {
         commands.spawn((
-            Unit { archetype: UnitArchetype::Archer, faction: FactionId::Byzantine, formation: FormationType::Line, stance: CombatStance::Defensive },
+            Unit {
+                archetype: UnitArchetype::Archer,
+                faction: FactionId::Byzantine,
+                formation: FormationType::Line,
+                stance: CombatStance::Defensive,
+            },
             WorldPosition::new(IVec2::new(22, 8 + i as i32), CELL_SIZE),
-            Health { current: 60.0, max: 60.0, armor: 2.0, armor_type: ArmorType::Light },
-            Stats { move_speed: 3.0, attack_range: 7.0, attack_damage: 15.0, attack_speed: 0.7, vision_range: 9.0, morale: 50.0, morale_max: 100.0 },
-            MeleeWeapon { damage: 15.0, weapon_type: WeaponType::Bow, range: 7.0, armor_penetration: 0.0 },
+            Health {
+                current: 60.0,
+                max: 60.0,
+                armor: 2.0,
+                armor_type: ArmorType::Light,
+            },
+            Stats {
+                move_speed: 3.0,
+                attack_range: 7.0,
+                attack_damage: 15.0,
+                attack_speed: 0.7,
+                vision_range: 9.0,
+                morale: 50.0,
+                morale_max: 100.0,
+            },
+            MeleeWeapon {
+                damage: 15.0,
+                weapon_type: WeaponType::Bow,
+                range: 7.0,
+                armor_penetration: 0.0,
+            },
             AttackTimer(Timer::from_seconds(1.4, TimerMode::Repeating)),
         ));
     }
 
     // Byzantine Captain (the "enemy hero" — KillEnemyHero objective target)
     commands.spawn((
-        Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Byzantine, formation: FormationType::Line, stance: CombatStance::Aggressive },
+        Unit {
+            archetype: UnitArchetype::LightInfantry,
+            faction: FactionId::Byzantine,
+            formation: FormationType::Line,
+            stance: CombatStance::Aggressive,
+        },
         WorldPosition::new(IVec2::new(21, 5), CELL_SIZE),
-        Health { current: 250.0, max: 250.0, armor: 20.0, armor_type: ArmorType::Heavy },
-        Stats { move_speed: 3.5, attack_range: 2.0, attack_damage: 30.0, attack_speed: 1.1, vision_range: 8.0, morale: 90.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 30.0, weapon_type: WeaponType::Sword, range: 2.0, armor_penetration: 0.35 },
+        Health {
+            current: 250.0,
+            max: 250.0,
+            armor: 20.0,
+            armor_type: ArmorType::Heavy,
+        },
+        Stats {
+            move_speed: 3.5,
+            attack_range: 2.0,
+            attack_damage: 30.0,
+            attack_speed: 1.1,
+            vision_range: 8.0,
+            morale: 90.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 30.0,
+            weapon_type: WeaponType::Sword,
+            range: 2.0,
+            armor_penetration: 0.35,
+        },
         AttackTimer(Timer::from_seconds(0.9, TimerMode::Repeating)),
     ));
 
     // Byzantine Watchtower (DestroyWall objective target)
     commands.spawn((
-        Building { building_type: BuildingType::Watchtower, faction: FactionId::Byzantine, level: 1, max_level: 1, name: "Kulucahisar Watchtower".into() },
+        Building {
+            building_type: BuildingType::Watchtower,
+            faction: FactionId::Byzantine,
+            level: 1,
+            max_level: 1,
+            name: "Kulucahisar Watchtower".into(),
+        },
         WorldPosition::new(IVec2::new(23, 6), CELL_SIZE),
-        Health { current: 400.0, max: 400.0, armor: 35.0, armor_type: ArmorType::Fortification },
-        BuildCost { food: 0, gold: 0, wood: 0, stone: 0, population: 0 },
+        Health {
+            current: 400.0,
+            max: 400.0,
+            armor: 35.0,
+            armor_type: ArmorType::Fortification,
+        },
+        BuildCost {
+            food: 0,
+            gold: 0,
+            wood: 0,
+            stone: 0,
+            population: 0,
+        },
     ));
 
     // ── Mission State ─────────────────────────────────────────────────
@@ -427,7 +798,12 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
             progress: 0.0,
             required_progress: 1.0,
             completed: false,
-            rewards: MissionRewards { gold: 15, xp: 25, sovereignty_points: 1, item_unlock: None },
+            rewards: MissionRewards {
+                gold: 15,
+                xp: 25,
+                sovereignty_points: 1,
+                item_unlock: None,
+            },
         },
         Objective {
             objective_id: ObjectiveId::RecruitTenUnits,
@@ -436,7 +812,12 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
             progress: 0.0,
             required_progress: 5.0,
             completed: false,
-            rewards: MissionRewards { gold: 20, xp: 30, sovereignty_points: 1, item_unlock: None },
+            rewards: MissionRewards {
+                gold: 20,
+                xp: 30,
+                sovereignty_points: 1,
+                item_unlock: None,
+            },
         },
         Objective {
             objective_id: ObjectiveId::DestroyWall,
@@ -445,7 +826,12 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
             progress: 0.0,
             required_progress: 1.0,
             completed: false,
-            rewards: MissionRewards { gold: 30, xp: 45, sovereignty_points: 2, item_unlock: None },
+            rewards: MissionRewards {
+                gold: 30,
+                xp: 45,
+                sovereignty_points: 2,
+                item_unlock: None,
+            },
         },
         Objective {
             objective_id: ObjectiveId::KillEnemyHero,
@@ -454,7 +840,12 @@ pub fn setup_mission5_scenario(commands: &mut Commands) {
             progress: 0.0,
             required_progress: 1.0,
             completed: false,
-            rewards: MissionRewards { gold: 60, xp: 100, sovereignty_points: 4, item_unlock: Some("Kulucahisar_Key".into()) },
+            rewards: MissionRewards {
+                gold: 60,
+                xp: 100,
+                sovereignty_points: 4,
+                item_unlock: Some("Kulucahisar_Key".into()),
+            },
         },
     ];
 
@@ -495,13 +886,40 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
             active_cooldowns: HashMap::new(),
             ..Default::default()
         },
-        Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
+        Unit {
+            archetype: UnitArchetype::LightInfantry,
+            faction: FactionId::Kayi,
+            formation: FormationType::Line,
+            stance: CombatStance::Aggressive,
+        },
         WorldPosition::new(IVec2::new(5, 5), CELL_SIZE),
-        Health { current: 400.0, max: 400.0, armor: 20.0, armor_type: ArmorType::Medium },
-        Stats { move_speed: 4.0, attack_range: 2.0, attack_damage: 50.0, attack_speed: 1.5, vision_range: 10.0, morale: 100.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 50.0, weapon_type: WeaponType::Sword, range: 2.0, armor_penetration: 0.45 },
+        Health {
+            current: 400.0,
+            max: 400.0,
+            armor: 20.0,
+            armor_type: ArmorType::Medium,
+        },
+        Stats {
+            move_speed: 4.0,
+            attack_range: 2.0,
+            attack_damage: 50.0,
+            attack_speed: 1.5,
+            vision_range: 10.0,
+            morale: 100.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 50.0,
+            weapon_type: WeaponType::Sword,
+            range: 2.0,
+            armor_penetration: 0.45,
+        },
         AttackTimer(Timer::from_seconds(0.6, TimerMode::Repeating)),
-        SkillTree { hero_id: HeroId::Osman, nodes: vec![], available_points: 4 },
+        SkillTree {
+            hero_id: HeroId::Osman,
+            nodes: vec![],
+            available_points: 4,
+        },
     ));
 
     // Orhan Bey (hero, level 3)
@@ -520,13 +938,40 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
             active_cooldowns: HashMap::new(),
             ..Default::default()
         },
-        Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
+        Unit {
+            archetype: UnitArchetype::LightInfantry,
+            faction: FactionId::Kayi,
+            formation: FormationType::Line,
+            stance: CombatStance::Aggressive,
+        },
         WorldPosition::new(IVec2::new(4, 4), CELL_SIZE),
-        Health { current: 280.0, max: 280.0, armor: 14.0, armor_type: ArmorType::Medium },
-        Stats { move_speed: 4.0, attack_range: 2.0, attack_damage: 35.0, attack_speed: 1.3, vision_range: 10.0, morale: 95.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 35.0, weapon_type: WeaponType::Sword, range: 2.0, armor_penetration: 0.35 },
+        Health {
+            current: 280.0,
+            max: 280.0,
+            armor: 14.0,
+            armor_type: ArmorType::Medium,
+        },
+        Stats {
+            move_speed: 4.0,
+            attack_range: 2.0,
+            attack_damage: 35.0,
+            attack_speed: 1.3,
+            vision_range: 10.0,
+            morale: 95.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 35.0,
+            weapon_type: WeaponType::Sword,
+            range: 2.0,
+            armor_penetration: 0.35,
+        },
         AttackTimer(Timer::from_seconds(0.8, TimerMode::Repeating)),
-        SkillTree { hero_id: HeroId::Orhan, nodes: vec![], available_points: 3 },
+        SkillTree {
+            hero_id: HeroId::Orhan,
+            nodes: vec![],
+            available_points: 3,
+        },
     ));
 
     // Alaeddin Bey (hero, level 2)
@@ -545,23 +990,76 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
             active_cooldowns: HashMap::new(),
             ..Default::default()
         },
-        Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Defensive },
+        Unit {
+            archetype: UnitArchetype::LightInfantry,
+            faction: FactionId::Kayi,
+            formation: FormationType::Line,
+            stance: CombatStance::Defensive,
+        },
         WorldPosition::new(IVec2::new(6, 6), CELL_SIZE),
-        Health { current: 200.0, max: 200.0, armor: 10.0, armor_type: ArmorType::Medium },
-        Stats { move_speed: 3.5, attack_range: 1.5, attack_damage: 22.0, attack_speed: 1.0, vision_range: 8.0, morale: 85.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 22.0, weapon_type: WeaponType::Sword, range: 1.5, armor_penetration: 0.25 },
+        Health {
+            current: 200.0,
+            max: 200.0,
+            armor: 10.0,
+            armor_type: ArmorType::Medium,
+        },
+        Stats {
+            move_speed: 3.5,
+            attack_range: 1.5,
+            attack_damage: 22.0,
+            attack_speed: 1.0,
+            vision_range: 8.0,
+            morale: 85.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 22.0,
+            weapon_type: WeaponType::Sword,
+            range: 1.5,
+            armor_penetration: 0.25,
+        },
         AttackTimer(Timer::from_seconds(0.95, TimerMode::Repeating)),
-        SkillTree { hero_id: HeroId::Alaeddin, nodes: vec![], available_points: 2 },
+        SkillTree {
+            hero_id: HeroId::Alaeddin,
+            nodes: vec![],
+            available_points: 2,
+        },
     ));
 
     // 8 Kayi Light Infantry
     for i in 0..8 {
         commands.spawn((
-            Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Defensive },
-            WorldPosition::new(IVec2::new(4 + (i % 4) as i32, 7 + (i / 4) as i32), CELL_SIZE),
-            Health { current: 80.0, max: 80.0, armor: 3.0, armor_type: ArmorType::Light },
-            Stats { move_speed: 3.5, attack_range: 1.5, attack_damage: 12.0, attack_speed: 1.0, vision_range: 6.0, morale: 50.0, morale_max: 100.0 },
-            MeleeWeapon { damage: 12.0, weapon_type: WeaponType::Sword, range: 1.5, armor_penetration: 0.1 },
+            Unit {
+                archetype: UnitArchetype::LightInfantry,
+                faction: FactionId::Kayi,
+                formation: FormationType::Line,
+                stance: CombatStance::Defensive,
+            },
+            WorldPosition::new(
+                IVec2::new(4 + (i % 4) as i32, 7 + (i / 4) as i32),
+                CELL_SIZE,
+            ),
+            Health {
+                current: 80.0,
+                max: 80.0,
+                armor: 3.0,
+                armor_type: ArmorType::Light,
+            },
+            Stats {
+                move_speed: 3.5,
+                attack_range: 1.5,
+                attack_damage: 12.0,
+                attack_speed: 1.0,
+                vision_range: 6.0,
+                morale: 50.0,
+                morale_max: 100.0,
+            },
+            MeleeWeapon {
+                damage: 12.0,
+                weapon_type: WeaponType::Sword,
+                range: 1.5,
+                armor_penetration: 0.1,
+            },
             AttackTimer(Timer::from_seconds(1.0, TimerMode::Repeating)),
         ));
     }
@@ -569,31 +1067,94 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
     // 2 Kayi Light Cavalry
     for i in 0..2 {
         commands.spawn((
-            Unit { archetype: UnitArchetype::LightCavalry, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Aggressive },
+            Unit {
+                archetype: UnitArchetype::LightCavalry,
+                faction: FactionId::Kayi,
+                formation: FormationType::Line,
+                stance: CombatStance::Aggressive,
+            },
             WorldPosition::new(IVec2::new(3 + i as i32 * 2, 9), CELL_SIZE),
-            Health { current: 100.0, max: 100.0, armor: 4.0, armor_type: ArmorType::Light },
-            Stats { move_speed: 6.0, attack_range: 2.0, attack_damage: 15.0, attack_speed: 1.2, vision_range: 7.0, morale: 60.0, morale_max: 100.0 },
-            MeleeWeapon { damage: 15.0, weapon_type: WeaponType::Spear, range: 2.0, armor_penetration: 0.1 },
+            Health {
+                current: 100.0,
+                max: 100.0,
+                armor: 4.0,
+                armor_type: ArmorType::Light,
+            },
+            Stats {
+                move_speed: 6.0,
+                attack_range: 2.0,
+                attack_damage: 15.0,
+                attack_speed: 1.2,
+                vision_range: 7.0,
+                morale: 60.0,
+                morale_max: 100.0,
+            },
+            MeleeWeapon {
+                damage: 15.0,
+                weapon_type: WeaponType::Spear,
+                range: 2.0,
+                armor_penetration: 0.1,
+            },
             AttackTimer(Timer::from_seconds(0.9, TimerMode::Repeating)),
         ));
     }
 
     // 1 Worker
     commands.spawn((
-        Unit { archetype: UnitArchetype::Worker, faction: FactionId::Kayi, formation: FormationType::Line, stance: CombatStance::Defensive },
+        Unit {
+            archetype: UnitArchetype::Worker,
+            faction: FactionId::Kayi,
+            formation: FormationType::Line,
+            stance: CombatStance::Defensive,
+        },
         WorldPosition::new(IVec2::new(2, 10), CELL_SIZE),
-        Health { current: 50.0, max: 50.0, armor: 2.0, armor_type: ArmorType::Light },
-        Stats { move_speed: 3.0, attack_range: 1.0, attack_damage: 3.0, attack_speed: 0.5, vision_range: 4.0, morale: 30.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 3.0, weapon_type: WeaponType::Unarmed, range: 1.0, armor_penetration: 0.0 },
+        Health {
+            current: 50.0,
+            max: 50.0,
+            armor: 2.0,
+            armor_type: ArmorType::Light,
+        },
+        Stats {
+            move_speed: 3.0,
+            attack_range: 1.0,
+            attack_damage: 3.0,
+            attack_speed: 0.5,
+            vision_range: 4.0,
+            morale: 30.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 3.0,
+            weapon_type: WeaponType::Unarmed,
+            range: 1.0,
+            armor_penetration: 0.0,
+        },
         AttackTimer(Timer::from_seconds(2.0, TimerMode::Repeating)),
     ));
 
     // Player Oba (Level 3)
     commands.spawn((
-        Building { building_type: BuildingType::Oba, faction: FactionId::Kayi, level: 3, max_level: 5, name: "Kayı Obağı — Field HQ".into() },
+        Building {
+            building_type: BuildingType::Oba,
+            faction: FactionId::Kayi,
+            level: 3,
+            max_level: 5,
+            name: "Kayı Obağı — Field HQ".into(),
+        },
         WorldPosition::new(IVec2::new(6, 10), CELL_SIZE),
-        Health { current: 1000.0, max: 1000.0, armor: 30.0, armor_type: ArmorType::Fortification },
-        BuildCost { food: 0, gold: 0, wood: 0, stone: 0, population: 0 },
+        Health {
+            current: 1000.0,
+            max: 1000.0,
+            armor: 30.0,
+            armor_type: ArmorType::Fortification,
+        },
+        BuildCost {
+            food: 0,
+            gold: 0,
+            wood: 0,
+            stone: 0,
+            population: 0,
+        },
     ));
 
     // ── Enemy forces (Byzantine army) ────────────────────────────────
@@ -601,11 +1162,37 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
     // 12 Byzantine Infantry
     for i in 0..12 {
         commands.spawn((
-            Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Byzantine, formation: FormationType::Line, stance: CombatStance::Aggressive },
-            WorldPosition::new(IVec2::new(22 + (i % 4) as i32, 3 + (i / 4) as i32 * 3), CELL_SIZE),
-            Health { current: 90.0, max: 90.0, armor: 5.0, armor_type: ArmorType::Medium },
-            Stats { move_speed: 3.0, attack_range: 1.5, attack_damage: 12.0, attack_speed: 0.9, vision_range: 6.0, morale: 65.0, morale_max: 100.0 },
-            MeleeWeapon { damage: 12.0, weapon_type: WeaponType::Spear, range: 1.5, armor_penetration: 0.15 },
+            Unit {
+                archetype: UnitArchetype::LightInfantry,
+                faction: FactionId::Byzantine,
+                formation: FormationType::Line,
+                stance: CombatStance::Aggressive,
+            },
+            WorldPosition::new(
+                IVec2::new(22 + (i % 4) as i32, 3 + (i / 4) as i32 * 3),
+                CELL_SIZE,
+            ),
+            Health {
+                current: 90.0,
+                max: 90.0,
+                armor: 5.0,
+                armor_type: ArmorType::Medium,
+            },
+            Stats {
+                move_speed: 3.0,
+                attack_range: 1.5,
+                attack_damage: 12.0,
+                attack_speed: 0.9,
+                vision_range: 6.0,
+                morale: 65.0,
+                morale_max: 100.0,
+            },
+            MeleeWeapon {
+                damage: 12.0,
+                weapon_type: WeaponType::Spear,
+                range: 1.5,
+                armor_penetration: 0.15,
+            },
             AttackTimer(Timer::from_seconds(1.1, TimerMode::Repeating)),
         ));
     }
@@ -613,11 +1200,34 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
     // 4 Byzantine Archers
     for i in 0..4 {
         commands.spawn((
-            Unit { archetype: UnitArchetype::Archer, faction: FactionId::Byzantine, formation: FormationType::Line, stance: CombatStance::Defensive },
+            Unit {
+                archetype: UnitArchetype::Archer,
+                faction: FactionId::Byzantine,
+                formation: FormationType::Line,
+                stance: CombatStance::Defensive,
+            },
             WorldPosition::new(IVec2::new(24, 7 + i as i32), CELL_SIZE),
-            Health { current: 60.0, max: 60.0, armor: 2.0, armor_type: ArmorType::Light },
-            Stats { move_speed: 3.0, attack_range: 7.0, attack_damage: 15.0, attack_speed: 0.7, vision_range: 9.0, morale: 55.0, morale_max: 100.0 },
-            MeleeWeapon { damage: 15.0, weapon_type: WeaponType::Bow, range: 7.0, armor_penetration: 0.0 },
+            Health {
+                current: 60.0,
+                max: 60.0,
+                armor: 2.0,
+                armor_type: ArmorType::Light,
+            },
+            Stats {
+                move_speed: 3.0,
+                attack_range: 7.0,
+                attack_damage: 15.0,
+                attack_speed: 0.7,
+                vision_range: 9.0,
+                morale: 55.0,
+                morale_max: 100.0,
+            },
+            MeleeWeapon {
+                damage: 15.0,
+                weapon_type: WeaponType::Bow,
+                range: 7.0,
+                armor_penetration: 0.0,
+            },
             AttackTimer(Timer::from_seconds(1.4, TimerMode::Repeating)),
         ));
     }
@@ -625,22 +1235,68 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
     // 2 Byzantine Cavalry
     for i in 0..2 {
         commands.spawn((
-            Unit { archetype: UnitArchetype::LightCavalry, faction: FactionId::Byzantine, formation: FormationType::Line, stance: CombatStance::Aggressive },
+            Unit {
+                archetype: UnitArchetype::LightCavalry,
+                faction: FactionId::Byzantine,
+                formation: FormationType::Line,
+                stance: CombatStance::Aggressive,
+            },
             WorldPosition::new(IVec2::new(20, 5 + i as i32 * 5), CELL_SIZE),
-            Health { current: 120.0, max: 120.0, armor: 8.0, armor_type: ArmorType::Medium },
-            Stats { move_speed: 5.0, attack_range: 2.0, attack_damage: 18.0, attack_speed: 1.1, vision_range: 7.0, morale: 70.0, morale_max: 100.0 },
-            MeleeWeapon { damage: 18.0, weapon_type: WeaponType::Spear, range: 2.0, armor_penetration: 0.2 },
+            Health {
+                current: 120.0,
+                max: 120.0,
+                armor: 8.0,
+                armor_type: ArmorType::Medium,
+            },
+            Stats {
+                move_speed: 5.0,
+                attack_range: 2.0,
+                attack_damage: 18.0,
+                attack_speed: 1.1,
+                vision_range: 7.0,
+                morale: 70.0,
+                morale_max: 100.0,
+            },
+            MeleeWeapon {
+                damage: 18.0,
+                weapon_type: WeaponType::Spear,
+                range: 2.0,
+                armor_penetration: 0.2,
+            },
             AttackTimer(Timer::from_seconds(1.0, TimerMode::Repeating)),
         ));
     }
 
     // Byzantine Commander (the "enemy hero" — KillEnemyHero objective)
     commands.spawn((
-        Unit { archetype: UnitArchetype::LightInfantry, faction: FactionId::Byzantine, formation: FormationType::Line, stance: CombatStance::Aggressive },
+        Unit {
+            archetype: UnitArchetype::LightInfantry,
+            faction: FactionId::Byzantine,
+            formation: FormationType::Line,
+            stance: CombatStance::Aggressive,
+        },
         WorldPosition::new(IVec2::new(23, 5), CELL_SIZE),
-        Health { current: 350.0, max: 350.0, armor: 25.0, armor_type: ArmorType::Heavy },
-        Stats { move_speed: 4.0, attack_range: 2.0, attack_damage: 40.0, attack_speed: 1.3, vision_range: 9.0, morale: 100.0, morale_max: 100.0 },
-        MeleeWeapon { damage: 40.0, weapon_type: WeaponType::Sword, range: 2.0, armor_penetration: 0.4 },
+        Health {
+            current: 350.0,
+            max: 350.0,
+            armor: 25.0,
+            armor_type: ArmorType::Heavy,
+        },
+        Stats {
+            move_speed: 4.0,
+            attack_range: 2.0,
+            attack_damage: 40.0,
+            attack_speed: 1.3,
+            vision_range: 9.0,
+            morale: 100.0,
+            morale_max: 100.0,
+        },
+        MeleeWeapon {
+            damage: 40.0,
+            weapon_type: WeaponType::Sword,
+            range: 2.0,
+            armor_penetration: 0.4,
+        },
         AttackTimer(Timer::from_seconds(0.8, TimerMode::Repeating)),
     ));
 
@@ -654,7 +1310,12 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
             progress: 0.0,
             required_progress: 1.0,
             completed: false,
-            rewards: MissionRewards { gold: 40, xp: 60, sovereignty_points: 3, item_unlock: None },
+            rewards: MissionRewards {
+                gold: 40,
+                xp: 60,
+                sovereignty_points: 3,
+                item_unlock: None,
+            },
         },
         Objective {
             objective_id: ObjectiveId::SurviveWave,
@@ -663,7 +1324,12 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
             progress: 0.0,
             required_progress: 60.0,
             completed: false,
-            rewards: MissionRewards { gold: 30, xp: 50, sovereignty_points: 2, item_unlock: None },
+            rewards: MissionRewards {
+                gold: 30,
+                xp: 50,
+                sovereignty_points: 2,
+                item_unlock: None,
+            },
         },
         Objective {
             objective_id: ObjectiveId::CaptureRegion,
@@ -672,7 +1338,12 @@ pub fn setup_mission6_scenario(commands: &mut Commands) {
             progress: 0.0,
             required_progress: 1.0,
             completed: false,
-            rewards: MissionRewards { gold: 100, xp: 150, sovereignty_points: 6, item_unlock: Some("Byzantine_Standard".into()) },
+            rewards: MissionRewards {
+                gold: 100,
+                xp: 150,
+                sovereignty_points: 6,
+                item_unlock: Some("Byzantine_Standard".into()),
+            },
         },
     ];
 
@@ -1993,9 +2664,9 @@ fn track_m2_build_barracks_objective_system(
         }
 
         // Check if a Kayi Barracks exists
-        let has_barracks = buildings.iter().any(|b| {
-            b.building_type == BuildingType::Barracks && b.faction == FactionId::Kayi
-        });
+        let has_barracks = buildings
+            .iter()
+            .any(|b| b.building_type == BuildingType::Barracks && b.faction == FactionId::Kayi);
         if has_barracks {
             mission.objectives[idx].progress = 1.0;
         }
@@ -2042,19 +2713,17 @@ fn track_m2_destroy_watchtower_objective_system(
     buildings: Query<&Building>,
 ) {
     // Check if the watchtower was destroyed
-    let watchtower_down = dead_events
-        .read()
-        .any(|ev| {
-            buildings.get(ev.entity).is_ok_and(|b| {
-                b.building_type == BuildingType::Watchtower
-                    && b.faction == FactionId::Byzantine
-            })
+    let watchtower_down = dead_events.read().any(|ev| {
+        buildings.get(ev.entity).is_ok_and(|b| {
+            b.building_type == BuildingType::Watchtower && b.faction == FactionId::Byzantine
         })
-        || buildings
-            .iter()
-            .filter(|b| b.building_type == BuildingType::Watchtower && b.faction == FactionId::Byzantine)
-            .count()
-            == 0;
+    }) || buildings
+        .iter()
+        .filter(|b| {
+            b.building_type == BuildingType::Watchtower && b.faction == FactionId::Byzantine
+        })
+        .count()
+        == 0;
 
     for mut mission in missions.iter_mut() {
         if mission.mission_id != MissionId::Mission02 {
@@ -2164,9 +2833,7 @@ fn track_m3_recruit_mounted_objective_system(
 
         let cavalry = units
             .iter()
-            .filter(|u| {
-                u.faction == FactionId::Kayi && u.archetype == UnitArchetype::LightCavalry
-            })
+            .filter(|u| u.faction == FactionId::Kayi && u.archetype == UnitArchetype::LightCavalry)
             .count();
         let required = mission.objectives[idx].required_progress;
         mission.objectives[idx].progress = (cavalry as f32).min(required);
@@ -2240,19 +2907,15 @@ fn track_m4_destroy_sentry_objective_system(
     mut dead_events: EventReader<UnitDied>,
     buildings: Query<&Building>,
 ) {
-    let sentry_down = dead_events
-        .read()
-        .any(|ev| {
-            buildings.get(ev.entity).is_ok_and(|b| {
-                b.building_type == BuildingType::Watchtower
-                    && b.faction == FactionId::Mongol
-            })
+    let sentry_down = dead_events.read().any(|ev| {
+        buildings.get(ev.entity).is_ok_and(|b| {
+            b.building_type == BuildingType::Watchtower && b.faction == FactionId::Mongol
         })
-        || buildings
-            .iter()
-            .filter(|b| b.building_type == BuildingType::Watchtower && b.faction == FactionId::Mongol)
-            .count()
-            == 0;
+    }) || buildings
+        .iter()
+        .filter(|b| b.building_type == BuildingType::Watchtower && b.faction == FactionId::Mongol)
+        .count()
+        == 0;
 
     for mut mission in missions.iter_mut() {
         if mission.mission_id != MissionId::Mission04 {
@@ -2326,7 +2989,10 @@ fn track_m5_build_barracks_objective_system(
         {
             continue;
         }
-        if buildings.iter().any(|b| b.building_type == BuildingType::Barracks && b.faction == FactionId::Kayi) {
+        if buildings
+            .iter()
+            .any(|b| b.building_type == BuildingType::Barracks && b.faction == FactionId::Kayi)
+        {
             mission.objectives[idx].progress = 1.0;
         }
     }
@@ -2353,7 +3019,10 @@ fn track_m5_recruit_infantry_objective_system(
         {
             continue;
         }
-        let kayi_count = units.iter().filter(|u| u.faction == FactionId::Kayi).count();
+        let kayi_count = units
+            .iter()
+            .filter(|u| u.faction == FactionId::Kayi)
+            .count();
         let recruited = kayi_count.saturating_sub(8) as f32;
         let required = mission.objectives[idx].required_progress;
         mission.objectives[idx].progress = recruited.min(required);
@@ -2366,18 +3035,17 @@ fn track_m5_destroy_watchtower_objective_system(
     mut dead_events: EventReader<UnitDied>,
     buildings: Query<&Building>,
 ) {
-    let watchtower_down = dead_events
-        .read()
-        .any(|ev| {
-            buildings.get(ev.entity).is_ok_and(|b| {
-                b.building_type == BuildingType::Watchtower && b.faction == FactionId::Byzantine
-            })
+    let watchtower_down = dead_events.read().any(|ev| {
+        buildings.get(ev.entity).is_ok_and(|b| {
+            b.building_type == BuildingType::Watchtower && b.faction == FactionId::Byzantine
         })
-        || buildings
-            .iter()
-            .filter(|b| b.building_type == BuildingType::Watchtower && b.faction == FactionId::Byzantine)
-            .count()
-            == 0;
+    }) || buildings
+        .iter()
+        .filter(|b| {
+            b.building_type == BuildingType::Watchtower && b.faction == FactionId::Byzantine
+        })
+        .count()
+        == 0;
 
     for mut mission in missions.iter_mut() {
         if mission.mission_id != MissionId::Mission05 {
@@ -2421,9 +3089,9 @@ fn track_m5_kill_enemy_hero_objective_system(
             continue;
         }
         // Check if a Byzantine hero-type unit (max HP > 150) still exists
-        let byz_hero_alive = units.iter().any(|(u, h)| {
-            u.faction == FactionId::Byzantine && h.max > 150.0
-        });
+        let byz_hero_alive = units
+            .iter()
+            .any(|(u, h)| u.faction == FactionId::Byzantine && h.max > 150.0);
         if !byz_hero_alive {
             mission.objectives[idx].progress = 1.0;
         }
@@ -2455,9 +3123,9 @@ fn track_m6_kill_enemy_hero_objective_system(
             continue;
         }
         // Byzantine commander has max HP > 200
-        let byz_commander_alive = units.iter().any(|(u, h)| {
-            u.faction == FactionId::Byzantine && h.max > 200.0
-        });
+        let byz_commander_alive = units
+            .iter()
+            .any(|(u, h)| u.faction == FactionId::Byzantine && h.max > 200.0);
         if !byz_commander_alive {
             mission.objectives[idx].progress = 1.0;
         }
@@ -2510,7 +3178,10 @@ fn track_m6_capture_region_objective_system(
         {
             continue;
         }
-        let byz_alive = units.iter().filter(|u| u.faction == FactionId::Byzantine).count();
+        let byz_alive = units
+            .iter()
+            .filter(|u| u.faction == FactionId::Byzantine)
+            .count();
         if byz_alive == 0 {
             mission.objectives[idx].progress = 1.0;
         }
@@ -2541,8 +3212,7 @@ fn mission_objective_check_system(
             let obj_id = mission.objectives[idx].objective_id;
             let mis_id = mission.mission_id;
             mission.objectives[idx].completed = true;
-            mission.current_objective_index =
-                (idx + 1).min(mission.objectives.len());
+            mission.current_objective_index = (idx + 1).min(mission.objectives.len());
             completed.push((obj_id, mis_id));
         }
     }
@@ -2564,17 +3234,14 @@ fn mission_win_loss_system(
     missions: Query<&MissionStateComponent>,
 ) {
     // Collect alive heroes per faction
-    let _kayi_heroes_alive = heroes.iter().any(|h| {
-        matches!(
-            h.hero_id,
-            HeroId::Osman | HeroId::Orhan | HeroId::Bamsi
-        )
-    });
+    let _kayi_heroes_alive = heroes
+        .iter()
+        .any(|h| matches!(h.hero_id, HeroId::Osman | HeroId::Orhan | HeroId::Bamsi));
 
     // Check Oba alive (any Kayi Oba still standing)
-    let oba_alive = buildings.iter().any(|b| {
-        b.building_type == BuildingType::Oba && b.faction == FactionId::Kayi
-    });
+    let oba_alive = buildings
+        .iter()
+        .any(|b| b.building_type == BuildingType::Oba && b.faction == FactionId::Kayi);
 
     // Helper: check Kayi units
     let kayi_units_alive = units.iter().any(|u| u.faction == FactionId::Kayi);
@@ -2636,7 +3303,12 @@ fn mission_win_loss_system(
                     .time_limit
                     .zip(mission.timer)
                     .is_some_and(|(limit, elapsed)| elapsed >= limit);
-                !osman_alive || !orhan_alive || !alaeddin_alive || !oba_alive || !kayi_units_alive || timed_out
+                !osman_alive
+                    || !orhan_alive
+                    || !alaeddin_alive
+                    || !oba_alive
+                    || !kayi_units_alive
+                    || timed_out
             }
         };
 

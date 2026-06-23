@@ -1,6 +1,6 @@
-use bevy::prelude::*;
-use bevy::math::IVec2;
 use bevy::input::ButtonInput;
+use bevy::math::IVec2;
+use bevy::prelude::*;
 use kurulus_core::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -38,14 +38,11 @@ impl Plugin for CityBuilderPlugin {
                 FixedUpdate,
                 (
                     // Phase 6a: City Population & Growth
-                    city_population_system
-                        .in_set(SimulationSet::CityPopulation),
+                    city_population_system.in_set(SimulationSet::CityPopulation),
                     // Phase 6b: City Happiness & Crime
-                    city_happiness_system
-                        .in_set(SimulationSet::CityHappiness),
+                    city_happiness_system.in_set(SimulationSet::CityHappiness),
                     // Phase 6c: Service Coverage
-                    city_service_system
-                        .in_set(SimulationSet::CityServices),
+                    city_service_system.in_set(SimulationSet::CityServices),
                     // Phase 6d: District Detection (flood-fill adjacency)
                     district_detection_system
                         .in_set(SimulationSet::CityZones)
@@ -55,24 +52,17 @@ impl Plugin for CityBuilderPlugin {
                         .in_set(SimulationSet::CityZones)
                         .before(city_zone_system),
                     // Phase 6d-3: Zone Assignment & Adjacency
-                    city_zone_system
-                        .in_set(SimulationSet::CityZones),
+                    city_zone_system.in_set(SimulationSet::CityZones),
                     // Phase 6e: Building Upgrade Chains
-                    upgrade_chain_system
-                        .in_set(SimulationSet::ConstructionProgress),
+                    upgrade_chain_system.in_set(SimulationSet::ConstructionProgress),
                     // Phase 6f: City Progression (Village→Town→City)
-                    city_progression_system
-                        .in_set(SimulationSet::CityProgression),
-                    city_event_processing_system
-                        .in_set(SimulationSet::CityProgression),
-                    city_random_event_system
-                        .in_set(SimulationSet::CityProgression),
+                    city_progression_system.in_set(SimulationSet::CityProgression),
+                    city_event_processing_system.in_set(SimulationSet::CityProgression),
+                    city_random_event_system.in_set(SimulationSet::CityProgression),
                     // Phase 6g: Policy Effects (consumption, draft)
-                    policy_effects_system
-                        .in_set(SimulationSet::CityHappiness),
+                    policy_effects_system.in_set(SimulationSet::CityHappiness),
                     // Sync PolicySettings.tax_rate → TaxPolicy.rate
-                    tax_policy_sync_system
-                        .in_set(SimulationSet::ResourceProduction),
+                    tax_policy_sync_system.in_set(SimulationSet::ResourceProduction),
                 ),
             )
             // Keyboard-driven & input systems run in Update for responsive input.
@@ -134,7 +124,8 @@ fn city_population_system(
         // Growth rate per tick: at peak conditions yields ~1 pop per ~7 ticks
         let growth_rate = 0.15
             * needs.food_satisfaction
-            * (1.0 + needs.housing_satisfaction) * 0.5
+            * (1.0 + needs.housing_satisfaction)
+            * 0.5
             * (city.happiness / 100.0);
         accumulator.0 += growth_rate;
 
@@ -195,14 +186,11 @@ fn city_happiness_system(
     let rationing_effect = policy.rationing.happiness_modifier(); // -20 to +5
     let conscription_effect = policy.conscription.happiness_modifier(); // -30 to +2
 
-    let target_happiness = (needs_score
-        + service_score
-        + faith_bonus
-        + rationing_effect
-        + conscription_effect
-        - tax_penalty
-        - crime_penalty)
-        .clamp(0.0, 100.0);
+    let target_happiness =
+        (needs_score + service_score + faith_bonus + rationing_effect + conscription_effect
+            - tax_penalty
+            - crime_penalty)
+            .clamp(0.0, 100.0);
 
     // ── Smoothly move current happiness toward target ────────────────
     let lerp_speed = 0.5 * delta as f32;
@@ -299,10 +287,17 @@ fn city_service_system(
     }
 
     let total = building_positions.len();
-    coverage.water = covered_count.get(&ServiceType::Water).copied().unwrap_or(0) as f32 / total as f32;
-    coverage.trade = covered_count.get(&ServiceType::Trade).copied().unwrap_or(0) as f32 / total as f32;
-    coverage.faith = covered_count.get(&ServiceType::Faith).copied().unwrap_or(0) as f32 / total as f32;
-    coverage.prestige = covered_count.get(&ServiceType::Prestige).copied().unwrap_or(0) as f32 / total as f32;
+    coverage.water =
+        covered_count.get(&ServiceType::Water).copied().unwrap_or(0) as f32 / total as f32;
+    coverage.trade =
+        covered_count.get(&ServiceType::Trade).copied().unwrap_or(0) as f32 / total as f32;
+    coverage.faith =
+        covered_count.get(&ServiceType::Faith).copied().unwrap_or(0) as f32 / total as f32;
+    coverage.prestige = covered_count
+        .get(&ServiceType::Prestige)
+        .copied()
+        .unwrap_or(0) as f32
+        / total as f32;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -410,10 +405,16 @@ fn district_detection_system(
         };
         let effect = district.compute_bonus_effect(base_mult);
 
-        aggregate.population_growth_mult = aggregate.population_growth_mult.max(effect.population_growth_mult);
+        aggregate.population_growth_mult = aggregate
+            .population_growth_mult
+            .max(effect.population_growth_mult);
         aggregate.recruit_speed_mult = aggregate.recruit_speed_mult.max(effect.recruit_speed_mult);
-        aggregate.resource_output_mult = aggregate.resource_output_mult.max(effect.resource_output_mult);
-        aggregate.faith_generation_mult = aggregate.faith_generation_mult.max(effect.faith_generation_mult);
+        aggregate.resource_output_mult = aggregate
+            .resource_output_mult
+            .max(effect.resource_output_mult);
+        aggregate.faith_generation_mult = aggregate
+            .faith_generation_mult
+            .max(effect.faith_generation_mult);
         aggregate.happiness_bonus = aggregate.happiness_bonus.max(effect.happiness_bonus);
         aggregate.crime_reduction = aggregate.crime_reduction.max(effect.crime_reduction);
         aggregate.defense_bonus_mult = aggregate.defense_bonus_mult.max(effect.defense_bonus_mult);
@@ -441,7 +442,11 @@ fn sort_zone_pair(a: ZoneType, b: ZoneType) -> (ZoneType, ZoneType) {
             ZoneType::Protection => 5,
         }
     }
-    if idx(a) <= idx(b) { (a, b) } else { (b, a) }
+    if idx(a) <= idx(b) {
+        (a, b)
+    } else {
+        (b, a)
+    }
 }
 
 /// Detects orthogonal adjacency between different zone types and computes
@@ -474,10 +479,7 @@ fn cross_zone_synergy_system(
     }
 
     // ── Get synergy table (use defaults if resource not registered) ──
-    let table = synergy_table
-        .as_deref()
-        .cloned()
-        .unwrap_or_default();
+    let table = synergy_table.as_deref().cloned().unwrap_or_default();
 
     // ── Build a fast synergy lookup: sorted pair → effect ────────────
     let mut synergy_map: HashMap<(ZoneType, ZoneType), AdjacencyBonusEffect> = HashMap::new();
@@ -524,12 +526,10 @@ fn cross_zone_synergy_system(
                             merged_synergy.faith_generation_mult = merged_synergy
                                 .faith_generation_mult
                                 .max(effect.faith_generation_mult);
-                            merged_synergy.happiness_bonus = merged_synergy
-                                .happiness_bonus
-                                .max(effect.happiness_bonus);
-                            merged_synergy.crime_reduction = merged_synergy
-                                .crime_reduction
-                                .max(effect.crime_reduction);
+                            merged_synergy.happiness_bonus =
+                                merged_synergy.happiness_bonus.max(effect.happiness_bonus);
+                            merged_synergy.crime_reduction =
+                                merged_synergy.crime_reduction.max(effect.crime_reduction);
                             merged_synergy.defense_bonus_mult = merged_synergy
                                 .defense_bonus_mult
                                 .max(effect.defense_bonus_mult);
@@ -562,11 +562,7 @@ fn city_zone_system(
 
     for (_entity, building, _pos, zone) in buildings.iter() {
         if let Some(z) = zone {
-            if zone_defs
-                .zones
-                .iter()
-                .any(|zd| zd.zone_type == z.zone_type)
-            {
+            if zone_defs.zones.iter().any(|zd| zd.zone_type == z.zone_type) {
                 match z.zone_type {
                     ZoneType::Residential => {
                         total_res_levels += building.level as u32;
@@ -697,12 +693,7 @@ fn city_zone_system(
 /// Renames buildings according to their tier, applies tier-specific bonuses,
 /// and fires `BuildingUpgraded` events.
 fn upgrade_chain_system(
-    mut buildings: Query<(
-        Entity,
-        &mut Building,
-        &mut UpgradeChain,
-        Option<&BuildCost>,
-    )>,
+    mut buildings: Query<(Entity, &mut Building, &mut UpgradeChain, Option<&BuildCost>)>,
     mut stockpile: ResMut<ResourceStockpile>,
     city: Res<CityState>,
     mut event_writer: EventWriter<BuildingUpgraded>,
@@ -845,7 +836,11 @@ fn city_event_processing_system(
     // ── Process incoming events ─────────────────────────────────────
     for ev in event_reader.read() {
         // Avoid duplicate events of the same type
-        if city.active_events.iter().any(|e| e.event_type == ev.event_type) {
+        if city
+            .active_events
+            .iter()
+            .any(|e| e.event_type == ev.event_type)
+        {
             continue;
         }
         city.active_events.push(CityEvent {
@@ -1023,8 +1018,8 @@ fn policy_effects_system(
     stockpile: Option<Res<ResourceStockpile>>,
 ) {
     // ── Conscription: assign military population ───────────────────────
-    let forced_mil = (city.population as f32 * settings.conscription.forced_recruit_fraction())
-        .round() as u32;
+    let forced_mil =
+        (city.population as f32 * settings.conscription.forced_recruit_fraction()).round() as u32;
     city.total_military_pop = forced_mil;
 
     // ── Log drastic policy changes ────────────────────────────────────
@@ -1037,10 +1032,7 @@ fn policy_effects_system(
 
 /// Sync `PolicySettings.tax_rate` into `TaxPolicy.rate` each tick so
 /// that the happiness system and economy system read the current value.
-fn tax_policy_sync_system(
-    mut tax: ResMut<TaxPolicy>,
-    settings: Res<PolicySettings>,
-) {
+fn tax_policy_sync_system(mut tax: ResMut<TaxPolicy>, settings: Res<PolicySettings>) {
     tax.rate = settings.tax_rate;
 }
 
@@ -1064,10 +1056,7 @@ fn overlay_cycle_system(
     };
     if input.just_pressed(KeyCode::KeyV) {
         settings.mode = settings.mode.next();
-        info!(
-            "🏙️  Overlay mode changed to: {}",
-            settings.mode.label()
-        );
+        info!("🏙️  Overlay mode changed to: {}", settings.mode.label());
     }
     // Cycle active service type with Shift+V
     if input.just_pressed(KeyCode::KeyV) && input.pressed(KeyCode::ShiftLeft) {
@@ -1240,10 +1229,7 @@ fn zone_placement_execute_system(
                 position: GridPos(grid_pos),
                 reason: ZoneBlockReason::NotUnlocked,
             });
-            info!(
-                "🚫 {:?} zone blocked: not yet unlocked",
-                selected
-            );
+            info!("🚫 {:?} zone blocked: not yet unlocked", selected);
             return;
         }
 
@@ -1283,7 +1269,8 @@ fn zone_placement_execute_system(
 
         // Deduct SP + resource costs
         if sp_cost > 0.0 {
-            stockpile.sovereignty_points = stockpile.sovereignty_points.saturating_sub(sp_cost as u32);
+            stockpile.sovereignty_points =
+                stockpile.sovereignty_points.saturating_sub(sp_cost as u32);
         }
         stockpile.gold -= gold_cost as f32;
         stockpile.wood -= wood_cost as f32;
@@ -1304,8 +1291,7 @@ fn zone_placement_execute_system(
         });
         info!(
             "🏗️  Placed {:?} zone at ({}, {}) ({} SP, {} gold, {} wood)",
-            selected, grid_pos.x, grid_pos.y,
-            sp_cost, gold_cost, wood_cost,
+            selected, grid_pos.x, grid_pos.y, sp_cost, gold_cost, wood_cost,
         );
     }
 
@@ -1372,7 +1358,10 @@ fn zone_config_loader_system(
         .collect();
 
     zone_defs.zones = zones;
-    info!("✅ Loaded {} zone definitions from RON config", zone_defs.zones.len());
+    info!(
+        "✅ Loaded {} zone definitions from RON config",
+        zone_defs.zones.len()
+    );
 }
 
 /// Listens for `U` key press while hovering a zone cell. If the zone is below
@@ -1403,7 +1392,11 @@ fn zone_upgrade_system(
         }
 
         // Look up zone definition
-        let Some(zone_def) = zone_defs.zones.iter().find(|z| z.zone_type == zone.zone_type) else {
+        let Some(zone_def) = zone_defs
+            .zones
+            .iter()
+            .find(|z| z.zone_type == zone.zone_type)
+        else {
             return;
         };
 
@@ -1470,10 +1463,7 @@ mod tests {
     /// (required for the `.run_if(in_state(AppState::InGame))` guard).
     fn test_app() -> App {
         let mut app = App::new();
-        app.add_plugins((
-            bevy::MinimalPlugins,
-            bevy_state::app::StatesPlugin,
-        ))
+        app.add_plugins((bevy::MinimalPlugins, bevy_state::app::StatesPlugin))
             .init_state::<AppState>()
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
                 1.0 / 60.0,
@@ -1661,10 +1651,7 @@ mod tests {
         run_fixed_ticks(&mut app, 5);
 
         let city = app.world().resource::<CityState>();
-        assert!(
-            city.happiness > 40.0,
-            "Leveling up should boost happiness"
-        );
+        assert!(city.happiness > 40.0, "Leveling up should boost happiness");
     }
 
     // ── Service Coverage Tests ───────────────────────────────────────
@@ -1718,10 +1705,7 @@ mod tests {
         run_fixed_ticks(&mut app, 3);
 
         let coverage = app.world().resource::<ServiceCoverage>();
-        assert!(
-            coverage.water > 0.0,
-            "Well should provide water coverage"
-        );
+        assert!(coverage.water > 0.0, "Well should provide water coverage");
     }
 
     #[test]
@@ -1816,7 +1800,11 @@ mod tests {
     #[test]
     fn test_zone_definitions_residential_unlocked_by_default() {
         let defs = ZoneDefinitions::default();
-        let res = defs.zones.iter().find(|z| z.zone_type == ZoneType::Residential).unwrap();
+        let res = defs
+            .zones
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Residential)
+            .unwrap();
         assert!(res.unlocked);
     }
 
@@ -1907,9 +1895,7 @@ mod tests {
     fn collect_zones(app: &mut App) -> Vec<(Zone, IVec2)> {
         let world = app.world_mut();
         let mut q = world.query::<(&Zone, &WorldPosition)>();
-        q.iter(world)
-            .map(|(z, p)| (z.clone(), p.grid.0))
-            .collect()
+        q.iter(world).map(|(z, p)| (z.clone(), p.grid.0)).collect()
     }
 
     #[test]
@@ -1947,7 +1933,11 @@ mod tests {
         press_left_click(&mut app);
         app.update();
 
-        assert_eq!(zone_count(&mut app), 0, "No zone should be placed when mode is off");
+        assert_eq!(
+            zone_count(&mut app),
+            0,
+            "No zone should be placed when mode is off"
+        );
     }
 
     #[test]
@@ -1962,7 +1952,11 @@ mod tests {
         press_left_click(&mut app);
         app.update();
 
-        assert_eq!(zone_count(&mut app), 0, "No zone should be placed without hover position");
+        assert_eq!(
+            zone_count(&mut app),
+            0,
+            "No zone should be placed without hover position"
+        );
     }
 
     #[test]
@@ -2006,7 +2000,11 @@ mod tests {
         press_right_click(&mut app);
         app.update();
 
-        assert_eq!(zone_count(&mut app), 0, "Zone should be removed after right-click");
+        assert_eq!(
+            zone_count(&mut app),
+            0,
+            "Zone should be removed after right-click"
+        );
     }
 
     #[test]
@@ -2031,7 +2029,10 @@ mod tests {
             count += 1;
             assert_eq!(ev.zone_type, ZoneType::Residential);
             assert_eq!(ev.position.0, IVec2::new(10, 20));
-            assert!(ev.entity.is_some(), "Event should contain the new entity ID");
+            assert!(
+                ev.entity.is_some(),
+                "Event should contain the new entity ID"
+            );
         }
         assert_eq!(count, 1, "Exactly one ZonePlaced event should fire");
     }
@@ -2129,7 +2130,10 @@ mod tests {
     fn spawn_zone(app: &mut App, zone_type: ZoneType, pos: IVec2) -> Entity {
         app.world_mut()
             .spawn((
-                Zone { zone_type, level: 1 },
+                Zone {
+                    zone_type,
+                    level: 1,
+                },
                 WorldPosition::new(pos, CELL_SIZE),
             ))
             .id()
@@ -2159,7 +2163,11 @@ mod tests {
         run_fixed_ticks(&mut app, 3);
 
         let tracker = app.world().resource::<DistrictTracker>();
-        assert_eq!(tracker.districts.len(), 1, "Three adjacent same-type → 1 district");
+        assert_eq!(
+            tracker.districts.len(),
+            1,
+            "Three adjacent same-type → 1 district"
+        );
         assert_eq!(tracker.districts[0].size, 3);
         assert_eq!(tracker.districts[0].cells.len(), 3);
     }
@@ -2174,7 +2182,11 @@ mod tests {
         run_fixed_ticks(&mut app, 3);
 
         let tracker = app.world().resource::<DistrictTracker>();
-        assert_eq!(tracker.districts.len(), 2, "Diagonal zones → 2 separate districts");
+        assert_eq!(
+            tracker.districts.len(),
+            2,
+            "Diagonal zones → 2 separate districts"
+        );
     }
 
     #[test]
@@ -2213,7 +2225,11 @@ mod tests {
 
         let tracker = app.world().resource::<DistrictTracker>();
         let res_districts = tracker.districts_of_type(ZoneType::Residential);
-        assert_eq!(res_districts.len(), 2, "Two separate clusters → 2 districts");
+        assert_eq!(
+            res_districts.len(),
+            2,
+            "Two separate clusters → 2 districts"
+        );
         assert_eq!(res_districts[0].size, 2);
         assert_eq!(res_districts[1].size, 2);
     }
@@ -2245,7 +2261,11 @@ mod tests {
         };
         let mult = district.compute_bonus_multiplier(1.25);
         // size_bonus = 0, level_bonus = 0 → mult = 1.25
-        assert!((mult - 1.25).abs() < 0.001, "Single cell should have base multiplier. Got {}", mult);
+        assert!(
+            (mult - 1.25).abs() < 0.001,
+            "Single cell should have base multiplier. Got {}",
+            mult
+        );
     }
 
     #[test]
@@ -2254,13 +2274,21 @@ mod tests {
             id: 1,
             zone_type: ZoneType::Military,
             cells: vec![IVec2::new(0, 0), IVec2::new(1, 0), IVec2::new(2, 0)],
-            entities: vec![Entity::from_raw(0), Entity::from_raw(1), Entity::from_raw(2)],
+            entities: vec![
+                Entity::from_raw(0),
+                Entity::from_raw(1),
+                Entity::from_raw(2),
+            ],
             total_level: 3,
             size: 3,
         };
         let mult = district.compute_bonus_multiplier(1.30);
         // size_bonus = 2 * 0.10 = 0.20, level_bonus = 0 → 1.30 * (1.0 + 0.20) = 1.56
-        assert!((mult - 1.56).abs() < 0.001, "Three-cell district should get +20% size bonus. Got {}", mult);
+        assert!(
+            (mult - 1.56).abs() < 0.001,
+            "Three-cell district should get +20% size bonus. Got {}",
+            mult
+        );
     }
 
     #[test]
@@ -2275,7 +2303,11 @@ mod tests {
         };
         let mult = district.compute_bonus_multiplier(1.25);
         // size_bonus = 1 * 0.10 = 0.10, level_bonus = 2.0 * 0.15 = 0.30 → 1.25 * 1.40 = 1.75
-        assert!((mult - 1.75).abs() < 0.001, "High-level district should get +30% level bonus. Got {}", mult);
+        assert!(
+            (mult - 1.75).abs() < 0.001,
+            "High-level district should get +30% level bonus. Got {}",
+            mult
+        );
     }
 
     #[test]
@@ -2291,8 +2323,14 @@ mod tests {
         let effect = district.compute_bonus_effect(1.25);
         // base_mult = 1.25, size_bonus = 10%, level_bonus = 15% → 1.25 * 1.25 = 1.5625
         // extra = 0.5625
-        assert!(effect.population_growth_mult > 1.0, "Residential should boost population growth");
-        assert_eq!(effect.recruit_speed_mult, 0.0, "Residential should NOT boost recruit speed");
+        assert!(
+            effect.population_growth_mult > 1.0,
+            "Residential should boost population growth"
+        );
+        assert_eq!(
+            effect.recruit_speed_mult, 0.0,
+            "Residential should NOT boost recruit speed"
+        );
         assert_eq!(effect.resource_output_mult, 0.0);
         assert_eq!(effect.faith_generation_mult, 0.0);
         assert_eq!(effect.happiness_bonus, 0.0);
@@ -2304,12 +2342,20 @@ mod tests {
             id: 1,
             zone_type: ZoneType::Administrative,
             cells: vec![IVec2::new(0, 0), IVec2::new(1, 0), IVec2::new(2, 0)],
-            entities: vec![Entity::from_raw(0), Entity::from_raw(1), Entity::from_raw(2)],
+            entities: vec![
+                Entity::from_raw(0),
+                Entity::from_raw(1),
+                Entity::from_raw(2),
+            ],
             total_level: 3,
             size: 3,
         };
         let effect = district.compute_bonus_effect(1.40);
-        assert!(effect.happiness_bonus > 0.0, "Administrative should give happiness bonus. Got {}", effect.happiness_bonus);
+        assert!(
+            effect.happiness_bonus > 0.0,
+            "Administrative should give happiness bonus. Got {}",
+            effect.happiness_bonus
+        );
         assert_eq!(effect.population_growth_mult, 0.0);
     }
 
@@ -2331,10 +2377,14 @@ mod tests {
         run_fixed_ticks(&mut app, 3);
 
         let tracker = app.world().resource::<DistrictTracker>();
-        assert!(tracker.aggregate_bonus.population_growth_mult > 1.0,
-            "Should have residential bonus");
-        assert!(tracker.aggregate_bonus.recruit_speed_mult > 1.0,
-            "Should have military bonus");
+        assert!(
+            tracker.aggregate_bonus.population_growth_mult > 1.0,
+            "Should have residential bonus"
+        );
+        assert!(
+            tracker.aggregate_bonus.recruit_speed_mult > 1.0,
+            "Should have military bonus"
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -2363,7 +2413,9 @@ mod tests {
 
         // Drain existing events
         {
-            let mut events = app.world_mut().resource_mut::<Events<ZonePlacementBlocked>>();
+            let mut events = app
+                .world_mut()
+                .resource_mut::<Events<ZonePlacementBlocked>>();
             for _ in events.drain() {}
         }
 
@@ -2374,14 +2426,19 @@ mod tests {
         assert_eq!(zone_count(&mut app), 0, "Should not place zone when locked");
 
         // Should have fired a blocked event
-        let mut events = app.world_mut().resource_mut::<Events<ZonePlacementBlocked>>();
+        let mut events = app
+            .world_mut()
+            .resource_mut::<Events<ZonePlacementBlocked>>();
         let mut blocked = false;
         for ev in events.drain() {
             assert_eq!(ev.zone_type, ZoneType::Military);
             assert_eq!(ev.reason, ZoneBlockReason::NotUnlocked);
             blocked = true;
         }
-        assert!(blocked, "Should fire ZonePlacementBlocked when zone is locked");
+        assert!(
+            blocked,
+            "Should fire ZonePlacementBlocked when zone is locked"
+        );
     }
 
     #[test]
@@ -2399,16 +2456,24 @@ mod tests {
         }
 
         {
-            let mut events = app.world_mut().resource_mut::<Events<ZonePlacementBlocked>>();
+            let mut events = app
+                .world_mut()
+                .resource_mut::<Events<ZonePlacementBlocked>>();
             for _ in events.drain() {}
         }
 
         press_left_click(&mut app);
         app.update();
 
-        assert_eq!(zone_count(&mut app), 1, "Should not add zone on occupied cell");
+        assert_eq!(
+            zone_count(&mut app),
+            1,
+            "Should not add zone on occupied cell"
+        );
 
-        let mut events = app.world_mut().resource_mut::<Events<ZonePlacementBlocked>>();
+        let mut events = app
+            .world_mut()
+            .resource_mut::<Events<ZonePlacementBlocked>>();
         let mut blocked = false;
         for ev in events.drain() {
             assert_eq!(ev.reason, ZoneBlockReason::CellOccupied);
@@ -2423,7 +2488,11 @@ mod tests {
         // Economic zone costs SP — ensure we can't afford it
         {
             let mut defs = app.world_mut().resource_mut::<ZoneDefinitions>();
-            if let Some(econ) = defs.zones.iter_mut().find(|z| z.zone_type == ZoneType::Economic) {
+            if let Some(econ) = defs
+                .zones
+                .iter_mut()
+                .find(|z| z.zone_type == ZoneType::Economic)
+            {
                 econ.unlocked = true;
                 econ.unlock_requirement.sp_cost = 100.0;
             }
@@ -2440,20 +2509,31 @@ mod tests {
         }
 
         {
-            let mut events = app.world_mut().resource_mut::<Events<ZonePlacementBlocked>>();
+            let mut events = app
+                .world_mut()
+                .resource_mut::<Events<ZonePlacementBlocked>>();
             for _ in events.drain() {}
         }
 
         press_left_click(&mut app);
         app.update();
 
-        assert_eq!(zone_count(&mut app), 0, "Should not place zone without enough SP");
+        assert_eq!(
+            zone_count(&mut app),
+            0,
+            "Should not place zone without enough SP"
+        );
 
-        let mut events = app.world_mut().resource_mut::<Events<ZonePlacementBlocked>>();
+        let mut events = app
+            .world_mut()
+            .resource_mut::<Events<ZonePlacementBlocked>>();
         let mut blocked = false;
         for ev in events.drain() {
             match &ev.reason {
-                ZoneBlockReason::InsufficientSP { required, available } => {
+                ZoneBlockReason::InsufficientSP {
+                    required,
+                    available,
+                } => {
                     assert_eq!(*required, 100.0);
                     assert_eq!(*available, 0.0);
                 }
@@ -2469,7 +2549,11 @@ mod tests {
         let mut app = test_app();
         {
             let mut defs = app.world_mut().resource_mut::<ZoneDefinitions>();
-            if let Some(res) = defs.zones.iter_mut().find(|z| z.zone_type == ZoneType::Residential) {
+            if let Some(res) = defs
+                .zones
+                .iter_mut()
+                .find(|z| z.zone_type == ZoneType::Residential)
+            {
                 res.unlock_requirement.sp_cost = 5.0;
             }
         }
@@ -2489,7 +2573,10 @@ mod tests {
 
         assert_eq!(zone_count(&mut app), 1, "Zone should be placed");
         let stockpile = app.world().resource::<ResourceStockpile>();
-        assert_eq!(stockpile.sovereignty_points, 5, "SP should be deducted by cost (10 - 5 = 5)");
+        assert_eq!(
+            stockpile.sovereignty_points, 5,
+            "SP should be deducted by cost (10 - 5 = 5)"
+        );
     }
 
     #[test]
@@ -2552,7 +2639,11 @@ mod tests {
         //   hard ceiling 1.0 → size_bonus=1.0
         //   level_bonus=0.0
         //   Result: 1.25 * (1.0 + 1.0) = 2.5
-        assert!((mult - 2.5).abs() < 0.001, "Size 20 district with soft cap should yield 2.5. Got {}", mult);
+        assert!(
+            (mult - 2.5).abs() < 0.001,
+            "Size 20 district with soft cap should yield 2.5. Got {}",
+            mult
+        );
     }
 
     #[test]
@@ -2568,7 +2659,11 @@ mod tests {
         let mult = district.compute_bonus_multiplier(1.50);
         // level_bonus = 3.0 * 0.15 = 0.45, size_bonus = 0
         // 1.50 * (1.0 + 0.45) = 2.175
-        assert!((mult - 2.175).abs() < 0.001, "Level bonus should be capped at +45%. Got {}", mult);
+        assert!(
+            (mult - 2.175).abs() < 0.001,
+            "Level bonus should be capped at +45%. Got {}",
+            mult
+        );
     }
 
     #[test]
@@ -2601,7 +2696,11 @@ mod tests {
         // Economic zone requires Town level + 20 pop
         {
             let defs = app.world().resource::<ZoneDefinitions>();
-            let econ = defs.zones.iter().find(|z| z.zone_type == ZoneType::Economic).unwrap();
+            let econ = defs
+                .zones
+                .iter()
+                .find(|z| z.zone_type == ZoneType::Economic)
+                .unwrap();
             assert!(!econ.unlocked, "Economic should start locked at Village");
         }
 
@@ -2615,11 +2714,21 @@ mod tests {
         run_fixed_ticks(&mut app, 10);
 
         let city = app.world().resource::<CityState>();
-        assert!(city.city_level >= CityLevel::Town, "Should have advanced to Town");
+        assert!(
+            city.city_level >= CityLevel::Town,
+            "Should have advanced to Town"
+        );
 
         let defs = app.world().resource::<ZoneDefinitions>();
-        let econ = defs.zones.iter().find(|z| z.zone_type == ZoneType::Economic).unwrap();
-        assert!(econ.unlocked, "Economic should be unlocked at Town with pop >= 20");
+        let econ = defs
+            .zones
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Economic)
+            .unwrap();
+        assert!(
+            econ.unlocked,
+            "Economic should be unlocked at Town with pop >= 20"
+        );
     }
 
     // ── Protection Zone Tests ───────────────────────────────────────────
@@ -2642,7 +2751,11 @@ mod tests {
     #[test]
     fn test_protection_zone_def_has_resource_costs() {
         let defs = ZoneDefinitions::default();
-        let prot = defs.zones.iter().find(|z| z.zone_type == ZoneType::Protection).unwrap();
+        let prot = defs
+            .zones
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Protection)
+            .unwrap();
         assert!(prot.placement_gold_cost > 0);
         assert!(prot.placement_wood_cost > 0);
         assert_eq!(prot.max_district_size, 15);
@@ -2651,7 +2764,11 @@ mod tests {
     #[test]
     fn test_protection_zone_color_in_defs() {
         let defs = ZoneDefinitions::default();
-        let prot = defs.zones.iter().find(|z| z.zone_type == ZoneType::Protection).unwrap();
+        let prot = defs
+            .zones
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Protection)
+            .unwrap();
         assert_eq!(prot.color, [0.5, 0.5, 0.5, 1.0]);
     }
 
@@ -2660,13 +2777,19 @@ mod tests {
     #[test]
     fn test_cross_zone_synergy_table_has_default_entries() {
         let table = CrossZoneSynergyTable::default();
-        assert!(!table.synergies.is_empty(), "Should have at least one synergy");
-        // Verify Protection synergies exist
-        let has_protection_res = table.synergies.iter().any(|s|
-            (s.zone_a == ZoneType::Protection && s.zone_b == ZoneType::Residential)
-            || (s.zone_a == ZoneType::Residential && s.zone_b == ZoneType::Protection)
+        assert!(
+            !table.synergies.is_empty(),
+            "Should have at least one synergy"
         );
-        assert!(has_protection_res, "Protection ↔ Residential synergy should exist");
+        // Verify Protection synergies exist
+        let has_protection_res = table.synergies.iter().any(|s| {
+            (s.zone_a == ZoneType::Protection && s.zone_b == ZoneType::Residential)
+                || (s.zone_a == ZoneType::Residential && s.zone_b == ZoneType::Protection)
+        });
+        assert!(
+            has_protection_res,
+            "Protection ↔ Residential synergy should exist"
+        );
     }
 
     #[test]
@@ -2691,16 +2814,26 @@ mod tests {
     #[test]
     fn test_district_administrative_overhead_increases_with_size() {
         let below_cap = District {
-            id: 1, zone_type: ZoneType::Economic,
-            cells: vec![IVec2::ZERO; 14], entities: vec![],
-            total_level: 14, size: 14,
+            id: 1,
+            zone_type: ZoneType::Economic,
+            cells: vec![IVec2::ZERO; 14],
+            entities: vec![],
+            total_level: 14,
+            size: 14,
         };
         let above_cap = District {
-            id: 2, zone_type: ZoneType::Economic,
-            cells: vec![IVec2::ZERO; 17], entities: vec![],
-            total_level: 17, size: 17,
+            id: 2,
+            zone_type: ZoneType::Economic,
+            cells: vec![IVec2::ZERO; 17],
+            entities: vec![],
+            total_level: 17,
+            size: 17,
         };
-        assert_eq!(below_cap.administrative_overhead(), 0.0, "Below hard cap should have zero overhead");
+        assert_eq!(
+            below_cap.administrative_overhead(),
+            0.0,
+            "Below hard cap should have zero overhead"
+        );
         assert!(
             above_cap.administrative_overhead() > below_cap.administrative_overhead(),
             "Overhead should increase when size exceeds hard cap"
@@ -2710,9 +2843,12 @@ mod tests {
     #[test]
     fn test_district_apply_soft_cap_reduces_large_bonus() {
         let district = District {
-            id: 1, zone_type: ZoneType::Residential,
-            cells: vec![IVec2::ZERO; 10], entities: vec![],
-            total_level: 10, size: 10,
+            id: 1,
+            zone_type: ZoneType::Residential,
+            cells: vec![IVec2::ZERO; 10],
+            entities: vec![],
+            total_level: 10,
+            size: 10,
         };
         let raw = district.compute_bonus_multiplier(1.25);
         let soft = district.apply_soft_cap(raw);
@@ -2728,10 +2864,16 @@ mod tests {
     fn test_zone_upgrade_event_fires_and_level_increases() {
         let mut app = test_app();
         // Spawn a zone cell
-        let entity = app.world_mut().spawn((
-            Zone { zone_type: ZoneType::Residential, level: 1 },
-            WorldPosition::new(IVec2::new(10, 10), CELL_SIZE),
-        )).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                Zone {
+                    zone_type: ZoneType::Residential,
+                    level: 1,
+                },
+                WorldPosition::new(IVec2::new(10, 10), CELL_SIZE),
+            ))
+            .id();
         // Provide resources
         {
             let mut s = app.world_mut().resource_mut::<ResourceStockpile>();
@@ -2741,7 +2883,11 @@ mod tests {
 
         // Simulate zone_upgrade_system manually (can't rely on keyboard in tests)
         let zone_defs = app.world().resource::<ZoneDefinitions>().clone();
-        let def = zone_defs.zones.iter().find(|z| z.zone_type == ZoneType::Residential).unwrap();
+        let def = zone_defs
+            .zones
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Residential)
+            .unwrap();
 
         // Deduct costs first (separate borrow)
         {
@@ -2768,10 +2914,16 @@ mod tests {
     #[test]
     fn test_zone_upgrade_blocked_by_insufficient_resources() {
         let mut app = test_app();
-        let entity = app.world_mut().spawn((
-            Zone { zone_type: ZoneType::Residential, level: 1 },
-            WorldPosition::new(IVec2::new(5, 5), CELL_SIZE),
-        )).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                Zone {
+                    zone_type: ZoneType::Residential,
+                    level: 1,
+                },
+                WorldPosition::new(IVec2::new(5, 5), CELL_SIZE),
+            ))
+            .id();
         // Give very few resources
         {
             let mut s = app.world_mut().resource_mut::<ResourceStockpile>();
@@ -2780,9 +2932,15 @@ mod tests {
         }
 
         let zone_defs = app.world().resource::<ZoneDefinitions>().clone();
-        let def = zone_defs.zones.iter().find(|z| z.zone_type == ZoneType::Residential).unwrap();
-        let has_gold = (app.world().resource::<ResourceStockpile>().gold as u32) >= def.upgrade_gold_cost;
-        let has_wood = (app.world().resource::<ResourceStockpile>().wood as u32) >= def.upgrade_wood_cost;
+        let def = zone_defs
+            .zones
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Residential)
+            .unwrap();
+        let has_gold =
+            (app.world().resource::<ResourceStockpile>().gold as u32) >= def.upgrade_gold_cost;
+        let has_wood =
+            (app.world().resource::<ResourceStockpile>().wood as u32) >= def.upgrade_wood_cost;
 
         assert!(!has_gold || !has_wood, "Should not have enough resources");
         let zone = app.world().get::<Zone>(entity).unwrap();
@@ -2793,10 +2951,16 @@ mod tests {
     fn test_zone_upgrade_blocked_at_max_level() {
         let mut app = test_app();
         // Spawn zone already at max level (5 for Residential)
-        let entity = app.world_mut().spawn((
-            Zone { zone_type: ZoneType::Residential, level: 5 },
-            WorldPosition::new(IVec2::new(3, 3), CELL_SIZE),
-        )).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                Zone {
+                    zone_type: ZoneType::Residential,
+                    level: 5,
+                },
+                WorldPosition::new(IVec2::new(3, 3), CELL_SIZE),
+            ))
+            .id();
         {
             let mut s = app.world_mut().resource_mut::<ResourceStockpile>();
             s.gold = 100.0;
@@ -2870,7 +3034,11 @@ mod tests {
     fn test_zone_definitions_have_upgrade_fields() {
         let defs = ZoneDefinitions::default();
         for zone in &defs.zones {
-            assert!(zone.max_level > 0, "{:?} should have max_level > 0", zone.zone_type);
+            assert!(
+                zone.max_level > 0,
+                "{:?} should have max_level > 0",
+                zone.zone_type
+            );
             assert!(
                 zone.upgrade_gold_cost > 0 || zone.zone_type == ZoneType::Protection,
                 "{:?} should have upgrade_gold_cost",

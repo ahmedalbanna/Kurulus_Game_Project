@@ -96,171 +96,232 @@ impl Default for FactionConfig {
     fn default() -> Self {
         Self {
             default_strategies: vec![
-                (FactionId::Kayi, FactionStrategy {
-                    default_strategy: crate::components::ai::AIStrategy::Balanced,
-                    transition_strategy: None,
-                    transition_trigger: StrategyTransitionTrigger::Never,
-                    preferred_archetypes: vec![
-                        crate::components::unit::UnitArchetype::LightInfantry,
-                        crate::components::unit::UnitArchetype::Archer,
-                    ],
-                }),
-                (FactionId::Byzantine, FactionStrategy {
-                    default_strategy: crate::components::ai::AIStrategy::Turtle,
-                    transition_strategy: Some(crate::components::ai::AIStrategy::Boom),
-                    transition_trigger: StrategyTransitionTrigger::ArmyThreshold(2000.0),
-                    preferred_archetypes: vec![
-                        crate::components::unit::UnitArchetype::HeavyInfantry,
-                        crate::components::unit::UnitArchetype::Archer,
-                    ],
-                }),
-                (FactionId::Mongol, FactionStrategy {
-                    default_strategy: crate::components::ai::AIStrategy::Rush,
-                    transition_strategy: Some(crate::components::ai::AIStrategy::Guerrilla),
-                    transition_trigger: StrategyTransitionTrigger::GameTime(300.0), // 5 min
-                    preferred_archetypes: vec![
-                        crate::components::unit::UnitArchetype::LightCavalry,
-                        crate::components::unit::UnitArchetype::Archer,
-                    ],
-                }),
-                (FactionId::Dodurga, FactionStrategy {
-                    default_strategy: crate::components::ai::AIStrategy::Balanced,
-                    transition_strategy: None,
-                    transition_trigger: StrategyTransitionTrigger::Never,
-                    preferred_archetypes: vec![
-                        crate::components::unit::UnitArchetype::LightInfantry,
-                    ],
-                }),
-                (FactionId::Candar, FactionStrategy {
-                    default_strategy: crate::components::ai::AIStrategy::Boom,
-                    transition_strategy: Some(crate::components::ai::AIStrategy::Balanced),
-                    transition_trigger: StrategyTransitionTrigger::ArmyThreshold(1500.0),
-                    preferred_archetypes: vec![
-                        crate::components::unit::UnitArchetype::HeavyInfantry,
-                        crate::components::unit::UnitArchetype::HeavyCavalry,
-                    ],
-                }),
-                (FactionId::Karaman, FactionStrategy {
-                    default_strategy: crate::components::ai::AIStrategy::Turtle,
-                    transition_strategy: None,
-                    transition_trigger: StrategyTransitionTrigger::Never,
-                    preferred_archetypes: vec![
-                        crate::components::unit::UnitArchetype::HeavyInfantry,
-                    ],
-                }),
-                (FactionId::Germiyan, FactionStrategy {
-                    default_strategy: crate::components::ai::AIStrategy::Balanced,
-                    transition_strategy: None,
-                    transition_trigger: StrategyTransitionTrigger::Never,
-                    preferred_archetypes: vec![
-                        crate::components::unit::UnitArchetype::LightCavalry,
-                        crate::components::unit::UnitArchetype::Archer,
-                    ],
-                }),
-                (FactionId::Neutral, FactionStrategy {
-                    default_strategy: crate::components::ai::AIStrategy::Balanced,
-                    transition_strategy: None,
-                    transition_trigger: StrategyTransitionTrigger::Never,
-                    preferred_archetypes: vec![],
-                }),
+                (
+                    FactionId::Kayi,
+                    FactionStrategy {
+                        default_strategy: crate::components::ai::AIStrategy::Balanced,
+                        transition_strategy: None,
+                        transition_trigger: StrategyTransitionTrigger::Never,
+                        preferred_archetypes: vec![
+                            crate::components::unit::UnitArchetype::LightInfantry,
+                            crate::components::unit::UnitArchetype::Archer,
+                        ],
+                    },
+                ),
+                (
+                    FactionId::Byzantine,
+                    FactionStrategy {
+                        default_strategy: crate::components::ai::AIStrategy::Turtle,
+                        transition_strategy: Some(crate::components::ai::AIStrategy::Boom),
+                        transition_trigger: StrategyTransitionTrigger::ArmyThreshold(2000.0),
+                        preferred_archetypes: vec![
+                            crate::components::unit::UnitArchetype::HeavyInfantry,
+                            crate::components::unit::UnitArchetype::Archer,
+                        ],
+                    },
+                ),
+                (
+                    FactionId::Mongol,
+                    FactionStrategy {
+                        default_strategy: crate::components::ai::AIStrategy::Rush,
+                        transition_strategy: Some(crate::components::ai::AIStrategy::Guerrilla),
+                        transition_trigger: StrategyTransitionTrigger::GameTime(300.0), // 5 min
+                        preferred_archetypes: vec![
+                            crate::components::unit::UnitArchetype::LightCavalry,
+                            crate::components::unit::UnitArchetype::Archer,
+                        ],
+                    },
+                ),
+                (
+                    FactionId::Dodurga,
+                    FactionStrategy {
+                        default_strategy: crate::components::ai::AIStrategy::Balanced,
+                        transition_strategy: None,
+                        transition_trigger: StrategyTransitionTrigger::Never,
+                        preferred_archetypes: vec![
+                            crate::components::unit::UnitArchetype::LightInfantry,
+                        ],
+                    },
+                ),
+                (
+                    FactionId::Candar,
+                    FactionStrategy {
+                        default_strategy: crate::components::ai::AIStrategy::Boom,
+                        transition_strategy: Some(crate::components::ai::AIStrategy::Balanced),
+                        transition_trigger: StrategyTransitionTrigger::ArmyThreshold(1500.0),
+                        preferred_archetypes: vec![
+                            crate::components::unit::UnitArchetype::HeavyInfantry,
+                            crate::components::unit::UnitArchetype::HeavyCavalry,
+                        ],
+                    },
+                ),
+                (
+                    FactionId::Karaman,
+                    FactionStrategy {
+                        default_strategy: crate::components::ai::AIStrategy::Turtle,
+                        transition_strategy: None,
+                        transition_trigger: StrategyTransitionTrigger::Never,
+                        preferred_archetypes: vec![
+                            crate::components::unit::UnitArchetype::HeavyInfantry,
+                        ],
+                    },
+                ),
+                (
+                    FactionId::Germiyan,
+                    FactionStrategy {
+                        default_strategy: crate::components::ai::AIStrategy::Balanced,
+                        transition_strategy: None,
+                        transition_trigger: StrategyTransitionTrigger::Never,
+                        preferred_archetypes: vec![
+                            crate::components::unit::UnitArchetype::LightCavalry,
+                            crate::components::unit::UnitArchetype::Archer,
+                        ],
+                    },
+                ),
+                (
+                    FactionId::Neutral,
+                    FactionStrategy {
+                        default_strategy: crate::components::ai::AIStrategy::Balanced,
+                        transition_strategy: None,
+                        transition_trigger: StrategyTransitionTrigger::Never,
+                        preferred_archetypes: vec![],
+                    },
+                ),
             ],
             unit_bonuses: vec![
                 // Kayi: Light Infantry excel, high morale
-                (FactionId::Kayi, FactionUnitBonus {
-                    attack_damage_bonus: 0.10,  // +10% attack
-                    armor_bonus: 0.0,
-                    speed_bonus: 0.0,
-                    morale_bonus: 0.15,          // +15% morale
-                    gather_rate_bonus: 0.0,
-                    archetype_specific: vec![
-                        (crate::components::unit::UnitArchetype::LightInfantry, ArchetypeBonus {
-                            attack_bonus: 0.10,
-                            defense_bonus: 0.05,
-                            speed_bonus: 0.05,
-                        }),
-                    ],
-                }),
+                (
+                    FactionId::Kayi,
+                    FactionUnitBonus {
+                        attack_damage_bonus: 0.10, // +10% attack
+                        armor_bonus: 0.0,
+                        speed_bonus: 0.0,
+                        morale_bonus: 0.15, // +15% morale
+                        gather_rate_bonus: 0.0,
+                        archetype_specific: vec![(
+                            crate::components::unit::UnitArchetype::LightInfantry,
+                            ArchetypeBonus {
+                                attack_bonus: 0.10,
+                                defense_bonus: 0.05,
+                                speed_bonus: 0.05,
+                            },
+                        )],
+                    },
+                ),
                 // Byzantine: Heavy Infantry and Archers, tough defense
-                (FactionId::Byzantine, FactionUnitBonus {
-                    attack_damage_bonus: 0.0,
-                    armor_bonus: 0.15,            // +15% armor
-                    speed_bonus: -0.10,           // -10% speed (slow but tough)
-                    morale_bonus: 0.05,
-                    gather_rate_bonus: 0.10,      // +10% gather (economy focus)
-                    archetype_specific: vec![
-                        (crate::components::unit::UnitArchetype::HeavyInfantry, ArchetypeBonus {
-                            attack_bonus: 0.0,
-                            defense_bonus: 0.15,
-                            speed_bonus: -0.10,
-                        }),
-                        (crate::components::unit::UnitArchetype::Archer, ArchetypeBonus {
-                            attack_bonus: 0.10,    // +10% range damage
-                            defense_bonus: 0.0,
-                            speed_bonus: 0.0,
-                        }),
-                    ],
-                }),
+                (
+                    FactionId::Byzantine,
+                    FactionUnitBonus {
+                        attack_damage_bonus: 0.0,
+                        armor_bonus: 0.15,  // +15% armor
+                        speed_bonus: -0.10, // -10% speed (slow but tough)
+                        morale_bonus: 0.05,
+                        gather_rate_bonus: 0.10, // +10% gather (economy focus)
+                        archetype_specific: vec![
+                            (
+                                crate::components::unit::UnitArchetype::HeavyInfantry,
+                                ArchetypeBonus {
+                                    attack_bonus: 0.0,
+                                    defense_bonus: 0.15,
+                                    speed_bonus: -0.10,
+                                },
+                            ),
+                            (
+                                crate::components::unit::UnitArchetype::Archer,
+                                ArchetypeBonus {
+                                    attack_bonus: 0.10, // +10% range damage
+                                    defense_bonus: 0.0,
+                                    speed_bonus: 0.0,
+                                },
+                            ),
+                        ],
+                    },
+                ),
                 // Mongol: Cavalry and Archers, fast and deadly
-                (FactionId::Mongol, FactionUnitBonus {
-                    attack_damage_bonus: 0.05,
-                    armor_bonus: -0.10,           // -10% armor (fragile)
-                    speed_bonus: 0.20,            // +20% speed
-                    morale_bonus: 0.0,
-                    gather_rate_bonus: 0.0,
-                    archetype_specific: vec![
-                        (crate::components::unit::UnitArchetype::LightCavalry, ArchetypeBonus {
-                            attack_bonus: 0.10,
-                            defense_bonus: -0.10,
-                            speed_bonus: 0.20,
-                        }),
-                        (crate::components::unit::UnitArchetype::Archer, ArchetypeBonus {
-                            attack_bonus: 0.15,    // +15% archer damage
-                            defense_bonus: 0.0,
-                            speed_bonus: 0.0,
-                        }),
-                    ],
-                }),
+                (
+                    FactionId::Mongol,
+                    FactionUnitBonus {
+                        attack_damage_bonus: 0.05,
+                        armor_bonus: -0.10, // -10% armor (fragile)
+                        speed_bonus: 0.20,  // +20% speed
+                        morale_bonus: 0.0,
+                        gather_rate_bonus: 0.0,
+                        archetype_specific: vec![
+                            (
+                                crate::components::unit::UnitArchetype::LightCavalry,
+                                ArchetypeBonus {
+                                    attack_bonus: 0.10,
+                                    defense_bonus: -0.10,
+                                    speed_bonus: 0.20,
+                                },
+                            ),
+                            (
+                                crate::components::unit::UnitArchetype::Archer,
+                                ArchetypeBonus {
+                                    attack_bonus: 0.15, // +15% archer damage
+                                    defense_bonus: 0.0,
+                                    speed_bonus: 0.0,
+                                },
+                            ),
+                        ],
+                    },
+                ),
                 // Other factions: default bonuses (minimal)
-                (FactionId::Dodurga, FactionUnitBonus {
-                    attack_damage_bonus: 0.0,
-                    armor_bonus: 0.0,
-                    speed_bonus: 0.0,
-                    morale_bonus: 0.0,
-                    gather_rate_bonus: 0.0,
-                    archetype_specific: vec![],
-                }),
-                (FactionId::Candar, FactionUnitBonus {
-                    attack_damage_bonus: 0.0,
-                    armor_bonus: 0.05,
-                    speed_bonus: 0.0,
-                    morale_bonus: 0.0,
-                    gather_rate_bonus: -0.10,
-                    archetype_specific: vec![],
-                }),
-                (FactionId::Karaman, FactionUnitBonus {
-                    attack_damage_bonus: 0.0,
-                    armor_bonus: 0.10,
-                    speed_bonus: -0.05,
-                    morale_bonus: 0.0,
-                    gather_rate_bonus: 0.0,
-                    archetype_specific: vec![],
-                }),
-                (FactionId::Germiyan, FactionUnitBonus {
-                    attack_damage_bonus: 0.0,
-                    armor_bonus: 0.0,
-                    speed_bonus: 0.10,
-                    morale_bonus: 0.0,
-                    gather_rate_bonus: 0.0,
-                    archetype_specific: vec![],
-                }),
-                (FactionId::Neutral, FactionUnitBonus {
-                    attack_damage_bonus: 0.0,
-                    armor_bonus: 0.0,
-                    speed_bonus: 0.0,
-                    morale_bonus: 0.0,
-                    gather_rate_bonus: 0.0,
-                    archetype_specific: vec![],
-                }),
+                (
+                    FactionId::Dodurga,
+                    FactionUnitBonus {
+                        attack_damage_bonus: 0.0,
+                        armor_bonus: 0.0,
+                        speed_bonus: 0.0,
+                        morale_bonus: 0.0,
+                        gather_rate_bonus: 0.0,
+                        archetype_specific: vec![],
+                    },
+                ),
+                (
+                    FactionId::Candar,
+                    FactionUnitBonus {
+                        attack_damage_bonus: 0.0,
+                        armor_bonus: 0.05,
+                        speed_bonus: 0.0,
+                        morale_bonus: 0.0,
+                        gather_rate_bonus: -0.10,
+                        archetype_specific: vec![],
+                    },
+                ),
+                (
+                    FactionId::Karaman,
+                    FactionUnitBonus {
+                        attack_damage_bonus: 0.0,
+                        armor_bonus: 0.10,
+                        speed_bonus: -0.05,
+                        morale_bonus: 0.0,
+                        gather_rate_bonus: 0.0,
+                        archetype_specific: vec![],
+                    },
+                ),
+                (
+                    FactionId::Germiyan,
+                    FactionUnitBonus {
+                        attack_damage_bonus: 0.0,
+                        armor_bonus: 0.0,
+                        speed_bonus: 0.10,
+                        morale_bonus: 0.0,
+                        gather_rate_bonus: 0.0,
+                        archetype_specific: vec![],
+                    },
+                ),
+                (
+                    FactionId::Neutral,
+                    FactionUnitBonus {
+                        attack_damage_bonus: 0.0,
+                        armor_bonus: 0.0,
+                        speed_bonus: 0.0,
+                        morale_bonus: 0.0,
+                        gather_rate_bonus: 0.0,
+                        archetype_specific: vec![],
+                    },
+                ),
             ],
         }
     }
@@ -268,13 +329,15 @@ impl Default for FactionConfig {
 
 impl FactionConfig {
     pub fn strategy_for(&self, faction: FactionId) -> Option<&FactionStrategy> {
-        self.default_strategies.iter()
+        self.default_strategies
+            .iter()
             .find(|(f, _)| *f == faction)
             .map(|(_, s)| s)
     }
 
     pub fn bonus_for(&self, faction: FactionId) -> Option<&FactionUnitBonus> {
-        self.unit_bonuses.iter()
+        self.unit_bonuses
+            .iter()
             .find(|(f, _)| *f == faction)
             .map(|(_, b)| b)
     }

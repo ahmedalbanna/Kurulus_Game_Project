@@ -152,7 +152,9 @@ fn apply_effect(
                 .push((*building_type, *value));
         }
         TechEffect::ResourceRateBonus(resource, value) => {
-            modifiers.resource_rate_bonuses.push((resource.clone(), *value));
+            modifiers
+                .resource_rate_bonuses
+                .push((resource.clone(), *value));
             // Apply immediately to production rates
             apply_rate_bonus(rates, resource, *value);
         }
@@ -203,10 +205,7 @@ fn apply_rate_bonus(rates: &mut ProductionRates, resource: &str, value: f32) {
 //  (handles late-joining or respawned systems that need the rates)
 // ═════════════════════════════════════════════════════════════════════════════
 
-fn tech_rate_application_system(
-    modifiers: Res<TechModifiers>,
-    mut rates: ResMut<ProductionRates>,
-) {
+fn tech_rate_application_system(modifiers: Res<TechModifiers>, mut rates: ResMut<ProductionRates>) {
     // Reset rates to base first, then re-apply all bonuses
     // We store base rates in a separate resource? For now, just apply cumulatively.
     // Each frame we re-calc from scratch using the modifiers list.
@@ -286,7 +285,10 @@ mod tests {
     fn test_default_tech_tree_has_45_nodes() {
         let tree = TechTree::default();
         let count = tree.techs.len();
-        assert_eq!(count, 48, "Default tech tree should have 48 nodes, got {count}");
+        assert_eq!(
+            count, 48,
+            "Default tech tree should have 48 nodes, got {count}"
+        );
     }
 
     #[test]
@@ -295,7 +297,11 @@ mod tests {
         let mut ids: Vec<&str> = tree.techs.iter().map(|t| t.id.as_str()).collect();
         ids.sort();
         ids.dedup();
-        assert_eq!(ids.len(), tree.techs.len(), "All tech node IDs must be unique");
+        assert_eq!(
+            ids.len(),
+            tree.techs.len(),
+            "All tech node IDs must be unique"
+        );
     }
 
     #[test]
@@ -428,14 +434,18 @@ mod tests {
     fn test_start_research_consumes_sp() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .init_resource::<ResourceStockpile>()
             .init_resource::<TechTree>()
             .add_event::<ResearchOrder>()
             .add_systems(FixedUpdate, start_research_system);
 
-        app.world_mut().resource_mut::<ResourceStockpile>().sovereignty_points = 100;
+        app.world_mut()
+            .resource_mut::<ResourceStockpile>()
+            .sovereignty_points = 100;
         app.world_mut().send_event(ResearchOrder {
             entity: Entity::PLACEHOLDER,
             tech_id: "mil_t1".into(),
@@ -455,14 +465,18 @@ mod tests {
     fn test_start_research_insufficient_sp_ignored() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .init_resource::<ResourceStockpile>()
             .init_resource::<TechTree>()
             .add_event::<ResearchOrder>()
             .add_systems(FixedUpdate, start_research_system);
 
-        app.world_mut().resource_mut::<ResourceStockpile>().sovereignty_points = 5;
+        app.world_mut()
+            .resource_mut::<ResourceStockpile>()
+            .sovereignty_points = 5;
         app.world_mut().send_event(ResearchOrder {
             entity: Entity::PLACEHOLDER,
             tech_id: "mil_t1".into(),
@@ -487,13 +501,16 @@ mod tests {
 
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .insert_resource(tree)
             .init_resource::<TechModifiers>()
-            .add_systems(FixedUpdate, research_progress_system.in_set(SimulationSet::ResearchProgress));
+            .add_systems(
+                FixedUpdate,
+                research_progress_system.in_set(SimulationSet::ResearchProgress),
+            );
 
         // 300 ticks at 0.1/tick = 30.0 progress = complete
         for _ in 0..300 {
@@ -502,8 +519,14 @@ mod tests {
 
         let tree = app.world().resource::<TechTree>();
         let mil_t1 = tree.techs.iter().find(|t| t.id == "mil_t1").unwrap();
-        assert!(mil_t1.unlocked, "mil_t1 should be unlocked after research completes");
-        assert!(tree.current_research.is_none(), "Research project should be cleared");
+        assert!(
+            mil_t1.unlocked,
+            "mil_t1 should be unlocked after research completes"
+        );
+        assert!(
+            tree.current_research.is_none(),
+            "Research project should be cleared"
+        );
     }
 
     #[test]
@@ -518,34 +541,45 @@ mod tests {
 
         // Without hero app
         let mut app_no_hero = App::new();
-        app_no_hero.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ))
+        app_no_hero
+            .add_plugins(MinimalPlugins)
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .insert_resource(tree)
             .init_resource::<TechModifiers>()
-            .add_systems(FixedUpdate, research_progress_system.in_set(SimulationSet::ResearchProgress));
+            .add_systems(
+                FixedUpdate,
+                research_progress_system.in_set(SimulationSet::ResearchProgress),
+            );
 
         // With hero app — spawn hero first so we get a real entity id
         let mut app_with_hero = App::new();
-        app_with_hero.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ))
+        app_with_hero
+            .add_plugins(MinimalPlugins)
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .init_resource::<TechModifiers>()
-            .add_systems(FixedUpdate, research_progress_system.in_set(SimulationSet::ResearchProgress));
+            .add_systems(
+                FixedUpdate,
+                research_progress_system.in_set(SimulationSet::ResearchProgress),
+            );
 
-        let hero_entity = app_with_hero.world_mut().spawn(Hero {
-            hero_id: HeroId::Osman,
-            level: 1,
-            xp: 0,
-            skill_points: 3,
-            unlocked_abilities: Vec::new(),
-            active_cooldowns: std::collections::HashMap::new(),
-            ..Default::default()
-        }).id();
+        let hero_entity = app_with_hero
+            .world_mut()
+            .spawn(Hero {
+                hero_id: HeroId::Osman,
+                level: 1,
+                xp: 0,
+                skill_points: 3,
+                unlocked_abilities: Vec::new(),
+                active_cooldowns: std::collections::HashMap::new(),
+                ..Default::default()
+            })
+            .id();
 
         let mut tree_hero = TechTree::default();
         tree_hero.current_research = Some(ResearchProject {
@@ -565,8 +599,16 @@ mod tests {
         let tree_no = app_no_hero.world().resource::<TechTree>();
         let tree_yes = app_with_hero.world().resource::<TechTree>();
 
-        let progress_no = tree_no.current_research.as_ref().map(|p| p.progress).unwrap_or(0.0);
-        let progress_yes = tree_yes.current_research.as_ref().map(|p| p.progress).unwrap_or(0.0);
+        let progress_no = tree_no
+            .current_research
+            .as_ref()
+            .map(|p| p.progress)
+            .unwrap_or(0.0);
+        let progress_yes = tree_yes
+            .current_research
+            .as_ref()
+            .map(|p| p.progress)
+            .unwrap_or(0.0);
 
         assert!(
             progress_yes > progress_no,
@@ -578,14 +620,18 @@ mod tests {
     fn test_objective_completed_awards_sp() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .init_resource::<ResourceStockpile>()
             .init_resource::<TechTree>()
             .add_event::<ObjectiveCompleted>()
             .add_systems(FixedUpdate, sovereignty_point_system);
 
-        app.world_mut().resource_mut::<ResourceStockpile>().sovereignty_points = 0;
+        app.world_mut()
+            .resource_mut::<ResourceStockpile>()
+            .sovereignty_points = 0;
         app.world_mut().send_event(ObjectiveCompleted {
             objective_id: ObjectiveId::Custom(1),
             mission_id: MissionId::Mission01,
@@ -593,21 +639,28 @@ mod tests {
         update_n(&mut app, 5);
 
         let stockpile = app.world().resource::<ResourceStockpile>();
-        assert_eq!(stockpile.sovereignty_points, 5, "Completing an objective should award 5 SP");
+        assert_eq!(
+            stockpile.sovereignty_points, 5,
+            "Completing an objective should award 5 SP"
+        );
     }
 
     #[test]
     fn test_multiple_objectives_award_cumulative_sp() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .init_resource::<ResourceStockpile>()
             .init_resource::<TechTree>()
             .add_event::<ObjectiveCompleted>()
             .add_systems(FixedUpdate, sovereignty_point_system);
 
-        app.world_mut().resource_mut::<ResourceStockpile>().sovereignty_points = 0;
+        app.world_mut()
+            .resource_mut::<ResourceStockpile>()
+            .sovereignty_points = 0;
         for i in 0..3 {
             app.world_mut().send_event(ObjectiveCompleted {
                 objective_id: ObjectiveId::Custom(i),
@@ -617,7 +670,10 @@ mod tests {
         update_n(&mut app, 5);
 
         let stockpile = app.world().resource::<ResourceStockpile>();
-        assert_eq!(stockpile.sovereignty_points, 15, "3 objectives should award 15 SP");
+        assert_eq!(
+            stockpile.sovereignty_points, 15,
+            "3 objectives should award 15 SP"
+        );
     }
 
     // ── Tech Effect Application Tests ─────────────────────────────────────
@@ -631,7 +687,9 @@ mod tests {
 
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .insert_resource(tree)
             .init_resource::<TechModifiers>()
@@ -658,7 +716,9 @@ mod tests {
 
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .insert_resource(tree)
             .init_resource::<TechModifiers>()
@@ -666,10 +726,18 @@ mod tests {
             .add_systems(FixedUpdate, tech_effect_application_system);
 
         update_n(&mut app, 5);
-        let count_1 = app.world().resource::<TechModifiers>().unit_stat_bonuses.len();
+        let count_1 = app
+            .world()
+            .resource::<TechModifiers>()
+            .unit_stat_bonuses
+            .len();
 
         update_n(&mut app, 5);
-        let count_2 = app.world().resource::<TechModifiers>().unit_stat_bonuses.len();
+        let count_2 = app
+            .world()
+            .resource::<TechModifiers>()
+            .unit_stat_bonuses
+            .len();
 
         assert_eq!(count_1, count_2, "Tech effects should only be applied once");
     }
@@ -683,7 +751,9 @@ mod tests {
 
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .insert_resource(tree)
             .init_resource::<TechModifiers>()

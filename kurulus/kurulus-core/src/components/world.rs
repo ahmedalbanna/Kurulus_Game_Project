@@ -1,7 +1,7 @@
-use bevy::prelude::*;
-use serde::{Deserialize, Serialize};
 use super::unit::FactionId;
 use crate::coord::GridPos;
+use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// A named region on the world map with ownership and resource data.
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]

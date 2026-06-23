@@ -38,18 +38,18 @@ impl WorldPosition {
 
     /// Update continuous position from grid (snapping)
     pub fn snap_to_grid(&mut self, cell_size: f32) {
-        self.world_2d .0 = Vec2::new(
+        self.world_2d.0 = Vec2::new(
             self.grid.0.x as f32 * cell_size,
             self.grid.0.y as f32 * cell_size,
         );
-        self.world_3d .0 = Vec3::new(self.world_2d .0.x, self.world_3d .0.y, self.world_2d .0.y);
+        self.world_3d.0 = Vec3::new(self.world_2d.0.x, self.world_3d.0.y, self.world_2d.0.y);
     }
 
     /// Update grid from continuous position (for free-form movement)
     pub fn quantize(&mut self, cell_size: f32) {
         self.grid.0 = IVec2::new(
-            (self.world_2d .0.x / cell_size).round() as i32,
-            (self.world_2d .0.y / cell_size).round() as i32,
+            (self.world_2d.0.x / cell_size).round() as i32,
+            (self.world_2d.0.y / cell_size).round() as i32,
         );
     }
 }

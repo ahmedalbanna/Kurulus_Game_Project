@@ -20,19 +20,21 @@ impl Plugin for UILogicPlugin {
                     selection_processing_system,
                     notification_dispatch_system,
                     // City event log logic — runs after city events are generated
-                    city_event_log_logic_system
-                        .in_set(SimulationSet::CityProgression),
+                    city_event_log_logic_system.in_set(SimulationSet::CityProgression),
                 ),
             )
             // Render systems update the bevy_ui tree each frame.
             // Safe in headless mode (UiPlugin absent → entities invisible but harmless).
-            .add_systems(Update, (
-                city_event_log_render_system,
-                zone_legend_render_system,
-                world_map::world_map_tooltip_system,
-                world_map::world_map_legend_system,
-                world_map::world_map_selection_panel_system,
-            ));
+            .add_systems(
+                Update,
+                (
+                    city_event_log_render_system,
+                    zone_legend_render_system,
+                    world_map::world_map_tooltip_system,
+                    world_map::world_map_legend_system,
+                    world_map::world_map_selection_panel_system,
+                ),
+            );
     }
 }
 

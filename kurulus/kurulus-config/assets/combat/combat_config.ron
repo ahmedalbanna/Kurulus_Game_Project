@@ -1,0 +1,26 @@
+// GDD §5 — Global combat tuning parameters
+// Loaded via RonAssetLoader<CombatConfigAsset> (requires loader registration)
+CombatConfig(
+    base_crit_chance: 0.05,
+    crit_damage_multiplier: 1.5,
+    flank_crit_bonus_side: 0.10,
+    flank_crit_bonus_rear: 0.15,
+    charge_min_distance: 10.0,
+    charge_damage_multiplier: 2.0,
+    cavalry_knockdown_duration: 1.5,
+    charge_formation_break_duration: 2.0,
+    min_damage: 1.0,
+    ranged_ff_base_chance: 0.15,
+    dot_max_stacks: 3,
+    panic_propagation_radius: 5.0,
+    panic_propagation_chance: 0.3,
+    ranged_distance_falloff: 0.5,
+    max_range_penalty: 0.6,
+    friendly_fire_cone_angle: 30.0,
+    friendly_fire_max_check_dist: 15.0,
+    friendly_fire_damage_reduction: 0.5,
+    morale_recovery_multiplier: 0.1,
+    panic_recovery_multiplier: 0.05,
+    panic_base_duration: 5.0,
+    panic_flee_speed_mult: 1.5,
+)

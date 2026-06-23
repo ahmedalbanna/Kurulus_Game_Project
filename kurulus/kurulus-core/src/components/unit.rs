@@ -118,7 +118,7 @@ pub struct FormationSlot {
 /// Active stat modifiers granted by being in a formation.
 /// Re-computed whenever the formation type or leader changes.
 /// All multipliers default to 1.0 (neutral).
-#[derive(Component, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FormationBonus {
     /// Multiplied with base damage (e.g. 1.15 = +15%)
     pub damage_mult: f32,
@@ -426,10 +426,12 @@ pub enum CombatStance {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ArmorType {
-    Light,
-    Medium,
-    Heavy,
-    Fortification,
+    Light,         // Leather/light infantry
+    Medium,        // Partial plate/medium infantry
+    Heavy,         // Full plate/heavy infantry
+    Fortification, // Stone fortifications
+    Cloth,         // Archers, support units (NEW)
+    Wood,          // Wooden structures (NEW)
 }
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]

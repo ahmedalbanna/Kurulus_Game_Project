@@ -1,6 +1,6 @@
-use bevy::prelude::*;
 use bevy::asset::io::Reader;
 use bevy::asset::{AssetLoader, LoadContext};
+use bevy::prelude::*;
 use kurulus_core::resources::config::*;
 use std::marker::PhantomData;
 

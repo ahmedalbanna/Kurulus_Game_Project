@@ -168,8 +168,7 @@ fn population_growth_system(
     }
     // ── Starvation when food is critically low ────────────────────────
     else if needs.food_satisfaction < config.starvation_threshold {
-        let decline_rate = config.starvation_death_rate
-            * (1.0 - needs.food_satisfaction);
+        let decline_rate = config.starvation_death_rate * (1.0 - needs.food_satisfaction);
 
         config.accumulator -= decline_rate;
 
@@ -267,11 +266,9 @@ fn needs_evaluation_system(
         .sum::<f32>()
         .min(0.4); // cap at +40%
 
-    needs.safety_satisfaction = (crime_factor * 0.4
-        + defender_ratio * 0.3
-        + protection_bonus * 0.1
-        + watchtower_safety)
-        .clamp(0.0, 1.0);
+    needs.safety_satisfaction =
+        (crime_factor * 0.4 + defender_ratio * 0.3 + protection_bonus * 0.1 + watchtower_safety)
+            .clamp(0.0, 1.0);
 
     // ── Emit critical-need warnings ──────────────────────────────────
     if needs.food_satisfaction < 0.2 {
@@ -513,9 +510,9 @@ mod tests {
     fn test_app() -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .init_resource::<CitizenNeeds>()
             .init_resource::<GrowthConfig>()
@@ -589,8 +586,11 @@ mod tests {
 
         let registry = app.world().resource::<PopulationRegistry>();
         // idle = 30 - 12 - 8 = 10
-        assert_eq!(registry.idle, 10, "idle = total({}) - workers({}) - soldiers({})",
-                   registry.total, registry.workers, registry.soldiers);
+        assert_eq!(
+            registry.idle, 10,
+            "idle = total({}) - workers({}) - soldiers({})",
+            registry.total, registry.workers, registry.soldiers
+        );
     }
 
     // ── Population Growth System ─────────────────────────────────────────────

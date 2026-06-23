@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use kurulus_core::prelude::*;
-use std::collections::{BinaryHeap, HashSet, HashMap};
+use std::collections::{BinaryHeap, HashMap, HashSet};
 
 /// Heuristic cost estimate (octile distance — allows 8-directional movement).
 fn heuristic(a: IVec2, b: IVec2) -> f32 {
@@ -41,7 +41,10 @@ impl Eq for AStarNode {}
 impl std::cmp::Ord for AStarNode {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // BinaryHeap is a max-heap; we want smallest f first, so reverse.
-        other.f.partial_cmp(&self.f).unwrap_or(std::cmp::Ordering::Equal)
+        other
+            .f
+            .partial_cmp(&self.f)
+            .unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 
@@ -74,7 +77,11 @@ pub fn a_star(
     let mut came_from: HashMap<IVec2, IVec2> = HashMap::new();
 
     let h = heuristic(start, goal);
-    open.push(AStarNode { pos: start, g: 0.0, f: h });
+    open.push(AStarNode {
+        pos: start,
+        g: 0.0,
+        f: h,
+    });
     g_scores.insert(start, 0.0);
 
     // Safety cap: don't search more than 10,000 cells.
@@ -112,8 +119,10 @@ pub fn a_star(
         for (neighbour, edge_cost) in neighbours(current.pos) {
             // Bounds check
             if let Some((min, max)) = grid_bounds {
-                if neighbour.x < min.x || neighbour.y < min.y
-                    || neighbour.x > max.x || neighbour.y > max.y
+                if neighbour.x < min.x
+                    || neighbour.y < min.y
+                    || neighbour.x > max.x
+                    || neighbour.y > max.y
                 {
                     continue;
                 }
@@ -143,9 +152,7 @@ pub fn a_star(
 
 /// Collect all obstacle grid positions from the ECS world.
 /// Buildings and their 2×2 footprint block movement.
-pub fn collect_obstacles(
-    buildings: Query<&WorldPosition, With<Building>>,
-) -> HashSet<IVec2> {
+pub fn collect_obstacles(buildings: Query<&WorldPosition, With<Building>>) -> HashSet<IVec2> {
     let mut obs = HashSet::new();
 
     for pos in buildings.iter() {

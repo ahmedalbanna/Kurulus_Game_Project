@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::math::IVec2;
+use bevy::prelude::*;
 use kurulus_core::prelude::*;
 
 /// Size of each world map tile in world units.
@@ -11,14 +11,18 @@ pub struct WorldMapRenderPlugin;
 
 impl Plugin for WorldMapRenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (
-            draw_world_map_terrain_gizmos,
-            draw_world_map_fog_gizmos,
-            draw_world_map_region_borders_gizmos,
-            draw_world_map_poi_markers_gizmos,
-            draw_world_map_scout_markers_gizmos,
-            draw_world_map_player_marker_gizmos,
-        ).chain());
+        app.add_systems(
+            Update,
+            (
+                draw_world_map_terrain_gizmos,
+                draw_world_map_fog_gizmos,
+                draw_world_map_region_borders_gizmos,
+                draw_world_map_poi_markers_gizmos,
+                draw_world_map_scout_markers_gizmos,
+                draw_world_map_player_marker_gizmos,
+            )
+                .chain(),
+        );
     }
 }
 
@@ -67,10 +71,7 @@ fn tile_to_world(pos: IVec2) -> Vec2 {
 /// Draws a coloured rectangle for every tile on the world map.
 /// The colour is determined by `WorldTerrain` — green for grass, brown for
 /// mountains, blue for water, etc.
-fn draw_world_map_terrain_gizmos(
-    mut gizmos: Gizmos,
-    world_map: Res<WorldMap>,
-) {
+fn draw_world_map_terrain_gizmos(mut gizmos: Gizmos, world_map: Res<WorldMap>) {
     for tile in world_map.tiles.iter() {
         let centre = tile_to_world(tile.position);
         let color = terrain_color(tile.terrain);
@@ -99,10 +100,7 @@ const FOG_EXPLORED: Color = Color::srgba(0.0, 0.0, 0.0, 0.35);
 /// * **Unexplored** — very dark, nearly opaque (0.85 alpha)
 /// * **Explored** — dimmed, semi-transparent (0.35 alpha)
 /// * **Visible** — no overlay (terrain is fully visible)
-fn draw_world_map_fog_gizmos(
-    mut gizmos: Gizmos,
-    world_map: Res<WorldMap>,
-) {
+fn draw_world_map_fog_gizmos(mut gizmos: Gizmos, world_map: Res<WorldMap>) {
     for tile in world_map.tiles.iter() {
         let overlay = match tile.fog {
             FogState::Visible => continue, // no overlay
@@ -119,23 +117,20 @@ fn draw_world_map_fog_gizmos(
 /// Region border colour per faction (matching the existing convention).
 fn owner_color(owner: FactionId) -> Color {
     match owner {
-        FactionId::Kayi => Color::srgb(0.85, 0.20, 0.10),       // Kayı red
-        FactionId::Byzantine => Color::srgb(0.55, 0.35, 0.85),  // Byzantine purple
-        FactionId::Mongol => Color::srgb(0.85, 0.60, 0.10),     // Mongol gold
-        FactionId::Neutral => Color::srgb(0.60, 0.60, 0.60),    // Grey
-        FactionId::Dodurga => Color::srgb(0.10, 0.70, 0.40),    // Dodurga green
-        FactionId::Candar => Color::srgb(0.85, 0.50, 0.10),     // Candar orange
-        FactionId::Germiyan => Color::srgb(0.30, 0.30, 0.80),   // Germiyan blue
-        FactionId::Karaman => Color::srgb(0.70, 0.20, 0.60),    // Karaman purple
+        FactionId::Kayi => Color::srgb(0.85, 0.20, 0.10), // Kayı red
+        FactionId::Byzantine => Color::srgb(0.55, 0.35, 0.85), // Byzantine purple
+        FactionId::Mongol => Color::srgb(0.85, 0.60, 0.10), // Mongol gold
+        FactionId::Neutral => Color::srgb(0.60, 0.60, 0.60), // Grey
+        FactionId::Dodurga => Color::srgb(0.10, 0.70, 0.40), // Dodurga green
+        FactionId::Candar => Color::srgb(0.85, 0.50, 0.10), // Candar orange
+        FactionId::Germiyan => Color::srgb(0.30, 0.30, 0.80), // Germiyan blue
+        FactionId::Karaman => Color::srgb(0.70, 0.20, 0.60), // Karaman purple
     }
 }
 
 /// Draws an outline around each region's bounding box, tinted by the owner
 /// faction's colour.  This gives a quick visual of territory control.
-fn draw_world_map_region_borders_gizmos(
-    mut gizmos: Gizmos,
-    world_map: Res<WorldMap>,
-) {
+fn draw_world_map_region_borders_gizmos(mut gizmos: Gizmos, world_map: Res<WorldMap>) {
     for region in world_map.regions.iter() {
         if region.tiles.is_empty() {
             continue;
@@ -149,7 +144,10 @@ fn draw_world_map_region_borders_gizmos(
 
         // Convert to world coordinates (corners of the bbox)
         let world_min = Vec2::new(min_x as f32 * TILE_SIZE, min_y as f32 * TILE_SIZE);
-        let world_max = Vec2::new((max_x + 1) as f32 * TILE_SIZE, (max_y + 1) as f32 * TILE_SIZE);
+        let world_max = Vec2::new(
+            (max_x + 1) as f32 * TILE_SIZE,
+            (max_y + 1) as f32 * TILE_SIZE,
+        );
         let size = world_max - world_min;
         let centre = world_min + size * 0.5;
 
@@ -161,16 +159,13 @@ fn draw_world_map_region_borders_gizmos(
 // ── 4. Points of Interest ──────────────────────────────────────────────────
 
 /// Colour for discovered vs undiscovered POIs.
-const POI_DISCOVERED: Color = Color::srgb(1.0, 0.85, 0.20);  // gold
+const POI_DISCOVERED: Color = Color::srgb(1.0, 0.85, 0.20); // gold
 const POI_UNDISCOVERED: Color = Color::srgb(0.50, 0.50, 0.50); // grey
 
 /// Draws a small circle marker at every POI position.
 /// Discovered POIs are gold, undiscovered are grey.
 /// The circle is slightly larger for discovered POIs.
-fn draw_world_map_poi_markers_gizmos(
-    mut gizmos: Gizmos,
-    world_map: Res<WorldMap>,
-) {
+fn draw_world_map_poi_markers_gizmos(mut gizmos: Gizmos, world_map: Res<WorldMap>) {
     for poi in world_map.points_of_interest.iter() {
         let centre = tile_to_world(poi.position);
         let (color, radius) = if poi.discovered {
@@ -189,15 +184,12 @@ fn draw_world_map_poi_markers_gizmos(
 // ── 5. Scout Party Markers ─────────────────────────────────────────────────
 
 /// Colour for friendly scout markers.
-const SCOUT_COLOR: Color = Color::srgb(0.20, 0.85, 0.40);  // bright green
+const SCOUT_COLOR: Color = Color::srgb(0.20, 0.85, 0.40); // bright green
 const SCOUT_ENCOUNTER_COLOR: Color = Color::srgb(1.0, 0.60, 0.0); // orange when encountered
 
 /// Draws a small circle marker at every scout party's current position.
 /// Friendly scouts are green; scouts in an encounter state are orange.
-fn draw_world_map_scout_markers_gizmos(
-    mut gizmos: Gizmos,
-    scouts: Query<&ScoutParty>,
-) {
+fn draw_world_map_scout_markers_gizmos(mut gizmos: Gizmos, scouts: Query<&ScoutParty>) {
     for scout in scouts.iter() {
         let centre = tile_to_world(scout.position);
         let color = match scout.status {
@@ -219,19 +211,16 @@ fn draw_world_map_scout_markers_gizmos(
 
 /// Draws a bright diamond/rhombus shape at the player's current position on
 /// the world map, making the player's hero party easy to spot.
-fn draw_world_map_player_marker_gizmos(
-    mut gizmos: Gizmos,
-    world_map: Res<WorldMap>,
-) {
+fn draw_world_map_player_marker_gizmos(mut gizmos: Gizmos, world_map: Res<WorldMap>) {
     let centre = tile_to_world(world_map.player_position);
 
     // Diamond shape via 4-point polygon
     let half = HALF_TILE * 0.7;
     let points = vec![
-        centre + Vec2::new(0.0, half),      // top
-        centre + Vec2::new(half, 0.0),      // right
-        centre + Vec2::new(0.0, -half),     // bottom
-        centre + Vec2::new(-half, 0.0),     // left
+        centre + Vec2::new(0.0, half),  // top
+        centre + Vec2::new(half, 0.0),  // right
+        centre + Vec2::new(0.0, -half), // bottom
+        centre + Vec2::new(-half, 0.0), // left
     ];
     gizmos.linestrip_2d(points, Color::srgb(1.0, 1.0, 0.4));
 

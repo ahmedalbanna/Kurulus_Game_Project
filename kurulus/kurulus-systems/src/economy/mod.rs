@@ -125,10 +125,7 @@ fn tax_collection_system(
     }
 
     // ── Compute the tax base ─────────────────────────────────────────
-    let base_gold = rates
-        .as_deref()
-        .map(|r| r.gold_per_second)
-        .unwrap_or(0.5);
+    let base_gold = rates.as_deref().map(|r| r.gold_per_second).unwrap_or(0.5);
 
     let eco_power = city
         .as_deref()
@@ -164,9 +161,9 @@ mod tests {
     ) -> ResourceStockpile {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ));
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )));
         app.init_resource::<GameTime>();
         app.insert_resource(stockpile);
         app.init_resource::<ResourceConsumption>();
@@ -380,9 +377,9 @@ mod tests {
     fn test_consumption_without_policy_settings() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ));
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )));
         app.init_resource::<GameTime>();
         app.insert_resource(ResourceStockpile {
             food: 100.0,
@@ -412,9 +409,9 @@ mod tests {
     fn test_production_and_consumption_together() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ));
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )));
         app.init_resource::<GameTime>();
         app.insert_resource(ResourceStockpile {
             food: 100.0,
@@ -471,9 +468,9 @@ mod tests {
         let pop = stockpile.population;
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ));
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )));
         app.init_resource::<GameTime>();
         app.insert_resource(stockpile);
         app.init_resource::<ProductionRates>();
@@ -601,9 +598,9 @@ mod tests {
         // When CityState is absent, total_economic_power defaults to 0.
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ));
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )));
         app.init_resource::<GameTime>();
         app.insert_resource(ResourceStockpile {
             gold: 100.0,
@@ -634,9 +631,9 @@ mod tests {
     fn test_tax_integration_with_production() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ));
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )));
         app.init_resource::<GameTime>();
         app.insert_resource(ResourceStockpile {
             gold: 50.0,

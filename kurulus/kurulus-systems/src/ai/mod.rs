@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::math::IVec2;
+use bevy::prelude::*;
 use kurulus_core::prelude::*;
 
 pub struct AIPlugin;
@@ -69,7 +69,14 @@ pub fn create_faction_controller(
 
 fn bt_evaluate_system(
     mut ai_query: Query<(&mut BehaviorTree, &mut AIController)>,
-    unit_query: Query<(Entity, &Health, &Stats, &WorldPosition, &FactionId, Option<&AICombatUnit>)>,
+    unit_query: Query<(
+        Entity,
+        &Health,
+        &Stats,
+        &WorldPosition,
+        &FactionId,
+        Option<&AICombatUnit>,
+    )>,
     building_query: Query<(Entity, &Building, &WorldPosition)>,
     enemy_query: Query<(Entity, &WorldPosition, &FactionId, &Health)>,
     stockpile: Res<ResourceStockpile>,
@@ -84,7 +91,8 @@ fn bt_evaluate_system(
         let diff_mods = diff_config.for_difficulty(controller.difficulty);
 
         // Scale decision interval by difficulty
-        let effective_interval = controller.decision_interval * diff_mods.decision_interval_multiplier;
+        let effective_interval =
+            controller.decision_interval * diff_mods.decision_interval_multiplier;
 
         if game_time.total_seconds as f32 - controller.last_decision_time < effective_interval {
             continue;
@@ -126,7 +134,14 @@ fn evaluate_node(
     path: &mut Vec<usize>,
     blackboard: &AIDataBlackboard,
     stockpile: &ResourceStockpile,
-    units: &Query<(Entity, &Health, &Stats, &WorldPosition, &FactionId, Option<&AICombatUnit>)>,
+    units: &Query<(
+        Entity,
+        &Health,
+        &Stats,
+        &WorldPosition,
+        &FactionId,
+        Option<&AICombatUnit>,
+    )>,
     buildings: &Query<(Entity, &Building, &WorldPosition)>,
     enemies: &Query<(Entity, &WorldPosition, &FactionId, &Health)>,
     controller: &AIController,
@@ -137,32 +152,65 @@ fn evaluate_node(
     recruit_events: &mut EventWriter<RecruitOrder>,
 ) -> BehaviorState {
     match node {
-        BehaviorNode::Sequence(children) => {
-            evaluate_sequence(
-                children, path, blackboard, stockpile, units, buildings,
-                enemies, controller, diff_mods, move_events, attack_events,
-                build_events, recruit_events,
-            )
-        }
-        BehaviorNode::Selector(children) => {
-            evaluate_selector(
-                children, path, blackboard, stockpile, units, buildings,
-                enemies, controller, diff_mods, move_events, attack_events,
-                build_events, recruit_events,
-            )
-        }
+        BehaviorNode::Sequence(children) => evaluate_sequence(
+            children,
+            path,
+            blackboard,
+            stockpile,
+            units,
+            buildings,
+            enemies,
+            controller,
+            diff_mods,
+            move_events,
+            attack_events,
+            build_events,
+            recruit_events,
+        ),
+        BehaviorNode::Selector(children) => evaluate_selector(
+            children,
+            path,
+            blackboard,
+            stockpile,
+            units,
+            buildings,
+            enemies,
+            controller,
+            diff_mods,
+            move_events,
+            attack_events,
+            build_events,
+            recruit_events,
+        ),
         BehaviorNode::Condition(cond) => evaluate_condition(cond, blackboard, stockpile, buildings),
-        BehaviorNode::Action(action) => {
-            execute_action(
-                action, stockpile, units, buildings, enemies, controller, diff_mods,
-                move_events, attack_events, build_events, recruit_events,
-            )
-        }
+        BehaviorNode::Action(action) => execute_action(
+            action,
+            stockpile,
+            units,
+            buildings,
+            enemies,
+            controller,
+            diff_mods,
+            move_events,
+            attack_events,
+            build_events,
+            recruit_events,
+        ),
         BehaviorNode::Inverter(child) => {
             let state = evaluate_node(
-                child, path, blackboard, stockpile, units, buildings,
-                enemies, controller, diff_mods, move_events, attack_events,
-                build_events, recruit_events,
+                child,
+                path,
+                blackboard,
+                stockpile,
+                units,
+                buildings,
+                enemies,
+                controller,
+                diff_mods,
+                move_events,
+                attack_events,
+                build_events,
+                recruit_events,
             );
             match state {
                 BehaviorState::Running => BehaviorState::Running,
@@ -175,9 +223,19 @@ fn evaluate_node(
             for _ in 0..max_loops {
                 let mut child_path = Vec::new();
                 let state = evaluate_node(
-                    child, &mut child_path, blackboard, stockpile, units, buildings,
-                    enemies, controller, diff_mods, move_events, attack_events,
-                    build_events, recruit_events,
+                    child,
+                    &mut child_path,
+                    blackboard,
+                    stockpile,
+                    units,
+                    buildings,
+                    enemies,
+                    controller,
+                    diff_mods,
+                    move_events,
+                    attack_events,
+                    build_events,
+                    recruit_events,
                 );
                 match state {
                     BehaviorState::Running => return BehaviorState::Running,
@@ -189,9 +247,19 @@ fn evaluate_node(
         }
         BehaviorNode::Succeeder(child) => {
             let _ = evaluate_node(
-                child, path, blackboard, stockpile, units, buildings,
-                enemies, controller, diff_mods, move_events, attack_events,
-                build_events, recruit_events,
+                child,
+                path,
+                blackboard,
+                stockpile,
+                units,
+                buildings,
+                enemies,
+                controller,
+                diff_mods,
+                move_events,
+                attack_events,
+                build_events,
+                recruit_events,
             );
             BehaviorState::Success
         }
@@ -204,7 +272,14 @@ fn evaluate_sequence(
     path: &mut Vec<usize>,
     blackboard: &AIDataBlackboard,
     stockpile: &ResourceStockpile,
-    units: &Query<(Entity, &Health, &Stats, &WorldPosition, &FactionId, Option<&AICombatUnit>)>,
+    units: &Query<(
+        Entity,
+        &Health,
+        &Stats,
+        &WorldPosition,
+        &FactionId,
+        Option<&AICombatUnit>,
+    )>,
     buildings: &Query<(Entity, &Building, &WorldPosition)>,
     enemies: &Query<(Entity, &WorldPosition, &FactionId, &Health)>,
     controller: &AIController,
@@ -216,11 +291,25 @@ fn evaluate_sequence(
 ) -> BehaviorState {
     let start = if !path.is_empty() { path.remove(0) } else { 0 };
     for i in start..children.len() {
-        let mut child_path = if i == start { std::mem::take(path) } else { Vec::new() };
+        let mut child_path = if i == start {
+            std::mem::take(path)
+        } else {
+            Vec::new()
+        };
         let state = evaluate_node(
-            &children[i], &mut child_path, blackboard, stockpile, units, buildings,
-            enemies, controller, diff_mods, move_events, attack_events,
-            build_events, recruit_events,
+            &children[i],
+            &mut child_path,
+            blackboard,
+            stockpile,
+            units,
+            buildings,
+            enemies,
+            controller,
+            diff_mods,
+            move_events,
+            attack_events,
+            build_events,
+            recruit_events,
         );
         match state {
             BehaviorState::Running => {
@@ -242,7 +331,14 @@ fn evaluate_selector(
     path: &mut Vec<usize>,
     blackboard: &AIDataBlackboard,
     stockpile: &ResourceStockpile,
-    units: &Query<(Entity, &Health, &Stats, &WorldPosition, &FactionId, Option<&AICombatUnit>)>,
+    units: &Query<(
+        Entity,
+        &Health,
+        &Stats,
+        &WorldPosition,
+        &FactionId,
+        Option<&AICombatUnit>,
+    )>,
     buildings: &Query<(Entity, &Building, &WorldPosition)>,
     enemies: &Query<(Entity, &WorldPosition, &FactionId, &Health)>,
     controller: &AIController,
@@ -254,11 +350,25 @@ fn evaluate_selector(
 ) -> BehaviorState {
     let start = if !path.is_empty() { path.remove(0) } else { 0 };
     for i in start..children.len() {
-        let mut child_path = if i == start { std::mem::take(path) } else { Vec::new() };
+        let mut child_path = if i == start {
+            std::mem::take(path)
+        } else {
+            Vec::new()
+        };
         let state = evaluate_node(
-            &children[i], &mut child_path, blackboard, stockpile, units, buildings,
-            enemies, controller, diff_mods, move_events, attack_events,
-            build_events, recruit_events,
+            &children[i],
+            &mut child_path,
+            blackboard,
+            stockpile,
+            units,
+            buildings,
+            enemies,
+            controller,
+            diff_mods,
+            move_events,
+            attack_events,
+            build_events,
+            recruit_events,
         );
         match state {
             BehaviorState::Running => {
@@ -282,8 +392,10 @@ fn evaluate_condition(
 ) -> BehaviorState {
     let result = match condition {
         BehaviorCondition::HasResources => {
-            stockpile.gold >= 100.0 || stockpile.food >= 200.0
-                || stockpile.wood >= 100.0 || stockpile.stone >= 50.0
+            stockpile.gold >= 100.0
+                || stockpile.food >= 200.0
+                || stockpile.wood >= 100.0
+                || stockpile.stone >= 50.0
         }
         BehaviorCondition::HasArmy => blackboard.get("army_count").unwrap_or(0.0) >= 3.0,
         BehaviorCondition::IsUnderAttack => blackboard.get("under_attack").unwrap_or(0.0) > 0.0,
@@ -310,14 +422,25 @@ fn evaluate_condition(
         }
         BehaviorCondition::Custom(key) => blackboard.get(key).unwrap_or(0.0) > 0.0,
     };
-    if result { BehaviorState::Success } else { BehaviorState::Failure }
+    if result {
+        BehaviorState::Success
+    } else {
+        BehaviorState::Failure
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn execute_action(
     action: &BehaviorAction,
     _stockpile: &ResourceStockpile,
-    units: &Query<(Entity, &Health, &Stats, &WorldPosition, &FactionId, Option<&AICombatUnit>)>,
+    units: &Query<(
+        Entity,
+        &Health,
+        &Stats,
+        &WorldPosition,
+        &FactionId,
+        Option<&AICombatUnit>,
+    )>,
     _buildings: &Query<(Entity, &Building, &WorldPosition)>,
     _enemies: &Query<(Entity, &WorldPosition, &FactionId, &Health)>,
     _controller: &AIController,
@@ -330,47 +453,85 @@ fn execute_action(
     match action {
         BehaviorAction::MoveTo(pos) => {
             for (entity, _, _, _world_pos, _, _) in units.iter() {
-                move_events.send(MoveOrder { entity, target: *pos, formation: None });
+                move_events.send(MoveOrder {
+                    entity,
+                    target: *pos,
+                    formation: None,
+                });
                 return BehaviorState::Running;
             }
             BehaviorState::Failure
         }
         BehaviorAction::Attack(target) => {
-            attack_events.send(AttackOrder { entity: *target, target: *target, aggressive: true });
+            attack_events.send(AttackOrder {
+                entity: *target,
+                target: *target,
+                aggressive: true,
+            });
             BehaviorState::Running
         }
         BehaviorAction::Build(building_type, pos) => {
             for (entity, _, _, _world_pos, _, _) in units.iter() {
-                build_events.send(BuildOrder { entity, building_type: *building_type, position: *pos });
+                build_events.send(BuildOrder {
+                    entity,
+                    building_type: *building_type,
+                    position: *pos,
+                });
                 return BehaviorState::Running;
             }
             BehaviorState::Failure
         }
         BehaviorAction::Recruit(archetype, count) => {
-            recruit_events.send(RecruitOrder { building: Entity::PLACEHOLDER, archetype: *archetype, count: *count });
+            recruit_events.send(RecruitOrder {
+                building: Entity::PLACEHOLDER,
+                archetype: *archetype,
+                count: *count,
+            });
             BehaviorState::Running
         }
         BehaviorAction::Research(_) => BehaviorState::Success,
         BehaviorAction::Retreat(pos) => {
             for (entity, _, _, _, _, _) in units.iter() {
-                move_events.send(MoveOrder { entity, target: *pos, formation: None });
+                move_events.send(MoveOrder {
+                    entity,
+                    target: *pos,
+                    formation: None,
+                });
                 return BehaviorState::Running;
             }
             BehaviorState::Failure
         }
         BehaviorAction::Patrol(a, b) => {
             for (entity, _, _, world_pos, _, _) in units.iter() {
-                let target = if world_pos.grid.0.distance_squared(a.0) < world_pos.grid.0.distance_squared(b.0) { *b } else { *a };
-                move_events.send(MoveOrder { entity, target, formation: None });
+                let target = if world_pos.grid.0.distance_squared(a.0)
+                    < world_pos.grid.0.distance_squared(b.0)
+                {
+                    *b
+                } else {
+                    *a
+                };
+                move_events.send(MoveOrder {
+                    entity,
+                    target,
+                    formation: None,
+                });
                 return BehaviorState::Running;
             }
             BehaviorState::Failure
         }
         BehaviorAction::Wait(frames) => {
-            if *frames == 0 { BehaviorState::Success } else { BehaviorState::Running }
+            if *frames == 0 {
+                BehaviorState::Success
+            } else {
+                BehaviorState::Running
+            }
         }
         BehaviorAction::Flank(target) => {
-            attack_events.send(AttackOrder { entity: *target, target: *target, aggressive: true });
+            attack_events.send(AttackOrder {
+                entity: *target,
+                target: *target,
+                aggressive: true,
+            });
             BehaviorState::Running
         }
         BehaviorAction::Custom(_) => BehaviorState::Success,
@@ -399,7 +560,9 @@ fn ai_blackboard_system(
                 army_count += 1;
                 army_strength += health.current + stats.attack_damage;
                 total_health += health.current;
-                if health.max > 200.0 { has_hero = true; }
+                if health.max > 200.0 {
+                    has_hero = true;
+                }
             }
         }
 
@@ -488,7 +651,12 @@ fn ai_goal_selection_system(
             AIStrategy::Guerrilla => {
                 if army_strength < 150.0 * aggression_scale {
                     AIGoal::GatherResources
-                } else if bt.blackboard.get("nearest_enemy_distance").unwrap_or(f32::MAX) < 20.0 {
+                } else if bt
+                    .blackboard
+                    .get("nearest_enemy_distance")
+                    .unwrap_or(f32::MAX)
+                    < 20.0
+                {
                     AIGoal::AttackPlayer
                 } else {
                     AIGoal::TrainArmy
@@ -552,21 +720,33 @@ fn ai_strategy_transition_system(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 fn threat_evaluation_system(
-    mut unit_query: Query<(Entity, &WorldPosition, &FactionId, &Health, &Stats, Option<&mut Threat>)>,
+    mut unit_query: Query<(
+        Entity,
+        &WorldPosition,
+        &FactionId,
+        &Health,
+        &Stats,
+        Option<&mut Threat>,
+    )>,
     game_time: Res<GameTime>,
 ) {
     let mut threats: Vec<(Entity, Entity, f32, ThreatType)> = Vec::new();
-    let entities: Vec<(Entity, &WorldPosition, &FactionId, &Health, &Stats)> = unit_query.iter_mut()
+    let entities: Vec<(Entity, &WorldPosition, &FactionId, &Health, &Stats)> = unit_query
+        .iter_mut()
         .map(|(e, p, f, h, s, _)| (e, p, f, h, s))
         .collect();
 
     for (entity, pos, faction, health, stats) in &entities {
         for (enemy_entity, epos, efaction, ehealth, _estats) in &entities {
-            if efaction == faction { continue; }
+            if efaction == faction {
+                continue;
+            }
 
             let dist_sq = pos.grid.0.distance_squared(epos.grid.0);
             let max_range = stats.vision_range as i32;
-            if dist_sq > max_range * max_range { continue; }
+            if dist_sq > max_range * max_range {
+                continue;
+            }
 
             // Threat = f(distance, remaining HP, attack damage)
             let distance_factor = 1.0 - (dist_sq as f32).sqrt() / stats.vision_range;
@@ -574,8 +754,8 @@ fn threat_evaluation_system(
             let damage_factor = stats.attack_damage / 100.0;
 
             // Proximity = highest weight, then remaining health, then damage potential
-            let threat_level = (distance_factor * 0.5 + health_ratio * 0.3 + damage_factor * 0.2)
-                .clamp(0.0, 1.0);
+            let threat_level =
+                (distance_factor * 0.5 + health_ratio * 0.3 + damage_factor * 0.2).clamp(0.0, 1.0);
 
             let threat_type = if dist_sq < 25 {
                 ThreatType::Proximity
@@ -593,7 +773,8 @@ fn threat_evaluation_system(
     for (entity, _pos, _faction, _health, _stats, threat_opt) in unit_query.iter_mut() {
         if let Some(mut existing_threat) = threat_opt {
             // Find the highest threat for this entity
-            let best = threats.iter()
+            let best = threats
+                .iter()
                 .filter(|(e, _, _, _)| *e == entity)
                 .max_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
 
@@ -640,7 +821,12 @@ fn resource_management_system(
 
 fn combat_ai_system(
     mut combat_query: Query<(
-        Entity, &mut AICombatUnit, &WorldPosition, &Health, &Stats, &FactionId,
+        Entity,
+        &mut AICombatUnit,
+        &WorldPosition,
+        &Health,
+        &Stats,
+        &FactionId,
     )>,
     friendly_query: Query<(Entity, &WorldPosition, &Health, &FactionId)>,
     enemy_query: Query<(Entity, &WorldPosition, &Health, &FactionId, &Stats)>,
@@ -652,13 +838,15 @@ fn combat_ai_system(
 
     for (entity, mut combat_unit, pos, health, stats, faction) in combat_query.iter_mut() {
         // Find nearby enemies within vision range
-        let nearby_enemies: Vec<(Entity, &WorldPosition, &Health, &FactionId, &Stats)> = enemy_query
-            .iter()
-            .filter(|(_e, epos, _eh, efaction, _es)| {
-                **efaction != *faction
-                    && epos.grid.0.distance_squared(pos.grid.0) < (stats.vision_range * stats.vision_range) as i32
-            })
-            .collect();
+        let nearby_enemies: Vec<(Entity, &WorldPosition, &Health, &FactionId, &Stats)> =
+            enemy_query
+                .iter()
+                .filter(|(_e, epos, _eh, efaction, _es)| {
+                    **efaction != *faction
+                        && epos.grid.0.distance_squared(pos.grid.0)
+                            < (stats.vision_range * stats.vision_range) as i32
+                })
+                .collect();
 
         let nearby_friendlies: Vec<(Entity, &WorldPosition, &Health)> = friendly_query
             .iter()
@@ -678,7 +866,8 @@ fn combat_ai_system(
 
         let outnumbered = nearby_friendlies.len() < nearby_enemies.len();
         let health_ratio = health.current / health.max;
-        let should_retreat = (outnumbered || health_ratio < 0.2) && combat_unit.retreat_timer <= 0.0;
+        let should_retreat =
+            (outnumbered || health_ratio < 0.2) && combat_unit.retreat_timer <= 0.0;
 
         if should_retreat {
             if let Some((_friendly_entity, fpos, _fh)) = nearby_friendlies.first() {
@@ -706,7 +895,8 @@ fn combat_ai_system(
         }
 
         // Target selection: nearest enemy
-        let target = nearby_enemies.iter()
+        let target = nearby_enemies
+            .iter()
             .min_by(|a, b| {
                 let da = a.1.grid.0.distance_squared(pos.grid.0);
                 let db = b.1.grid.0.distance_squared(pos.grid.0);
@@ -720,10 +910,18 @@ fn combat_ai_system(
     }
 
     for (entity, target) in targets_to_attack {
-        attack_events.send(AttackOrder { entity, target, aggressive: true });
+        attack_events.send(AttackOrder {
+            entity,
+            target,
+            aggressive: true,
+        });
     }
     for (entity, pos) in entities_to_move {
-        move_events.send(MoveOrder { entity, target: pos, formation: None });
+        move_events.send(MoveOrder {
+            entity,
+            target: pos,
+            formation: None,
+        });
     }
 }
 
@@ -742,31 +940,51 @@ fn worker_ai_system(
             Some(AIWorkerTask::GatherFood) => {
                 let target = GridPos(IVec2::new(20, 20));
                 if pos.grid.0.distance_squared(target.0) > 4 {
-                    move_events.send(MoveOrder { entity, target, formation: None });
+                    move_events.send(MoveOrder {
+                        entity,
+                        target,
+                        formation: None,
+                    });
                 }
             }
             Some(AIWorkerTask::GatherWood) => {
                 let target = GridPos(IVec2::new(25, 15));
                 if pos.grid.0.distance_squared(target.0) > 4 {
-                    move_events.send(MoveOrder { entity, target, formation: None });
+                    move_events.send(MoveOrder {
+                        entity,
+                        target,
+                        formation: None,
+                    });
                 }
             }
             Some(AIWorkerTask::GatherStone) => {
                 let target = GridPos(IVec2::new(15, 25));
                 if pos.grid.0.distance_squared(target.0) > 4 {
-                    move_events.send(MoveOrder { entity, target, formation: None });
+                    move_events.send(MoveOrder {
+                        entity,
+                        target,
+                        formation: None,
+                    });
                 }
             }
             Some(AIWorkerTask::GatherGold) => {
                 let target = GridPos(IVec2::new(10, 10));
                 if pos.grid.0.distance_squared(target.0) > 4 {
-                    move_events.send(MoveOrder { entity, target, formation: None });
+                    move_events.send(MoveOrder {
+                        entity,
+                        target,
+                        formation: None,
+                    });
                 }
             }
             Some(AIWorkerTask::Construct(_building_type)) => {
                 let target = GridPos(IVec2::new(15, 15));
                 if pos.grid.0.distance_squared(target.0) > 4 {
-                    move_events.send(MoveOrder { entity, target, formation: None });
+                    move_events.send(MoveOrder {
+                        entity,
+                        target,
+                        formation: None,
+                    });
                 }
             }
             None => {
@@ -843,7 +1061,11 @@ fn ai_command_issuing_system(
 
             if let Some(avg_enemy_pos) = average_position(&enemy_positions) {
                 for (entity, _pos) in our_units {
-                    move_events.send(MoveOrder { entity, target: avg_enemy_pos, formation: None });
+                    move_events.send(MoveOrder {
+                        entity,
+                        target: avg_enemy_pos,
+                        formation: None,
+                    });
                 }
             }
         }
@@ -851,7 +1073,9 @@ fn ai_command_issuing_system(
 }
 
 fn average_position(positions: &[&WorldPosition]) -> Option<GridPos> {
-    if positions.is_empty() { return None; }
+    if positions.is_empty() {
+        return None;
+    }
     let sum = positions.iter().fold(IVec2::ZERO, |acc, p| acc + p.grid.0);
     let count = positions.len() as i32;
     Some(GridPos(IVec2::new(sum.x / count, sum.y / count)))

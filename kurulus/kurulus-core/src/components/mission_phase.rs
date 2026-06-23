@@ -1,6 +1,6 @@
+use crate::states::TacticalPhase;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::states::TacticalPhase;
 
 /// Tracks the current tactical sub-phase and related timing.
 ///

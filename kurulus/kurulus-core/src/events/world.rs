@@ -1,7 +1,7 @@
-use bevy::prelude::*;
-use bevy::math::IVec2;
-use serde::{Deserialize, Serialize};
 use crate::components::{Encounter, FactionId, PoiId, RegionId, TreatyType};
+use bevy::math::IVec2;
+use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Event, Clone, Debug)]
 pub struct FactionRelationChanged {

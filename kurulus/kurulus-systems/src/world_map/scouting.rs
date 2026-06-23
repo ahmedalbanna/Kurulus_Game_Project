@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::math::IVec2;
+use bevy::prelude::*;
 use kurulus_core::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -46,7 +46,12 @@ pub fn scout_spawn_system(
         // Calculate travel duration from player position to destination
         let duration = world_map.travel_duration(player_pos, dest, 3.0);
 
-        let scout = ScoutParty::new(scout_id, format!("Scout Party {}", scout_id), player_pos, faction);
+        let scout = ScoutParty::new(
+            scout_id,
+            format!("Scout Party {}", scout_id),
+            player_pos,
+            faction,
+        );
         let mut scout_clone = scout.clone();
         scout_clone.destination = Some(dest);
         scout_clone.status = ScoutStatus::Travelling;
@@ -58,7 +63,10 @@ pub fn scout_spawn_system(
             Name::new(format!("ScoutParty-{}", scout_id)),
         ));
 
-        info!("🕵️ Scout {} dispatched from {:?} to {:?} ({}s)", scout_id, player_pos, dest, duration);
+        info!(
+            "🕵️ Scout {} dispatched from {:?} to {:?} ({}s)",
+            scout_id, player_pos, dest, duration
+        );
     }
 }
 
@@ -134,10 +142,7 @@ pub fn scout_travel_system(
 /// leave narrow bands of unexplored fog.
 ///
 /// Scouts in `Encountered` status do not reveal new fog.
-pub fn scout_fog_reveal_system(
-    mut world_map: ResMut<WorldMap>,
-    scouts: Query<&ScoutParty>,
-) {
+pub fn scout_fog_reveal_system(mut world_map: ResMut<WorldMap>, scouts: Query<&ScoutParty>) {
     for scout in scouts.iter() {
         if scout.status == ScoutStatus::Encountered {
             continue;
@@ -199,7 +204,10 @@ pub fn scout_poi_discovery_system(
             if world_map.discover_poi(poi_id) {
                 scout.discoveries.push(poi_id);
                 if let Some(poi) = world_map.get_poi(poi_id) {
-                    info!("🕵️ Scout {} discovered POI: {} ({:?})", scout.id, poi.name, poi_id);
+                    info!(
+                        "🕵️ Scout {} discovered POI: {} ({:?})",
+                        scout.id, poi.name, poi_id
+                    );
                     poi_discovered_events.send(PoiDiscovered {
                         poi_id,
                         position: poi.position,
@@ -263,7 +271,8 @@ pub fn scout_encounter_system(
         let encounter_chance = base_luck + fog_bonus;
 
         // Deterministic roll based on world_map.encounter_seed
-        world_map.encounter_seed = world_map.encounter_seed
+        world_map.encounter_seed = world_map
+            .encounter_seed
             .wrapping_mul(6364136223846793005)
             .wrapping_add(1442695040888963407);
         let luck = (world_map.encounter_seed % 100) as f32 / 100.0;
@@ -385,7 +394,10 @@ pub fn scout_recall_system(
         scout.travel_duration = duration;
         // Destination stays as None for Returning (target is player_position)
 
-        info!("🕵️ Scout {} recalled from {:?} ({}s)", scout.id, from, duration);
+        info!(
+            "🕵️ Scout {} recalled from {:?} ({}s)",
+            scout.id, from, duration
+        );
     }
 }
 
@@ -419,34 +431,37 @@ mod tests {
     /// Set up a minimal app with WorldMap and scouting systems.
     fn make_scout_app() -> App {
         let mut app = App::new();
-        app.add_plugins((
-            bevy::MinimalPlugins,
-            bevy_state::app::StatesPlugin,
-        ))
-        .init_state::<AppState>()
-        .init_resource::<WorldMap>()
-        .init_resource::<ScoutPartyCounter>()
-        .insert_resource::<ResourceStockpile>(ResourceStockpile { gold: 100.0, ..default() })
-        .insert_resource::<FactionRelations>(FactionRelations::default())
-        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
-            1.0 / 60.0,
-        )))
-        .add_event::<ScoutOrdered>()
-        .add_event::<RecallScout>()
-        .add_event::<ScoutEncounterResolved>()
-        .add_event::<PoiDiscovered>()
-        .add_event::<EncounterTriggered>()
-        .add_event::<FactionRelationChanged>()
-        .add_systems(Update, (
-            scout_spawn_system,
-            scout_travel_system,
-            scout_fog_reveal_system,
-            scout_poi_discovery_system,
-            scout_encounter_system,
-            scout_encounter_resolution_system,
-            scout_recall_system,
-            scout_recall_complete_system,
-        ));
+        app.add_plugins((bevy::MinimalPlugins, bevy_state::app::StatesPlugin))
+            .init_state::<AppState>()
+            .init_resource::<WorldMap>()
+            .init_resource::<ScoutPartyCounter>()
+            .insert_resource::<ResourceStockpile>(ResourceStockpile {
+                gold: 100.0,
+                ..default()
+            })
+            .insert_resource::<FactionRelations>(FactionRelations::default())
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
+            .add_event::<ScoutOrdered>()
+            .add_event::<RecallScout>()
+            .add_event::<ScoutEncounterResolved>()
+            .add_event::<PoiDiscovered>()
+            .add_event::<EncounterTriggered>()
+            .add_event::<FactionRelationChanged>()
+            .add_systems(
+                Update,
+                (
+                    scout_spawn_system,
+                    scout_travel_system,
+                    scout_fog_reveal_system,
+                    scout_poi_discovery_system,
+                    scout_encounter_system,
+                    scout_encounter_resolution_system,
+                    scout_recall_system,
+                    scout_recall_complete_system,
+                ),
+            );
         app
     }
 
@@ -459,7 +474,12 @@ mod tests {
         world_map.regions.push(RegionDef {
             region_id: RegionId::Sogut,
             name: "Söğüt".into(),
-            tiles: vec![IVec2::new(5, 5), IVec2::new(5, 6), IVec2::new(6, 5), IVec2::new(6, 6)],
+            tiles: vec![
+                IVec2::new(5, 5),
+                IVec2::new(5, 6),
+                IVec2::new(6, 5),
+                IVec2::new(6, 6),
+            ],
             owner: FactionId::Kayi,
             resources: RegionResources::default(),
             strategic_value: 1,
@@ -478,18 +498,30 @@ mod tests {
         });
 
         // Build minimal encounter table
-        world_map.encounter_table = vec![
-            EncounterTemplate {
-                encounter_type: EncounterType::Merchants,
-                description: "Merchants approach.".into(),
-                difficulty: EncounterDifficulty::Easy,
-                terrains: vec![WorldTerrain::Grassland],
-                choices: vec![
-                    ("Trade".into(), EncounterOutcome { gold_delta: 20.0, reputation_delta: 0.0, result_text: "Done.".into() }),
-                    ("Ignore".into(), EncounterOutcome { gold_delta: 0.0, reputation_delta: 0.0, result_text: "Ok.".into() }),
-                ],
-            },
-        ];
+        world_map.encounter_table = vec![EncounterTemplate {
+            encounter_type: EncounterType::Merchants,
+            description: "Merchants approach.".into(),
+            difficulty: EncounterDifficulty::Easy,
+            terrains: vec![WorldTerrain::Grassland],
+            choices: vec![
+                (
+                    "Trade".into(),
+                    EncounterOutcome {
+                        gold_delta: 20.0,
+                        reputation_delta: 0.0,
+                        result_text: "Done.".into(),
+                    },
+                ),
+                (
+                    "Ignore".into(),
+                    EncounterOutcome {
+                        gold_delta: 0.0,
+                        reputation_delta: 0.0,
+                        result_text: "Ok.".into(),
+                    },
+                ),
+            ],
+        }];
 
         world_map.encounter_seed = 42;
     }
@@ -501,7 +533,9 @@ mod tests {
         let mut app = make_scout_app();
 
         // Set state to WorldMap and setup world
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
         let player_pos = IVec2::new(5, 5);
         setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), player_pos);
         app.update(); // flush state
@@ -513,12 +547,26 @@ mod tests {
         app.update();
 
         // Should have spawned one scout entity
-        let scouts = app.world_mut().query::<&ScoutParty>().iter(&app.world()).collect::<Vec<_>>();
+        let scouts = app
+            .world_mut()
+            .query::<&ScoutParty>()
+            .iter(&app.world())
+            .collect::<Vec<_>>();
         assert_eq!(scouts.len(), 1, "One scout should be spawned");
         let scout = scouts[0];
-        assert_eq!(scout.position, player_pos, "Scout starts at player position");
-        assert_eq!(scout.status, ScoutStatus::Travelling, "Scout should be travelling");
-        assert!(scout.destination.is_some(), "Scout should have a destination");
+        assert_eq!(
+            scout.position, player_pos,
+            "Scout starts at player position"
+        );
+        assert_eq!(
+            scout.status,
+            ScoutStatus::Travelling,
+            "Scout should be travelling"
+        );
+        assert!(
+            scout.destination.is_some(),
+            "Scout should have a destination"
+        );
         assert_eq!(scout.destination.unwrap(), IVec2::new(20, 15));
     }
 
@@ -527,8 +575,13 @@ mod tests {
         let mut app = make_scout_app();
 
         // Start in InGame state
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::InGame);
-        setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), IVec2::new(5, 5));
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::InGame);
+        setup_world_map(
+            &mut app.world_mut().resource_mut::<WorldMap>(),
+            IVec2::new(5, 5),
+        );
         app.update();
 
         // Send a scout order while not in WorldMap
@@ -538,24 +591,41 @@ mod tests {
         app.update();
 
         // No scouts should be spawned
-        let scouts = app.world_mut().query::<&ScoutParty>().iter(&app.world()).collect::<Vec<_>>();
+        let scouts = app
+            .world_mut()
+            .query::<&ScoutParty>()
+            .iter(&app.world())
+            .collect::<Vec<_>>();
         assert_eq!(scouts.len(), 0, "No scout should spawn outside WorldMap");
     }
 
     #[test]
     fn test_scout_increments_id() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
-        setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), IVec2::new(5, 5));
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
+        setup_world_map(
+            &mut app.world_mut().resource_mut::<WorldMap>(),
+            IVec2::new(5, 5),
+        );
         app.update();
 
         // Send two scout orders
-        app.world_mut().send_event(ScoutOrdered { destination: IVec2::new(10, 10) });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: IVec2::new(10, 10),
+        });
         app.update();
-        app.world_mut().send_event(ScoutOrdered { destination: IVec2::new(15, 15) });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: IVec2::new(15, 15),
+        });
         app.update();
 
-        let scouts = app.world_mut().query::<&ScoutParty>().iter(&app.world()).collect::<Vec<_>>();
+        let scouts = app
+            .world_mut()
+            .query::<&ScoutParty>()
+            .iter(&app.world())
+            .collect::<Vec<_>>();
         assert_eq!(scouts.len(), 2, "Two scouts should be spawned");
         assert_ne!(scouts[0].id, scouts[1].id, "Scout IDs should be unique");
     }
@@ -565,14 +635,25 @@ mod tests {
     #[test]
     fn test_scout_travel_advances_progress() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
-        setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), IVec2::new(5, 5));
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
+        setup_world_map(
+            &mut app.world_mut().resource_mut::<WorldMap>(),
+            IVec2::new(5, 5),
+        );
         app.update();
 
-        app.world_mut().send_event(ScoutOrdered { destination: IVec2::new(10, 5) });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: IVec2::new(10, 5),
+        });
         app.update();
 
-        let entity = app.world_mut().query_filtered::<Entity, With<ScoutParty>>().get_single(&app.world()).unwrap();
+        let entity = app
+            .world_mut()
+            .query_filtered::<Entity, With<ScoutParty>>()
+            .get_single(&app.world())
+            .unwrap();
         let scout = app.world().get::<ScoutParty>(entity).unwrap();
         let initial_progress = scout.travel_progress;
         assert_eq!(initial_progress, 0.0, "Should start at 0 progress");
@@ -587,7 +668,8 @@ mod tests {
         assert!(
             scout.travel_progress > initial_progress,
             "Progress should advance: {:.3} > {:.3}",
-            scout.travel_progress, initial_progress
+            scout.travel_progress,
+            initial_progress
         );
         assert!(
             scout.position != initial_pos || scout.travel_progress >= 1.0,
@@ -598,14 +680,25 @@ mod tests {
     #[test]
     fn test_scout_arrives_at_destination() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
-        setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), IVec2::new(5, 5));
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
+        setup_world_map(
+            &mut app.world_mut().resource_mut::<WorldMap>(),
+            IVec2::new(5, 5),
+        );
         app.update();
 
         // Short travel — destination is adjacent
-        app.world_mut().send_event(ScoutOrdered { destination: IVec2::new(6, 5) });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: IVec2::new(6, 5),
+        });
         app.update(); // Process event to spawn scout
-        let entity = app.world_mut().query_filtered::<Entity, With<ScoutParty>>().get_single(&app.world()).unwrap();
+        let entity = app
+            .world_mut()
+            .query_filtered::<Entity, With<ScoutParty>>()
+            .get_single(&app.world())
+            .unwrap();
 
         // Run many frames to complete travel
         for _ in 0..300 {
@@ -615,8 +708,16 @@ mod tests {
         let scout = app.world().get::<ScoutParty>(entity);
         if let Some(scout) = scout {
             // If still alive, should be Idle at destination
-            assert_eq!(scout.status, ScoutStatus::Idle, "Scout should be Idle after arrival");
-            assert_eq!(scout.position, IVec2::new(6, 5), "Scout should be at destination");
+            assert_eq!(
+                scout.status,
+                ScoutStatus::Idle,
+                "Scout should be Idle after arrival"
+            );
+            assert_eq!(
+                scout.position,
+                IVec2::new(6, 5),
+                "Scout should be at destination"
+            );
             assert!(scout.destination.is_none(), "Destination should be cleared");
         }
         // It's also possible the scout was despawned if it returned; that's tested elsewhere
@@ -627,7 +728,9 @@ mod tests {
     #[test]
     fn test_scout_reveals_fog_along_path() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
         let player_pos = IVec2::new(5, 5);
         setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), player_pos);
         app.update();
@@ -644,7 +747,9 @@ mod tests {
         drop(world_map);
 
         // Send scout to a far tile
-        app.world_mut().send_event(ScoutOrdered { destination: far_pos });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: far_pos,
+        });
         app.update();
 
         // Run frames for scout to travel and reveal fog
@@ -664,8 +769,13 @@ mod tests {
     #[test]
     fn test_scout_reveals_area_around_destination() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
-        setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), IVec2::new(5, 5));
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
+        setup_world_map(
+            &mut app.world_mut().resource_mut::<WorldMap>(),
+            IVec2::new(5, 5),
+        );
         app.update();
 
         let destination = IVec2::new(6, 5);
@@ -683,12 +793,14 @@ mod tests {
         assert_eq!(
             world_map.fog_at(near_dest),
             FogState::Visible,
-            "Tile near destination ({:?}) should be visible", near_dest
+            "Tile near destination ({:?}) should be visible",
+            near_dest
         );
         assert_eq!(
             world_map.fog_at(near_dest2),
             FogState::Visible,
-            "Tile near destination ({:?}) should be visible", near_dest2
+            "Tile near destination ({:?}) should be visible",
+            near_dest2
         );
     }
 
@@ -697,10 +809,15 @@ mod tests {
     #[test]
     fn test_scout_discovers_nearby_poi() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
 
         // Set player position near the POI (POI at 10, 5)
-        setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), IVec2::new(5, 5));
+        setup_world_map(
+            &mut app.world_mut().resource_mut::<WorldMap>(),
+            IVec2::new(5, 5),
+        );
         app.update();
 
         // POI starts undiscovered
@@ -711,7 +828,9 @@ mod tests {
         }
 
         // Send scout to a tile near the POI (within scout reveal range)
-        app.world_mut().send_event(ScoutOrdered { destination: IVec2::new(10, 5) });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: IVec2::new(10, 5),
+        });
         app.update();
 
         // Run frames for scout to reach the POI area
@@ -728,14 +847,25 @@ mod tests {
     #[test]
     fn test_scout_records_discovery_in_component() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
-        setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), IVec2::new(5, 5));
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
+        setup_world_map(
+            &mut app.world_mut().resource_mut::<WorldMap>(),
+            IVec2::new(5, 5),
+        );
         app.update();
 
-        app.world_mut().send_event(ScoutOrdered { destination: IVec2::new(10, 5) });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: IVec2::new(10, 5),
+        });
         app.update(); // Process event to spawn scout
 
-        let entity = app.world_mut().query_filtered::<Entity, With<ScoutParty>>().get_single(&app.world()).unwrap();
+        let entity = app
+            .world_mut()
+            .query_filtered::<Entity, With<ScoutParty>>()
+            .get_single(&app.world())
+            .unwrap();
 
         for _ in 0..300 {
             app.update();
@@ -753,16 +883,27 @@ mod tests {
     #[test]
     fn test_scout_encounter_pauses_scout() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
-        setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), IVec2::new(5, 5));
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
+        setup_world_map(
+            &mut app.world_mut().resource_mut::<WorldMap>(),
+            IVec2::new(5, 5),
+        );
         app.update();
 
         // Force high encounter chance by setting seed to produce low luck
         app.world_mut().resource_mut::<WorldMap>().encounter_seed = 0; // will produce low luck
 
-        app.world_mut().send_event(ScoutOrdered { destination: IVec2::new(8, 5) });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: IVec2::new(8, 5),
+        });
         app.update(); // Process event to spawn scout
-        let entity = app.world_mut().query_filtered::<Entity, With<ScoutParty>>().get_single(&app.world()).unwrap();
+        let entity = app
+            .world_mut()
+            .query_filtered::<Entity, With<ScoutParty>>()
+            .get_single(&app.world())
+            .unwrap();
 
         // Run frames to trigger encounter
         let mut encountered = false;
@@ -783,16 +924,27 @@ mod tests {
     #[test]
     fn test_scout_encounter_resolved_resumes_travel() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
-        setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), IVec2::new(5, 5));
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
+        setup_world_map(
+            &mut app.world_mut().resource_mut::<WorldMap>(),
+            IVec2::new(5, 5),
+        );
         app.update();
 
         // Force encounter
         app.world_mut().resource_mut::<WorldMap>().encounter_seed = 0;
 
-        app.world_mut().send_event(ScoutOrdered { destination: IVec2::new(8, 5) });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: IVec2::new(8, 5),
+        });
         app.update(); // Process event to spawn scout
-        let entity = app.world_mut().query_filtered::<Entity, With<ScoutParty>>().get_single(&app.world()).unwrap();
+        let entity = app
+            .world_mut()
+            .query_filtered::<Entity, With<ScoutParty>>()
+            .get_single(&app.world())
+            .unwrap();
 
         // Wait for encounter
         let mut encountered = false;
@@ -828,17 +980,22 @@ mod tests {
     #[test]
     fn test_scout_recall_sets_returning() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
         let player_pos = IVec2::new(5, 5);
         setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), player_pos);
         app.update();
 
         // Spawn scout directly at a non-player position so travel_duration > 0
-        let entity = app.world_mut().spawn((
-            ScoutParty::new(1, "Test Scout".into(), IVec2::new(8, 8), FactionId::Kayi),
-            OnWorldMap,
-            Name::new("ScoutParty-1"),
-        )).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                ScoutParty::new(1, "Test Scout".into(), IVec2::new(8, 8), FactionId::Kayi),
+                OnWorldMap,
+                Name::new("ScoutParty-1"),
+            ))
+            .id();
         app.update();
 
         // Verify scout is Idle
@@ -857,10 +1014,16 @@ mod tests {
 
         // Verify scout is now travelling
         let scout = app.world().get::<ScoutParty>(entity).unwrap();
-        assert_eq!(scout.status, ScoutStatus::Travelling, "Scout should be travelling");
+        assert_eq!(
+            scout.status,
+            ScoutStatus::Travelling,
+            "Scout should be travelling"
+        );
 
         // Recall the scout
-        app.world_mut().send_event(RecallScout { scout_entity: entity });
+        app.world_mut().send_event(RecallScout {
+            scout_entity: entity,
+        });
         app.update();
 
         let scout = app.world().get::<ScoutParty>(entity).unwrap();
@@ -875,15 +1038,23 @@ mod tests {
     #[test]
     fn test_scout_recall_despawns_on_arrival() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
         let player_pos = IVec2::new(5, 5);
         setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), player_pos);
         app.update();
 
         // Send scout to a nearby tile (adjacent, so it arrives quickly)
-        app.world_mut().send_event(ScoutOrdered { destination: IVec2::new(6, 5) });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: IVec2::new(6, 5),
+        });
         app.update(); // Process event to spawn scout BEFORE get_single
-        let entity = app.world_mut().query_filtered::<Entity, With<ScoutParty>>().get_single(&app.world()).unwrap();
+        let entity = app
+            .world_mut()
+            .query_filtered::<Entity, With<ScoutParty>>()
+            .get_single(&app.world())
+            .unwrap();
 
         // Wait for arrival
         for _ in 0..300 {
@@ -892,7 +1063,9 @@ mod tests {
 
         // Scout should now be Idle near destination (not at player position)
         // Recall it
-        app.world_mut().send_event(RecallScout { scout_entity: entity });
+        app.world_mut().send_event(RecallScout {
+            scout_entity: entity,
+        });
         app.update();
 
         // Wait for return
@@ -902,7 +1075,10 @@ mod tests {
 
         // Scout should be despawned
         let entity_exists = app.world().get_entity(entity).is_ok();
-        assert!(!entity_exists, "Scout should be despawned after returning to base");
+        assert!(
+            !entity_exists,
+            "Scout should be despawned after returning to base"
+        );
     }
 
     // ── 7. Counter Tests ────────────────────────────────────────────────
@@ -910,18 +1086,27 @@ mod tests {
     #[test]
     fn test_scout_counter_increments_automatically() {
         let mut app = make_scout_app();
-        app.world_mut().resource_mut::<NextState<AppState>>().set(AppState::WorldMap);
-        setup_world_map(&mut app.world_mut().resource_mut::<WorldMap>(), IVec2::new(5, 5));
+        app.world_mut()
+            .resource_mut::<NextState<AppState>>()
+            .set(AppState::WorldMap);
+        setup_world_map(
+            &mut app.world_mut().resource_mut::<WorldMap>(),
+            IVec2::new(5, 5),
+        );
         app.update();
 
         assert_eq!(app.world().resource::<ScoutPartyCounter>().next_id, 0);
 
-        app.world_mut().send_event(ScoutOrdered { destination: IVec2::new(10, 5) });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: IVec2::new(10, 5),
+        });
         app.update();
 
         assert_eq!(app.world().resource::<ScoutPartyCounter>().next_id, 1);
 
-        app.world_mut().send_event(ScoutOrdered { destination: IVec2::new(15, 5) });
+        app.world_mut().send_event(ScoutOrdered {
+            destination: IVec2::new(15, 5),
+        });
         app.update();
 
         assert_eq!(app.world().resource::<ScoutPartyCounter>().next_id, 2);

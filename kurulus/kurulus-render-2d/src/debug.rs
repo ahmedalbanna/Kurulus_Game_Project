@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use kurulus_core::coord::*;
-use kurulus_core::components::unit::*;
-use kurulus_core::components::stealth::Detection;
 use kurulus_core::components::building::BuildingType;
 use kurulus_core::components::city::{Zone, ZoneType};
+use kurulus_core::components::stealth::Detection;
+use kurulus_core::components::unit::*;
+use kurulus_core::coord::*;
 use kurulus_core::resources::city::{
-    OverlaySettings, OverlayMode, ZonePlacementState, BuildingPlacementState, overlay_colors,
+    overlay_colors, BuildingPlacementState, OverlayMode, OverlaySettings, ZonePlacementState,
 };
 
 pub struct DebugRenderPlugin;
@@ -82,10 +82,7 @@ fn draw_formation_gizmos(
 // ─── Stealth Detection ───────────────────────────────────────────────────────
 
 /// Draws detection radius for units with Detection component.
-fn draw_detection_gizmos(
-    mut gizmos: Gizmos,
-    detectors: Query<(&WorldPosition, &Detection)>,
-) {
+fn draw_detection_gizmos(mut gizmos: Gizmos, detectors: Query<(&WorldPosition, &Detection)>) {
     for (pos, detection) in detectors.iter() {
         if detection.active {
             gizmos.circle_2d(
@@ -153,10 +150,7 @@ fn draw_zone_entity_gizmos(
 ///
 /// The preview colour matches the selected zone type, helping the player
 /// see exactly where a zone will be placed before they click.
-fn draw_placement_preview_gizmos(
-    mut gizmos: Gizmos,
-    placement: Res<ZonePlacementState>,
-) {
+fn draw_placement_preview_gizmos(mut gizmos: Gizmos, placement: Res<ZonePlacementState>) {
     if !placement.active {
         return;
     }

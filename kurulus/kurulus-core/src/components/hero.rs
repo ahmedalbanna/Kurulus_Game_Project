@@ -134,13 +134,13 @@ pub struct SkillNode {
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Buff {
     pub source: AbilityId,
-    pub duration: f32,       // remaining seconds
-    pub max_duration: f32,   // total seconds (for UI display)
+    pub duration: f32,     // remaining seconds
+    pub max_duration: f32, // total seconds (for UI display)
     pub damage_bonus: f32,
     pub defense_bonus: f32,
     pub move_speed_bonus: f32,
     pub heal_per_second: f32,
-    pub damage_reduction: f32, // 0.0–1.0 fraction
+    pub damage_reduction: f32,   // 0.0–1.0 fraction
     pub attack_speed_bonus: f32, // added to stats.attack_speed (e.g. 0.2 = +20%)
 }
 
@@ -273,7 +273,7 @@ impl Default for HeroStats {
             health_per_level: 150.0,
             damage_per_level: 4.0,
             defense_per_level: 3.0,
-            damage_type: DamageType::Melee,
+            damage_type: DamageType::Slash,
         }
     }
 }
@@ -481,20 +481,20 @@ pub enum NamedUnitAbilityId {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum AbilityId {
     // Osman (Season 1 core)
-    WarCry,           // Q - Active: AoE morale + damage buff for 10s
-    CallOfTheTribe,   // W - Active: summon 5 alps to location
-    Lionheart,        // E - Passive: triggers at <30% HP, damage reduction + attack speed
-    DreamOfTheTree,   // R - Ultimate: area reveal + buff allies / debuff enemies
+    WarCry,         // Q - Active: AoE morale + damage buff for 10s
+    CallOfTheTribe, // W - Active: summon 5 alps to location
+    Lionheart,      // E - Passive: triggers at <30% HP, damage reduction + attack speed
+    DreamOfTheTree, // R - Ultimate: area reveal + buff allies / debuff enemies
     // Turgut (Season 1 core)
-    GroundStrike,     // Q - Active: AoE blunt damage + knockback
+    GroundStrike,        // Q - Active: AoE blunt damage + knockback
     EarthquakeChallenge, // W - Active: leap + taunt + self defense buff
-    IronWall,         // E - Passive: % damage reduction, increases while still
-    BullsWrath,       // R - Ultimate: dash + enrage (attack speed + damage, -defense)
+    IronWall,            // E - Passive: % damage reduction, increases while still
+    BullsWrath,          // R - Ultimate: dash + enrage (attack speed + damage, -defense)
     // Buran (Season 1 core)
-    FlamingArrow,     // Q - Active: fire DoT + area reveal
-    BlindingShot,     // W - Active: single target blind + silence
-    ShadowLightness,  // E - Passive: +15% speed, stealth after 3s still
-    DeathVolley,      // R - Ultimate: 20 arrows on area
+    FlamingArrow,    // Q - Active: fire DoT + area reveal
+    BlindingShot,    // W - Active: single target blind + silence
+    ShadowLightness, // E - Passive: +15% speed, stealth after 3s still
+    DeathVolley,     // R - Ultimate: 20 arrows on area
     // Orhan (Season 2+)
     TacticalGenius,
     ShieldWall,

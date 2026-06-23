@@ -1,7 +1,7 @@
 use bevy::prelude::*;
+use kurulus_config::register_config_assets;
 use kurulus_core::prelude::*;
 use kurulus_systems::*;
-use kurulus_config::register_config_assets;
 
 /// Registers all plugins in the correct dependency order
 pub fn register_plugins(app: &mut App) {

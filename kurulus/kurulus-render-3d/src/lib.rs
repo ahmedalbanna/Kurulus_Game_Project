@@ -1,7 +1,7 @@
-pub mod pbr;
-pub mod camera;
-pub mod terrain;
 pub mod animation;
+pub mod camera;
+pub mod pbr;
+pub mod terrain;
 
 use bevy::prelude::*;
 

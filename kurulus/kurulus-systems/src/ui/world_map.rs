@@ -66,7 +66,10 @@ pub fn world_map_tooltip_system(
                 },
                 BackgroundColor(BG_COLOR),
                 Text::new(&text),
-                TextFont { font_size: FONT_SIZE_TOOLTIP, ..default() },
+                TextFont {
+                    font_size: FONT_SIZE_TOOLTIP,
+                    ..default()
+                },
                 TextColor(TEXT_COLOR),
                 WorldMapTooltipRoot,
                 Name::new("WorldMapTooltip"),
@@ -89,13 +92,14 @@ pub fn world_map_tooltip_system(
 
 /// Build the tooltip text string from current hover state.
 /// Returns `None` when there is nothing to show.
-fn build_tooltip_text(
-    hover: &WorldMapHover,
-    world_map: &WorldMap,
-) -> Option<String> {
+fn build_tooltip_text(hover: &WorldMapHover, world_map: &WorldMap) -> Option<String> {
     // POI takes priority
     if let Some(poi_id) = hover.hovered_poi {
-        if let Some(poi) = world_map.points_of_interest.iter().find(|p| p.poi_id == poi_id) {
+        if let Some(poi) = world_map
+            .points_of_interest
+            .iter()
+            .find(|p| p.poi_id == poi_id)
+        {
             let mut s = String::new();
             let _ = write!(s, "📍 {}\n", poi.name);
             let _ = write!(s, "{}", poi.poi_type.display_name());
@@ -125,7 +129,11 @@ fn build_tooltip_text(
             let r = &region.resources;
             let _ = write!(s, "Food: {:.0} | Gold: {:.0}\n", r.food, r.gold);
             let _ = write!(s, "Wood: {:.0} | Stone: {:.0}\n", r.wood, r.stone);
-            let _ = write!(s, "Garrison: {:.1}  Pop Cap: {}", region.garrison_strength, r.population_capacity);
+            let _ = write!(
+                s,
+                "Garrison: {:.1}  Pop Cap: {}",
+                region.garrison_strength, r.population_capacity
+            );
 
             return Some(s);
         }
@@ -155,14 +163,19 @@ pub fn world_map_legend_system(
                 legend_node(),
                 BackgroundColor(BG_COLOR),
                 Text::new(legend_text(scouts.iter().count())),
-                TextFont { font_size: FONT_SIZE_LEGEND, ..default() },
+                TextFont {
+                    font_size: FONT_SIZE_LEGEND,
+                    ..default()
+                },
                 TextColor(TEXT_COLOR),
                 WorldMapLegendRoot,
                 Name::new("WorldMapLegend"),
             ));
         }
         (true, Some(entity)) => {
-            commands.entity(entity).insert(Text::new(legend_text(scouts.iter().count())));
+            commands
+                .entity(entity)
+                .insert(Text::new(legend_text(scouts.iter().count())));
         }
         (false, Some(entity)) => {
             commands.entity(entity).despawn();
@@ -206,7 +219,9 @@ fn legend_text(scout_count: usize) -> String {
     s.push_str("♦ Current Position\n");
     // Controls
     s.push_str("\n=== Controls ===\n");
-    s.push_str("M: Toggle map\nDrag: Pan view\nScroll: Zoom\nClick: Select region\nR-Click/Esc: Deselect");
+    s.push_str(
+        "M: Toggle map\nDrag: Pan view\nScroll: Zoom\nClick: Select region\nR-Click/Esc: Deselect",
+    );
     s
 }
 
@@ -253,7 +268,10 @@ pub fn world_map_selection_panel_system(
                 },
                 BackgroundColor(BG_COLOR),
                 Text::new(&text),
-                TextFont { font_size: FONT_SIZE_BODY, ..default() },
+                TextFont {
+                    font_size: FONT_SIZE_BODY,
+                    ..default()
+                },
                 TextColor(TEXT_COLOR),
                 WorldMapSelectionRoot,
                 Name::new("WorldMapSelectionPanel"),
@@ -324,7 +342,13 @@ fn build_selection_panel_text(region: &RegionDef, world_map: &WorldMap) -> Strin
 fn append_resource_bar(buf: &mut String, label: &str, value: f32) {
     let filled = ((value / 500.0).clamp(0.0, 1.0) * 10.0).round() as usize;
     let empty = 10usize.saturating_sub(filled);
-    let _ = write!(buf, "{}: {} {:.0}\n", label, "█".repeat(filled) + &"░".repeat(empty), value);
+    let _ = write!(
+        buf,
+        "{}: {} {:.0}\n",
+        label,
+        "█".repeat(filled) + &"░".repeat(empty),
+        value
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -346,23 +370,27 @@ mod tests {
             strategic_value: sv,
             garrison_strength: gs,
         }];
-        wm.points_of_interest = vec![
-            PointOfInterest {
-                poi_id: PoiId::KayiCamp,
-                name: "Kayı Camp".into(),
-                position: IVec2::new(10, 10),
-                poi_type: PoiType::Camp,
-                discovered: true,
-                description: "The ancestral camp of the Kayı tribe.".into(),
-                region: Some(RegionId::Sogut),
-            },
-        ];
+        wm.points_of_interest = vec![PointOfInterest {
+            poi_id: PoiId::KayiCamp,
+            name: "Kayı Camp".into(),
+            position: IVec2::new(10, 10),
+            poi_type: PoiType::Camp,
+            discovered: true,
+            description: "The ancestral camp of the Kayı tribe.".into(),
+            region: Some(RegionId::Sogut),
+        }];
         wm
     }
 
     #[test]
     fn test_build_tooltip_text_region() {
-        let resources = RegionResources { food: 200.0, gold: 150.0, wood: 100.0, stone: 80.0, population_capacity: 500 };
+        let resources = RegionResources {
+            food: 200.0,
+            gold: 150.0,
+            wood: 100.0,
+            stone: 80.0,
+            population_capacity: 500,
+        };
         let wm = make_world_map(resources, FactionId::Kayi, 3, 0.2);
         let hover = WorldMapHover {
             hovered_tile: Some(IVec2::new(10, 10)),
@@ -375,12 +403,22 @@ mod tests {
         assert!(text.is_some());
         let t = text.unwrap();
         assert!(t.contains("Kayı Camp"), "Should show POI name: {}", t);
-        assert!(t.contains("Discovered"), "Discovered POI should show status: {}", t);
+        assert!(
+            t.contains("Discovered"),
+            "Discovered POI should show status: {}",
+            t
+        );
     }
 
     #[test]
     fn test_build_tooltip_text_region_only() {
-        let resources = RegionResources { food: 100.0, gold: 50.0, wood: 30.0, stone: 20.0, population_capacity: 200 };
+        let resources = RegionResources {
+            food: 100.0,
+            gold: 50.0,
+            wood: 30.0,
+            stone: 20.0,
+            population_capacity: 200,
+        };
         let wm = make_world_map(resources, FactionId::Byzantine, 5, 0.8);
         let hover = WorldMapHover {
             hovered_tile: Some(IVec2::new(11, 10)),
@@ -412,7 +450,10 @@ mod tests {
         let text = legend_text(2); // 2 active scouts
         assert!(text.contains("Terrain"), "Should have terrain section");
         assert!(text.contains("Fog of War"), "Should have fog section");
-        assert!(text.contains("Points of Interest"), "Should have POI section");
+        assert!(
+            text.contains("Points of Interest"),
+            "Should have POI section"
+        );
         assert!(text.contains("Scouts"), "Should have scouts section");
         assert!(text.contains("Active: 2"), "Should show scout count");
         assert!(text.contains("Encounter"), "Should show encounter info");
@@ -438,7 +479,13 @@ mod tests {
 
     #[test]
     fn test_selection_panel_contains_region_info() {
-        let resources = RegionResources { food: 300.0, gold: 200.0, wood: 100.0, stone: 50.0, population_capacity: 400 };
+        let resources = RegionResources {
+            food: 300.0,
+            gold: 200.0,
+            wood: 100.0,
+            stone: 50.0,
+            population_capacity: 400,
+        };
         let mut wm = make_world_map(resources, FactionId::Kayi, 6, 0.5);
         // Add a second POI in the region
         wm.points_of_interest.push(PointOfInterest {
@@ -454,7 +501,11 @@ mod tests {
         let region = wm.regions.first().unwrap();
         let text = build_selection_panel_text(region, &wm);
 
-        assert!(text.contains("Söğüt"), "Title should contain region name: {}", text);
+        assert!(
+            text.contains("Söğüt"),
+            "Title should contain region name: {}",
+            text
+        );
         assert!(text.contains("Kayı"), "Owner should appear: {}", text);
         assert!(text.contains("Status"), "Status section: {}", text);
         assert!(text.contains("Value"), "Value section: {}", text);
@@ -462,6 +513,10 @@ mod tests {
         assert!(text.contains("Military"), "Military section: {}", text);
         assert!(text.contains("POIs"), "POIs section: {}", text);
         assert!(text.contains("Kayı Camp"), "Should list POI: {}", text);
-        assert!(text.contains("Domaniç Plateau"), "Should list second POI: {}", text);
+        assert!(
+            text.contains("Domaniç Plateau"),
+            "Should list second POI: {}",
+            text
+        );
     }
 }

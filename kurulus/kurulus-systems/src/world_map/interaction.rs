@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::input::ButtonInput;
+use bevy::prelude::*;
 use kurulus_core::prelude::*;
 use kurulus_core::resources::world_map::{WorldMapHover, WorldMapSelection};
 
@@ -36,10 +36,7 @@ pub fn world_map_toggle_system(
             other => *other,
         };
         next_state.set(new_state);
-        info!(
-            "🗺️  State switched to: {:?}",
-            new_state
-        );
+        info!("🗺️  State switched to: {:?}", new_state);
     }
 }
 
@@ -126,9 +123,7 @@ pub fn world_map_pan_system(
         if let Some(prev) = *last_cursor {
             // Convert delta from screen-pixel space to world space
             if let Ok(prev_world) = camera.viewport_to_world_2d(camera_transform, prev) {
-                if let Ok(cur_world) =
-                    camera.viewport_to_world_2d(camera_transform, cursor_pos)
-                {
+                if let Ok(cur_world) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
                     let delta = prev_world - cur_world;
                     view.pan_offset += delta;
                 }
@@ -209,7 +204,11 @@ pub fn world_map_hover_system(
     let tile_x = (world_pos.x / WORLD_MAP_CELL_SIZE).floor() as i32;
     let tile_y = (world_pos.y / WORLD_MAP_CELL_SIZE).floor() as i32;
 
-    if tile_x < 0 || tile_y < 0 || tile_x >= world_map.width as i32 || tile_y >= world_map.height as i32 {
+    if tile_x < 0
+        || tile_y < 0
+        || tile_x >= world_map.width as i32
+        || tile_y >= world_map.height as i32
+    {
         return;
     }
 
@@ -286,17 +285,14 @@ mod tests {
 
     fn make_app() -> App {
         let mut app = App::new();
-        app.add_plugins((
-            bevy::MinimalPlugins,
-            bevy_state::app::StatesPlugin,
-        ))
-        .init_state::<AppState>()
-        .init_resource::<WorldMap>()
-        .init_resource::<WorldMapViewState>()
-        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
-            1.0 / 60.0,
-        )))
-        .add_systems(Update, (world_map_toggle_system, world_map_camera_system));
+        app.add_plugins((bevy::MinimalPlugins, bevy_state::app::StatesPlugin))
+            .init_state::<AppState>()
+            .init_resource::<WorldMap>()
+            .init_resource::<WorldMapViewState>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
+            .add_systems(Update, (world_map_toggle_system, world_map_camera_system));
         app
     }
 
@@ -311,10 +307,7 @@ mod tests {
         app.update();
 
         // Initially InGame
-        assert_eq!(
-            *app.world().resource::<State<AppState>>(),
-            AppState::InGame
-        );
+        assert_eq!(*app.world().resource::<State<AppState>>(), AppState::InGame);
 
         // Set next state to WorldMap via NextState (simulates M key press)
         app.world_mut()
@@ -349,10 +342,7 @@ mod tests {
             .set(AppState::InGame);
         app.update();
 
-        assert_eq!(
-            *app.world().resource::<State<AppState>>(),
-            AppState::InGame
-        );
+        assert_eq!(*app.world().resource::<State<AppState>>(), AppState::InGame);
     }
 
     /// Camera position should change to map centre on WorldMap state.
@@ -383,7 +373,10 @@ mod tests {
             .set(AppState::WorldMap);
         app.update();
 
-        let transform = app.world_mut().query::<&Transform>().get_single(&app.world());
+        let transform = app
+            .world_mut()
+            .query::<&Transform>()
+            .get_single(&app.world());
         assert!(transform.is_ok());
         let transform = transform.unwrap();
         assert!(
@@ -400,7 +393,10 @@ mod tests {
         );
 
         // Orthographic scale should increase
-        let projection = app.world_mut().query::<&Projection>().get_single(&app.world());
+        let projection = app
+            .world_mut()
+            .query::<&Projection>()
+            .get_single(&app.world());
         if let Some(Projection::Orthographic(ortho)) = projection.ok() {
             assert!(
                 (ortho.scale - WORLD_MAP_ZOOM).abs() < 0.1,
@@ -431,7 +427,9 @@ mod tests {
         ));
 
         // Set pan offset
-        app.world_mut().resource_mut::<WorldMapViewState>().pan_offset = Vec2::new(10.0, 5.0);
+        app.world_mut()
+            .resource_mut::<WorldMapViewState>()
+            .pan_offset = Vec2::new(10.0, 5.0);
 
         // Switch to WorldMap
         app.world_mut()
@@ -439,7 +437,10 @@ mod tests {
             .set(AppState::WorldMap);
         app.update();
 
-        let transform = app.world_mut().query::<&Transform>().get_single(&app.world());
+        let transform = app
+            .world_mut()
+            .query::<&Transform>()
+            .get_single(&app.world());
         assert!(transform.is_ok());
         let transform = transform.unwrap();
         assert!(
@@ -480,7 +481,10 @@ mod tests {
             .set(AppState::WorldMap);
         app.update();
 
-        let projection = app.world_mut().query::<&Projection>().get_single(&app.world());
+        let projection = app
+            .world_mut()
+            .query::<&Projection>()
+            .get_single(&app.world());
         if let Some(Projection::Orthographic(ortho)) = projection.ok() {
             let expected = WORLD_MAP_ZOOM / 2.0;
             assert!(
@@ -512,7 +516,9 @@ mod tests {
         ));
 
         // Set pan offset
-        app.world_mut().resource_mut::<WorldMapViewState>().pan_offset = Vec2::new(10.0, 5.0);
+        app.world_mut()
+            .resource_mut::<WorldMapViewState>()
+            .pan_offset = Vec2::new(10.0, 5.0);
         app.world_mut()
             .resource_mut::<NextState<AppState>>()
             .set(AppState::WorldMap);
@@ -524,7 +530,10 @@ mod tests {
             .set(AppState::InGame);
         app.update();
 
-        let transform = app.world_mut().query::<&Transform>().get_single(&app.world());
+        let transform = app
+            .world_mut()
+            .query::<&Transform>()
+            .get_single(&app.world());
         assert!(transform.is_ok());
         let transform = transform.unwrap();
         assert!(

@@ -23,39 +23,25 @@ impl Plugin for UnitCommandPlugin {
                 FixedUpdate,
                 (
                     // ── Phase 1a: Input Processing (Selection) ─────────────
-                    process_selection_system
-                        .in_set(SimulationSet::InputProcessing),
-                    process_control_groups_system
-                        .in_set(SimulationSet::InputProcessing),
+                    process_selection_system.in_set(SimulationSet::InputProcessing),
+                    process_control_groups_system.in_set(SimulationSet::InputProcessing),
                     // ── Phase 1b: Input Processing (Core Commands) ──────────
-                    process_attack_order_system
-                        .in_set(SimulationSet::InputProcessing),
-                    process_attack_move_order_system
-                        .in_set(SimulationSet::InputProcessing),
-                    process_stop_command_system
-                        .in_set(SimulationSet::InputProcessing),
-                    process_hold_command_system
-                        .in_set(SimulationSet::InputProcessing),
-                    process_retreat_command_system
-                        .in_set(SimulationSet::InputProcessing),
-                    process_scatter_command_system
-                        .in_set(SimulationSet::InputProcessing),
-                    process_formation_command_system
-                        .in_set(SimulationSet::InputProcessing),
-                    process_stance_change_system
-                        .in_set(SimulationSet::InputProcessing),
+                    process_attack_order_system.in_set(SimulationSet::InputProcessing),
+                    process_attack_move_order_system.in_set(SimulationSet::InputProcessing),
+                    process_stop_command_system.in_set(SimulationSet::InputProcessing),
+                    process_hold_command_system.in_set(SimulationSet::InputProcessing),
+                    process_retreat_command_system.in_set(SimulationSet::InputProcessing),
+                    process_scatter_command_system.in_set(SimulationSet::InputProcessing),
+                    process_formation_command_system.in_set(SimulationSet::InputProcessing),
+                    process_stance_change_system.in_set(SimulationSet::InputProcessing),
                     // ── Phase D: Formation auto-form & type sync ──────────
-                    auto_form_system
-                        .in_set(SimulationSet::InputProcessing),
-                    sync_formation_type_system
-                        .in_set(SimulationSet::InputProcessing),
+                    auto_form_system.in_set(SimulationSet::InputProcessing),
+                    sync_formation_type_system.in_set(SimulationSet::InputProcessing),
                     // ── Phase 1c: Command Queueing ────────────────────────
-                    process_move_orders_system
-                        .in_set(SimulationSet::CommandQueueing),
+                    process_move_orders_system.in_set(SimulationSet::CommandQueueing),
                     // Phase C1: Engagement movement runs after move orders so
                     // it can set Destination for units approaching their target
-                    engagement_movement_system
-                        .in_set(SimulationSet::CommandQueueing),
+                    engagement_movement_system.in_set(SimulationSet::CommandQueueing),
                 ),
             )
             .add_systems(
@@ -63,17 +49,13 @@ impl Plugin for UnitCommandPlugin {
                 (
                     // ── Phase 5: Attack Timers (target acquisition) ────────
                     // Phase C2: HoldPosition auto-target
-                    hold_position_auto_target_system
-                        .in_set(SimulationSet::AttackTimers),
+                    hold_position_auto_target_system.in_set(SimulationSet::AttackTimers),
                     // Phase C3: Attack-move interrupt
-                    attack_move_interrupt_system
-                        .in_set(SimulationSet::AttackTimers),
+                    attack_move_interrupt_system.in_set(SimulationSet::AttackTimers),
                     // Phase C4: Target priority / re-targeting
-                    target_priority_system
-                        .in_set(SimulationSet::AttackTimers),
+                    target_priority_system.in_set(SimulationSet::AttackTimers),
                     // Phase D: Formation breaking detection
-                    formation_breaking_system
-                        .in_set(SimulationSet::AttackTimers),
+                    formation_breaking_system.in_set(SimulationSet::AttackTimers),
                 ),
             )
             .add_systems(
@@ -84,15 +66,12 @@ impl Plugin for UnitCommandPlugin {
                     // Phase 3a: Calculate paths for units with a Destination but no Path
                     apply_paths_system.in_set(SimulationSet::Pathfinding),
                     // Phase D: Formation slot & bonus assignment (before movement)
-                    assign_formation_slots_system
-                        .in_set(SimulationSet::FormationMovement),
-                    assign_formation_bonus_system
-                        .in_set(SimulationSet::FormationMovement),
+                    assign_formation_slots_system.in_set(SimulationSet::FormationMovement),
+                    assign_formation_bonus_system.in_set(SimulationSet::FormationMovement),
                     // Phase 3b: Move formations
                     formation_movement_system.in_set(SimulationSet::FormationMovement),
                     // Phase D: Break scatter movement (overrides normal movement)
-                    formation_break_movement_system
-                        .in_set(SimulationSet::FreeFormMovement),
+                    formation_break_movement_system.in_set(SimulationSet::FreeFormMovement),
                     // Phase 3c: Move non-formation units along their path
                     free_form_movement_system.in_set(SimulationSet::FreeFormMovement),
                     // Phase 3d: Snap continuous positions back to grid
@@ -102,10 +81,12 @@ impl Plugin for UnitCommandPlugin {
             .add_systems(
                 FixedUpdate,
                 // Dead entity cleanup from selection (runs every tick but cheap)
-                (cleanup_dead_selection_system,
-                // Phase D: Formation component cleanup
-                clean_formation_bonus_system,
-                clean_formation_slots_system)
+                (
+                    cleanup_dead_selection_system,
+                    // Phase D: Formation component cleanup
+                    clean_formation_bonus_system,
+                    clean_formation_slots_system,
+                )
                     .in_set(SimulationSet::ComponentCleanup),
             );
     }
@@ -147,10 +128,7 @@ fn apply_paths_system(
     mut commands: Commands,
     map: Res<ObstacleMap>,
     positions: Query<&WorldPosition>,
-    to_pathfind: Query<
-        (Entity, &Destination),
-        (With<Unit>, Without<Path>, Without<Dead>),
-    >,
+    to_pathfind: Query<(Entity, &Destination), (With<Unit>, Without<Path>, Without<Dead>)>,
 ) {
     for (entity, destination) in to_pathfind.iter() {
         let start_pos = match positions.get(entity) {
@@ -179,7 +157,13 @@ fn formation_movement_system(
     time: Res<bevy::time::Time<bevy::time::Fixed>>,
     leaders: Query<&WorldPosition, Without<FormationFollower>>,
     mut followers: Query<
-        (Entity, &mut WorldPosition, &Formation, Option<&FormationSlot>, &Stats),
+        (
+            Entity,
+            &mut WorldPosition,
+            &Formation,
+            Option<&FormationSlot>,
+            &Stats,
+        ),
         With<FormationFollower>,
     >,
 ) {

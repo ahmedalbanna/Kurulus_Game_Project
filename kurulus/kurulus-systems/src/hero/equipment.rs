@@ -154,10 +154,18 @@ pub fn equip_item_system(
         if let Ok(mut equipment) = heroes.get_mut(evt.hero) {
             let slot = evt.item.slot;
             let old_item = match slot {
-                EquipmentSlot::Weapon => std::mem::replace(&mut equipment.weapon, Some(evt.item.clone())),
-                EquipmentSlot::Armor => std::mem::replace(&mut equipment.armor, Some(evt.item.clone())),
-                EquipmentSlot::Accessory1 => std::mem::replace(&mut equipment.accessory_1, Some(evt.item.clone())),
-                EquipmentSlot::Accessory2 => std::mem::replace(&mut equipment.accessory_2, Some(evt.item.clone())),
+                EquipmentSlot::Weapon => {
+                    std::mem::replace(&mut equipment.weapon, Some(evt.item.clone()))
+                }
+                EquipmentSlot::Armor => {
+                    std::mem::replace(&mut equipment.armor, Some(evt.item.clone()))
+                }
+                EquipmentSlot::Accessory1 => {
+                    std::mem::replace(&mut equipment.accessory_1, Some(evt.item.clone()))
+                }
+                EquipmentSlot::Accessory2 => {
+                    std::mem::replace(&mut equipment.accessory_2, Some(evt.item.clone()))
+                }
             };
             if let Some(old) = old_item {
                 unequipped_events.send(ItemUnequipped {
@@ -458,7 +466,11 @@ pub fn initialize_loot_table(mut loot_table: ResMut<EquipmentLootTable>) {
             item_id: "steel_sword".into(),
             rarity: Rarity::Uncommon,
             drop_chance: 0.05,
-            enemies: vec!["HeavyInfantry".into(), "Cavalry".into(), "EliteInfantry".into()],
+            enemies: vec![
+                "HeavyInfantry".into(),
+                "Cavalry".into(),
+                "EliteInfantry".into(),
+            ],
         },
     ];
 }
@@ -489,23 +501,22 @@ mod tests {
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
                 1.0 / 60.0,
             )))
-            .add_systems(Update, (
-                equip_item_system,
-                unequip_item_system,
-                equipment_apply_system,
-                crafting_system,
-                loot_drop_system,
-            ));
+            .add_systems(
+                Update,
+                (
+                    equip_item_system,
+                    unequip_item_system,
+                    equipment_apply_system,
+                    crafting_system,
+                    loot_drop_system,
+                ),
+            );
         app
     }
 
     fn spawn_hero(app: &mut App) -> Entity {
         app.world_mut()
-            .spawn((
-                Equipment::default(),
-                Stats::default(),
-                Health::default(),
-            ))
+            .spawn((Equipment::default(), Stats::default(), Health::default()))
             .id()
     }
 
@@ -554,7 +565,9 @@ mod tests {
                 weapon: Some(item),
                 ..default()
             };
-            world.spawn((equipment, Stats::default(), Health::default())).id()
+            world
+                .spawn((equipment, Stats::default(), Health::default()))
+                .id()
         };
 
         app.world_mut().send_event(UnequipItem {
@@ -584,7 +597,9 @@ mod tests {
                 weapon: Some(item),
                 ..default()
             };
-            world.spawn((equipment, Stats::default(), Health::default())).id()
+            world
+                .spawn((equipment, Stats::default(), Health::default()))
+                .id()
         };
 
         app.world_mut().send_event(UnequipItem {
@@ -616,7 +631,9 @@ mod tests {
                 weapon: Some(item),
                 ..default()
             };
-            world.spawn((equipment, Stats::default(), Health::default())).id()
+            world
+                .spawn((equipment, Stats::default(), Health::default()))
+                .id()
         };
 
         // Equip new weapon
@@ -671,7 +688,11 @@ mod tests {
 
         // Gold should be deducted
         let stockpile = app.world().resource::<ResourceStockpile>();
-        assert!((stockpile.gold - 70.0).abs() < 0.01, "Expected 70 gold left, got {}", stockpile.gold);
+        assert!(
+            (stockpile.gold - 70.0).abs() < 0.01,
+            "Expected 70 gold left, got {}",
+            stockpile.gold
+        );
     }
 
     #[test]
@@ -691,8 +712,14 @@ mod tests {
         // Should succeed with 50 gold - 30 = 20 gold left
         let crafted_events = app.world().resource::<Events<ItemCrafted>>();
         let _failed_events = app.world().resource::<Events<CraftingFailed>>();
-        assert!(crafted_events.get_cursor().read(&crafted_events).next().is_some(),
-                "Expected craft to succeed");
+        assert!(
+            crafted_events
+                .get_cursor()
+                .read(&crafted_events)
+                .next()
+                .is_some(),
+            "Expected craft to succeed"
+        );
     }
 
     #[test]
@@ -732,8 +759,16 @@ mod tests {
 
         let stockpile = app.world().resource::<ResourceStockpile>();
         // leather_armor costs 20 gold, 10 food — default is 50 gold, 100 food
-        assert!((stockpile.gold - 30.0).abs() < 0.01, "Expected 30 gold, got {}", stockpile.gold);
-        assert!((stockpile.food - 90.0).abs() < 0.01, "Expected 90 food, got {}", stockpile.food);
+        assert!(
+            (stockpile.gold - 30.0).abs() < 0.01,
+            "Expected 30 gold, got {}",
+            stockpile.gold
+        );
+        assert!(
+            (stockpile.food - 90.0).abs() < 0.01,
+            "Expected 90 food, got {}",
+            stockpile.food
+        );
     }
 
     // ─── Loot drop tests ──────────────────────────────────────────────────
@@ -743,13 +778,14 @@ mod tests {
         let mut app = test_app();
         let _ = app.world_mut().run_system_once(initialize_loot_table);
 
-        let archer = app.world_mut().spawn((
-            Unit {
+        let archer = app
+            .world_mut()
+            .spawn((Unit {
                 archetype: UnitArchetype::LightInfantry,
                 faction: FactionId::Byzantine,
                 ..default()
-            },
-        )).id();
+            },))
+            .id();
         let hero = spawn_hero(&mut app);
 
         app.world_mut().send_event(UnitDied {
@@ -773,13 +809,14 @@ mod tests {
         let mut app = test_app();
         // Don't initialize loot table — empty
 
-        let enemy = app.world_mut().spawn((
-            Unit {
+        let enemy = app
+            .world_mut()
+            .spawn((Unit {
                 archetype: UnitArchetype::LightInfantry,
                 faction: FactionId::Byzantine,
                 ..default()
-            },
-        )).id();
+            },))
+            .id();
         let hero = spawn_hero(&mut app);
 
         app.world_mut().send_event(UnitDied {
@@ -819,7 +856,9 @@ mod tests {
                 weapon: Some(item),
                 ..default()
             };
-            world.spawn((equipment, Stats::default(), Health::default())).id()
+            world
+                .spawn((equipment, Stats::default(), Health::default()))
+                .id()
         };
 
         // Initial state
@@ -827,7 +866,9 @@ mod tests {
         assert!((base_stats.attack_damage - 10.0).abs() < 0.01);
 
         // Remove the equipment and check stats decrease
-        app.world_mut().entity_mut(hero).insert(Equipment::default());
+        app.world_mut()
+            .entity_mut(hero)
+            .insert(Equipment::default());
         app.update();
 
         let stats = app.world().get::<Stats>(hero).unwrap();
@@ -836,10 +877,16 @@ mod tests {
         // Default Stats are: attack_damage=10.0, move_speed=3.0, attack_speed=1.0
         // Default Health is: current=100, max=100
         // After removing +10 damage, +0.5 speed, +0.2 AS, +50 HP:
-        assert!((stats.attack_damage - 10.0).abs() < 0.01,
-                "Expected 10.0 damage (base), got {}", stats.attack_damage);
-        assert!((health.max - 100.0).abs() < 0.01,
-                "Expected 100 HP (base), got {}", health.max);
+        assert!(
+            (stats.attack_damage - 10.0).abs() < 0.01,
+            "Expected 10.0 damage (base), got {}",
+            stats.attack_damage
+        );
+        assert!(
+            (health.max - 100.0).abs() < 0.01,
+            "Expected 100 HP (base), got {}",
+            health.max
+        );
     }
 
     #[test]
@@ -890,7 +937,10 @@ mod tests {
         assert_eq!(infer_slot_from_id("leather_armor"), EquipmentSlot::Armor);
         assert_eq!(infer_slot_from_id("wooden_shield"), EquipmentSlot::Armor);
         assert_eq!(infer_slot_from_id("magic_ring"), EquipmentSlot::Accessory1);
-        assert_eq!(infer_slot_from_id("unknown_item"), EquipmentSlot::Accessory1);
+        assert_eq!(
+            infer_slot_from_id("unknown_item"),
+            EquipmentSlot::Accessory1
+        );
     }
 
     #[test]

@@ -1,6 +1,6 @@
+use super::unit::FactionId;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use super::unit::FactionId;
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Relations {

@@ -1,9 +1,9 @@
-use bevy::prelude::*;
-use serde::{Deserialize, Serialize};
-use crate::coord::GridPos;
+use super::building::BuildingType;
 use super::unit::FactionId;
 use super::world::RegionId;
-use super::building::BuildingType;
+use crate::coord::GridPos;
+use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize, Reflect)]
 #[reflect(Component)]

@@ -27,7 +27,7 @@ pub struct MarriageAlliance {
 #[derive(Resource, Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 #[reflect(Resource)]
 pub struct NextGenRegistry {
-    pub children: Vec<(Entity, Entity)>, // (parent, child)
+    pub children: Vec<(Entity, Entity)>,  // (parent, child)
     pub marriages: Vec<(Entity, Entity)>, // (hero_a, hero_b)
 }
 

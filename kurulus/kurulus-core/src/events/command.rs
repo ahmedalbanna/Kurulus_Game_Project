@@ -1,6 +1,8 @@
-use bevy::prelude::*;
+use crate::components::{
+    AbilityId, BuildingType, CombatStance, FormationType, UnitArchetype, ZoneType,
+};
 use crate::coord::GridPos;
-use crate::components::{BuildingType, ZoneType, UnitArchetype, AbilityId, FormationType, CombatStance};
+use bevy::prelude::*;
 
 #[derive(Event, Clone, Debug)]
 pub struct MoveOrder {

@@ -116,7 +116,12 @@ fn test_worker_assigns_to_vacant_building() {
 
     let building = {
         let mut commands = app.world_mut().commands();
-        spawn_building(&mut commands, BuildingType::Pasture, GridPos(IVec2::new(5, 5)), 1)
+        spawn_building(
+            &mut commands,
+            BuildingType::Pasture,
+            GridPos(IVec2::new(5, 5)),
+            1,
+        )
     };
 
     // Attach a WorkerSlot with vacancies
@@ -176,7 +181,12 @@ fn test_worker_unassigns_when_slot_removed() {
 
     let building = {
         let mut commands = app.world_mut().commands();
-        spawn_building(&mut commands, BuildingType::Pasture, GridPos(IVec2::new(3, 3)), 1)
+        spawn_building(
+            &mut commands,
+            BuildingType::Pasture,
+            GridPos(IVec2::new(3, 3)),
+            1,
+        )
     };
 
     // Attach a slot with some pre-assigned workers
@@ -243,7 +253,12 @@ fn test_worker_production_with_multiplier() {
 
     let building = {
         let mut commands = app.world_mut().commands();
-        spawn_building(&mut commands, BuildingType::Pasture, GridPos(IVec2::new(2, 2)), 1)
+        spawn_building(
+            &mut commands,
+            BuildingType::Pasture,
+            GridPos(IVec2::new(2, 2)),
+            1,
+        )
     };
 
     // Fully-staffed WorkerSlot (4 workers)

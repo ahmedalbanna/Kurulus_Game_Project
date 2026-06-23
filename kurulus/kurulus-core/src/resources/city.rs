@@ -1,6 +1,6 @@
+use crate::components::{AdjacencyBonusEffect, BuildingType, ServiceType, ZoneType};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::components::{BuildingType, ZoneType, ServiceType, AdjacencyBonusEffect};
 
 // ─── Cross-Zone Synergy ──────────────────────────────────────────────────────
 
@@ -106,7 +106,9 @@ impl EdictZoneModifier for NullEdictZoneModifier {
 // ─── City Level ──────────────────────────────────────────────────────────────
 
 /// The developmental level of a settlement, from humble village to imperial city.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
 pub enum CityLevel {
     Village,
     Town,
@@ -255,7 +257,12 @@ impl CityState {
         // Level up grants: happiness boost and population capacity increase
         self.happiness = (self.happiness + 15.0).min(100.0);
         self.max_population = self.max_population.max(next.max_population_cap());
-        info!("🏙️  {} advances from {} to {}!", self.name, old.display_name(), next.display_name());
+        info!(
+            "🏙️  {} advances from {} to {}!",
+            self.name,
+            old.display_name(),
+            next.display_name()
+        );
         Some((old, next))
     }
 }
@@ -542,7 +549,10 @@ impl District {
 
     /// Computes the numeric adjacency bonus effect for this district.
     /// Combines the zone type's base effect with the district's computed multiplier.
-    pub fn compute_bonus_effect(&self, base_multiplier: f32) -> crate::components::city::AdjacencyBonusEffect {
+    pub fn compute_bonus_effect(
+        &self,
+        base_multiplier: f32,
+    ) -> crate::components::city::AdjacencyBonusEffect {
         use crate::components::city::ZoneType as ZT;
         let mult = self.compute_bonus_multiplier(base_multiplier);
         let extra = mult - 1.0; // bonus above 1.0
@@ -605,17 +615,27 @@ impl Default for DistrictTracker {
 impl DistrictTracker {
     /// Returns all districts of a given zone type.
     pub fn districts_of_type(&self, zone_type: ZoneType) -> Vec<&District> {
-        self.districts.iter().filter(|d| d.zone_type == zone_type).collect()
+        self.districts
+            .iter()
+            .filter(|d| d.zone_type == zone_type)
+            .collect()
     }
 
     /// Total district count for a given zone type.
     pub fn count_of_type(&self, zone_type: ZoneType) -> usize {
-        self.districts.iter().filter(|d| d.zone_type == zone_type).count()
+        self.districts
+            .iter()
+            .filter(|d| d.zone_type == zone_type)
+            .count()
     }
 
     /// Total zone cells across all districts of a given type.
     pub fn total_cells_of_type(&self, zone_type: ZoneType) -> u32 {
-        self.districts.iter().filter(|d| d.zone_type == zone_type).map(|d| d.size).sum()
+        self.districts
+            .iter()
+            .filter(|d| d.zone_type == zone_type)
+            .map(|d| d.size)
+            .sum()
     }
 }
 

@@ -8,9 +8,9 @@
 //! `base_building` module, which validates zone compatibility and spawns
 //! a `ConstructionSite` + `Building` pair.
 
-use bevy::prelude::*;
 use bevy::input::ButtonInput;
 use bevy::math::IVec2;
+use bevy::prelude::*;
 use kurulus_core::prelude::*;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -78,7 +78,11 @@ pub fn building_placement_toggle_system(
         let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
         let next_idx = if shift {
             // Shift+Tab → previous
-            if current_idx == 0 { n_types - 1 } else { current_idx - 1 }
+            if current_idx == 0 {
+                n_types - 1
+            } else {
+                current_idx - 1
+            }
         } else {
             // Tab → next
             (current_idx + 1) % n_types
@@ -255,8 +259,10 @@ mod tests {
         run_frames(&mut app, 1);
 
         assert!(app.world().resource::<BuildingPlacementState>().active);
-        assert!(!app.world().resource::<ZonePlacementState>().active,
-            "Zone placement should be deactivated");
+        assert!(
+            !app.world().resource::<ZonePlacementState>().active,
+            "Zone placement should be deactivated"
+        );
     }
 
     #[test]
@@ -264,29 +270,45 @@ mod tests {
         let mut app = test_app();
 
         // Activate building mode
-        app.world_mut().resource_mut::<BuildingPlacementState>().active = true;
-        app.world_mut().resource_mut::<BuildingPlacementState>().hovered_grid = Some(IVec2::new(5, 5));
+        app.world_mut()
+            .resource_mut::<BuildingPlacementState>()
+            .active = true;
+        app.world_mut()
+            .resource_mut::<BuildingPlacementState>()
+            .hovered_grid = Some(IVec2::new(5, 5));
 
         // Press Escape
         press_key(&mut app, KeyCode::Escape);
         run_frames(&mut app, 1);
 
         assert!(!app.world().resource::<BuildingPlacementState>().active);
-        assert!(app.world().resource::<BuildingPlacementState>().hovered_grid.is_none());
+        assert!(app
+            .world()
+            .resource::<BuildingPlacementState>()
+            .hovered_grid
+            .is_none());
     }
 
     #[test]
     fn test_tab_cycles_building_type() {
         let mut app = test_app();
-        app.world_mut().resource_mut::<BuildingPlacementState>().active = true;
+        app.world_mut()
+            .resource_mut::<BuildingPlacementState>()
+            .active = true;
 
-        let initial = app.world().resource::<BuildingPlacementState>().selected_type;
+        let initial = app
+            .world()
+            .resource::<BuildingPlacementState>()
+            .selected_type;
 
         // Press Tab to cycle
         press_key(&mut app, KeyCode::Tab);
         run_frames(&mut app, 1);
 
-        let next = app.world().resource::<BuildingPlacementState>().selected_type;
+        let next = app
+            .world()
+            .resource::<BuildingPlacementState>()
+            .selected_type;
         assert_ne!(initial, next, "Tab should change building type");
     }
 
@@ -295,9 +317,15 @@ mod tests {
     #[test]
     fn test_left_click_sends_build_order() {
         let mut app = test_app();
-        app.world_mut().resource_mut::<BuildingPlacementState>().active = true;
-        app.world_mut().resource_mut::<BuildingPlacementState>().hovered_grid = Some(IVec2::new(3, 4));
-        app.world_mut().resource_mut::<BuildingPlacementState>().selected_type = BuildingType::Barracks;
+        app.world_mut()
+            .resource_mut::<BuildingPlacementState>()
+            .active = true;
+        app.world_mut()
+            .resource_mut::<BuildingPlacementState>()
+            .hovered_grid = Some(IVec2::new(3, 4));
+        app.world_mut()
+            .resource_mut::<BuildingPlacementState>()
+            .selected_type = BuildingType::Barracks;
 
         // Left click — run only 1 frame since MinimalPlugins doesn't clear
         // just_pressed, so the event would be re-sent every frame.
@@ -305,7 +333,8 @@ mod tests {
         run_frames(&mut app, 1);
 
         // Check that a BuildOrder event was sent
-        let reader = app.world_mut()
+        let reader = app
+            .world_mut()
             .get_resource_mut::<Events<BuildOrder>>()
             .unwrap();
         let mut cursor = reader.get_cursor();
@@ -318,27 +347,38 @@ mod tests {
     #[test]
     fn test_right_click_exits_mode() {
         let mut app = test_app();
-        app.world_mut().resource_mut::<BuildingPlacementState>().active = true;
-        app.world_mut().resource_mut::<BuildingPlacementState>().hovered_grid = Some(IVec2::new(3, 4));
+        app.world_mut()
+            .resource_mut::<BuildingPlacementState>()
+            .active = true;
+        app.world_mut()
+            .resource_mut::<BuildingPlacementState>()
+            .hovered_grid = Some(IVec2::new(3, 4));
 
         // Right click
         press_mouse(&mut app, MouseButton::Right);
         run_frames(&mut app, 1);
 
         assert!(!app.world().resource::<BuildingPlacementState>().active);
-        assert!(app.world().resource::<BuildingPlacementState>().hovered_grid.is_none());
+        assert!(app
+            .world()
+            .resource::<BuildingPlacementState>()
+            .hovered_grid
+            .is_none());
     }
 
     #[test]
     fn test_no_order_when_not_active() {
         let mut app = test_app();
         // Not activating building mode
-        app.world_mut().resource_mut::<BuildingPlacementState>().hovered_grid = Some(IVec2::new(3, 4));
+        app.world_mut()
+            .resource_mut::<BuildingPlacementState>()
+            .hovered_grid = Some(IVec2::new(3, 4));
 
         press_mouse(&mut app, MouseButton::Left);
         run_frames(&mut app, 1);
 
-        let reader = app.world_mut()
+        let reader = app
+            .world_mut()
             .get_resource_mut::<Events<BuildOrder>>()
             .unwrap();
         let mut cursor = reader.get_cursor();
@@ -349,13 +389,16 @@ mod tests {
     #[test]
     fn test_no_order_without_hover() {
         let mut app = test_app();
-        app.world_mut().resource_mut::<BuildingPlacementState>().active = true;
+        app.world_mut()
+            .resource_mut::<BuildingPlacementState>()
+            .active = true;
         // No hovered_grid set
 
         press_mouse(&mut app, MouseButton::Left);
         run_frames(&mut app, 1);
 
-        let reader = app.world_mut()
+        let reader = app
+            .world_mut()
             .get_resource_mut::<Events<BuildOrder>>()
             .unwrap();
         let mut cursor = reader.get_cursor();

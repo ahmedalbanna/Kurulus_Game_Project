@@ -1,6 +1,6 @@
+use super::building::BuildingType;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use super::building::BuildingType;
 
 // ─── WorkerSlot Component ─────────────────────────────────────────────────────
 

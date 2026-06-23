@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 use kurulus_core::prelude::*;
 
-pub mod state_death;
-pub mod talents;
 pub mod equipment;
 pub mod named_units;
+pub mod state_death;
+pub mod talents;
 
 #[derive(Event, Clone, Debug)]
 pub struct HeroLeveledUp {
@@ -80,36 +80,51 @@ impl Plugin for HeroPlugin {
                 ),
             )
             // ── Phase 2: State machine + death flow ──
-            .add_systems(FixedUpdate, (
-                state_death::hero_state_machine_system,
-                state_death::hero_death_penalty_system,
-            ))
+            .add_systems(
+                FixedUpdate,
+                (
+                    state_death::hero_state_machine_system,
+                    state_death::hero_death_penalty_system,
+                ),
+            )
             // ── Phase 2: Talent + specialization ──
-            .add_systems(FixedUpdate, (
-                talents::hero_talent_request_system,
-                talents::hero_talent_apply_system,
-                talents::hero_specialization_apply_system,
-            ))
+            .add_systems(
+                FixedUpdate,
+                (
+                    talents::hero_talent_request_system,
+                    talents::hero_talent_apply_system,
+                    talents::hero_specialization_apply_system,
+                ),
+            )
             // ── Phase 2.5-2.7: Equipment + Crafting + Loot ──
-            .add_systems(FixedUpdate, (
-                equipment::equip_item_system,
-                equipment::unequip_item_system,
-                equipment::equipment_apply_system,
-                equipment::crafting_system,
-                equipment::loot_drop_system,
-            ))
+            .add_systems(
+                FixedUpdate,
+                (
+                    equipment::equip_item_system,
+                    equipment::unequip_item_system,
+                    equipment::equipment_apply_system,
+                    equipment::crafting_system,
+                    equipment::loot_drop_system,
+                ),
+            )
             // ── Phase 3: Named units ──
-            .add_systems(FixedUpdate, (
-                named_units::named_unit_stats_system,
-                named_units::named_unit_permadeath_system,
-                named_units::named_unit_ability_system,
-            ))
+            .add_systems(
+                FixedUpdate,
+                (
+                    named_units::named_unit_stats_system,
+                    named_units::named_unit_permadeath_system,
+                    named_units::named_unit_ability_system,
+                ),
+            )
             // Initialize recipes, loot table, and named unit roster on startup
-            .add_systems(Startup, (
-                equipment::initialize_recipes,
-                equipment::initialize_loot_table,
-                named_units::initialize_named_unit_roster,
-            ));
+            .add_systems(
+                Startup,
+                (
+                    equipment::initialize_recipes,
+                    equipment::initialize_loot_table,
+                    named_units::initialize_named_unit_roster,
+                ),
+            );
     }
 }
 
@@ -401,57 +416,78 @@ fn hero_ability_system(
                 &mut stats_q,
                 &mut damage_events,
             ),
-            AbilityId::FortressBuilder => execute_fortress_builder(
-                &mut commands,
-                act.caster,
-                &act.hero_pos,
-                &buildings,
-            ),
+            AbilityId::FortressBuilder => {
+                execute_fortress_builder(&mut commands, act.caster, &act.hero_pos, &buildings)
+            }
             // Alaeddin
-            AbilityId::AdministrativeMind => execute_administrative_mind(
-                &mut productions,
-                &mut admin_buff,
-            ),
+            AbilityId::AdministrativeMind => {
+                execute_administrative_mind(&mut productions, &mut admin_buff)
+            }
             AbilityId::TaxReform => {
                 execute_tax_reform(&mut stockpile, &units);
                 90.0
             }
-            AbilityId::DiplomaticImmunity => execute_diplomatic_immunity(
+            AbilityId::DiplomaticImmunity => {
+                execute_diplomatic_immunity(&mut commands, act.caster, &act.hero_pos, &buildings)
+            }
+            AbilityId::CulturalRenaissance => {
+                execute_cultural_renaissance(&mut heroes, &mut renaissance)
+            }
+            // Turgut (not yet implemented — stubs return placeholder cooldowns)
+            AbilityId::GroundStrike => execute_ground_strike(
                 &mut commands,
                 act.caster,
                 &act.hero_pos,
-                &buildings,
+                &units,
+                &mut damage_events,
             ),
-            AbilityId::CulturalRenaissance => execute_cultural_renaissance(
-                &mut heroes,
-                &mut renaissance,
+            AbilityId::EarthquakeChallenge => execute_earthquake_challenge(
+                &mut commands,
+                act.caster,
+                &act.hero_pos,
+                &units,
+                &mut stats_q,
+                &mut damage_events,
             ),
-            // Turgut (not yet implemented — stubs return placeholder cooldowns)
-            AbilityId::GroundStrike => {
-                execute_ground_strike(&mut commands, act.caster, &act.hero_pos, &units, &mut damage_events)
-            }
-            AbilityId::EarthquakeChallenge => {
-                execute_earthquake_challenge(&mut commands, act.caster, &act.hero_pos, &units, &mut stats_q, &mut damage_events)
-            }
             AbilityId::IronWall => {
                 0.0 // Passive — handled by stat calculation system
             }
-            AbilityId::BullsWrath => {
-                execute_bulls_wrath(&mut commands, act.caster, &act.hero_pos, &act.target, &units, &mut stats_q, &mut damage_events)
-            }
+            AbilityId::BullsWrath => execute_bulls_wrath(
+                &mut commands,
+                act.caster,
+                &act.hero_pos,
+                &act.target,
+                &units,
+                &mut stats_q,
+                &mut damage_events,
+            ),
             // Buran (not yet implemented — stubs return placeholder cooldowns)
-            AbilityId::FlamingArrow => {
-                execute_flaming_arrow(&mut commands, act.caster, &act.hero_pos, &act.target, &units, &mut damage_events)
-            }
-            AbilityId::BlindingShot => {
-                execute_blinding_shot(&mut commands, act.caster, &act.target, &units, &mut damage_events)
-            }
+            AbilityId::FlamingArrow => execute_flaming_arrow(
+                &mut commands,
+                act.caster,
+                &act.hero_pos,
+                &act.target,
+                &units,
+                &mut damage_events,
+            ),
+            AbilityId::BlindingShot => execute_blinding_shot(
+                &mut commands,
+                act.caster,
+                &act.target,
+                &units,
+                &mut damage_events,
+            ),
             AbilityId::ShadowLightness => {
                 0.0 // Passive — handled by stealth system
             }
-            AbilityId::DeathVolley => {
-                execute_death_volley(&mut commands, act.caster, &act.hero_pos, &act.target, &units, &mut damage_events)
-            }
+            AbilityId::DeathVolley => execute_death_volley(
+                &mut commands,
+                act.caster,
+                &act.hero_pos,
+                &act.target,
+                &units,
+                &mut damage_events,
+            ),
             // Generic (not yet implemented)
             AbilityId::FirstAid | AbilityId::Scout | AbilityId::Sabotage | AbilityId::Inspire => {
                 30.0
@@ -487,9 +523,9 @@ fn execute_warcry(
 
     let mut buff = Buff::new(AbilityId::WarCry, DURATION);
     buff.damage_bonus = DAMAGE_BONUS;
-    commands.entity(caster).insert(ActiveBuffs {
-        buffs: vec![buff],
-    });
+    commands
+        .entity(caster)
+        .insert(ActiveBuffs { buffs: vec![buff] });
 
     60.0
 }
@@ -515,7 +551,8 @@ fn execute_sovereign_strike(
         attacker: caster,
         target: target_entity,
         amount: damage,
-        damage_type: DamageType::Melee,
+        damage_type: DamageType::Slash,
+        ..Default::default()
     });
 
     // Knockback 2 cells
@@ -523,10 +560,9 @@ fn execute_sovereign_strike(
         let dir = (target_pos.world_2d.0 - caster_pos.world_2d.0).normalize_or_zero();
         let new_x = (target_pos.world_2d.0.x + dir.x * 2.0 * CELL_SIZE) as i32;
         let new_y = (target_pos.world_2d.0.y + dir.y * 2.0 * CELL_SIZE) as i32;
-        commands.entity(target_entity).insert(WorldPosition::new(
-            IVec2::new(new_x, new_y),
-            CELL_SIZE,
-        ));
+        commands
+            .entity(target_entity)
+            .insert(WorldPosition::new(IVec2::new(new_x, new_y), CELL_SIZE));
     }
 
     15.0
@@ -582,7 +618,8 @@ fn execute_ground_strike(
                     attacker: caster,
                     target: entity,
                     amount: DAMAGE,
-                    damage_type: DamageType::Melee,
+                    damage_type: DamageType::Slash,
+                    ..Default::default()
                 });
             }
         }
@@ -619,7 +656,8 @@ fn execute_earthquake_challenge(
                     attacker: caster,
                     target: entity,
                     amount: DAMAGE,
-                    damage_type: DamageType::Melee,
+                    damage_type: DamageType::Slash,
+                    ..Default::default()
                 });
             }
         }
@@ -674,7 +712,9 @@ fn execute_bulls_wrath(
         (dest.x / CELL_SIZE).round() as i32,
         (dest.y / CELL_SIZE).round() as i32,
     );
-    commands.entity(caster).insert(WorldPosition::new(gp, CELL_SIZE));
+    commands
+        .entity(caster)
+        .insert(WorldPosition::new(gp, CELL_SIZE));
 
     // AoE damage on impact
     let caster_faction = units
@@ -691,7 +731,8 @@ fn execute_bulls_wrath(
                     attacker: caster,
                     target: entity,
                     amount: BASE_DAMAGE,
-                    damage_type: DamageType::Melee,
+                    damage_type: DamageType::Blunt,
+                    ..Default::default()
                 });
             }
         }
@@ -740,7 +781,8 @@ fn execute_flaming_arrow(
         attacker: _caster,
         target: target_entity,
         amount: BASE_DAMAGE,
-        damage_type: DamageType::Ranged,
+        damage_type: DamageType::Fire,
+        ..Default::default()
     });
 
     8.0
@@ -763,7 +805,8 @@ fn execute_blinding_shot(
         attacker: caster,
         target: target_entity,
         amount: 20.0,
-        damage_type: DamageType::Ranged,
+        damage_type: DamageType::Pierce,
+        ..Default::default()
     });
 
     12.0
@@ -806,7 +849,8 @@ fn execute_death_volley(
                     attacker: caster,
                     target: entity,
                     amount: ARROW_DAMAGE,
-                    damage_type: DamageType::Ranged,
+                    damage_type: DamageType::Pierce,
+                    ..Default::default()
                 });
             }
         }
@@ -842,9 +886,7 @@ fn execute_tactical_genius(
             if dist <= RADIUS {
                 let mut buff = Buff::new(AbilityId::TacticalGenius, DURATION);
                 buff.attack_speed_bonus = SPEED_BONUS;
-                commands.entity(e).insert(ActiveBuffs {
-                    buffs: vec![buff],
-                });
+                commands.entity(e).insert(ActiveBuffs { buffs: vec![buff] });
             }
         }
     }
@@ -880,9 +922,7 @@ fn execute_shield_wall(
             if dist <= RADIUS {
                 let mut buff = Buff::new(AbilityId::ShieldWall, DURATION);
                 buff.damage_reduction = DR;
-                commands.entity(e).insert(ActiveBuffs {
-                    buffs: vec![buff],
-                });
+                commands.entity(e).insert(ActiveBuffs { buffs: vec![buff] });
             }
         }
     }
@@ -923,7 +963,9 @@ fn execute_cavalry_charge(
         (target_pos.x / CELL_SIZE).round() as i32,
         (target_pos.y / CELL_SIZE).round() as i32,
     );
-    commands.entity(caster).insert(WorldPosition::new(gp, CELL_SIZE));
+    commands
+        .entity(caster)
+        .insert(WorldPosition::new(gp, CELL_SIZE));
 
     // Deal AoE damage to all enemies near the destination
     let caster_faction = units
@@ -941,7 +983,8 @@ fn execute_cavalry_charge(
                     attacker: caster,
                     target: e,
                     amount: charge_damage,
-                    damage_type: DamageType::Melee,
+                    damage_type: DamageType::Impact,
+                    ..Default::default()
                 });
             }
         }
@@ -965,13 +1008,8 @@ fn execute_fortress_builder(
     // Find nearest Oba
     let mut nearest_oba: Option<(Entity, f32)> = None;
     for (entity, building, pos) in buildings.iter() {
-        if building.building_type == BuildingType::Oba
-            && building.level < building.max_level
-        {
-            let dist = pos
-                .world_2d
-                .0
-                .distance(caster_pos.world_2d.0);
+        if building.building_type == BuildingType::Oba && building.level < building.max_level {
+            let dist = pos.world_2d.0.distance(caster_pos.world_2d.0);
             match nearest_oba {
                 Some((_, best_dist)) if dist < best_dist => {
                     nearest_oba = Some((entity, dist));
@@ -1192,7 +1230,8 @@ fn hero_switch_system(
                     .position(|(e, _)| Some(*e) == active_hero.entity)
                     .unwrap_or(usize::MAX);
 
-                let next_idx = if current_idx == usize::MAX || current_idx + 1 >= kayi_heroes.len() {
+                let next_idx = if current_idx == usize::MAX || current_idx + 1 >= kayi_heroes.len()
+                {
                     0 // wrap to first
                 } else {
                     current_idx + 1

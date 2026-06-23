@@ -311,9 +311,8 @@ fn track_combat_activity_system(
     ambush_events: EventReader<AmbushTriggered>,
     mut tracker: ResMut<CombatActivityTracker>,
 ) {
-    let any_combat = !damage_events.is_empty()
-        || !attack_events.is_empty()
-        || !ambush_events.is_empty();
+    let any_combat =
+        !damage_events.is_empty() || !attack_events.is_empty() || !ambush_events.is_empty();
 
     if any_combat {
         tracker.last_combat_game_time = game_time.total_seconds;
@@ -539,9 +538,7 @@ fn hero_moment_trigger_system(
         if let Ok(hero) = hero_query.get(ability_event.caster) {
             // Look for a matching Hero Moment config
             for config in &moment_config.moments {
-                if config.hero_id == hero.hero_id
-                    && config.ability_id == ability_event.ability_id
-                {
+                if config.hero_id == hero.hero_id && config.ability_id == ability_event.ability_id {
                     // Check phase trigger if specified
                     if let Some(required_phase) = config.trigger_phase {
                         if tracker.current_phase != required_phase {
@@ -567,7 +564,12 @@ fn hero_moment_completion_system(
     mut xp_state: ResMut<HarvestState>,
     moment_config: Res<HeroMomentsForMission>,
     // Use a local set of completed moments to avoid double-counting
-    mut completed: Local<Vec<(kurulus_core::components::HeroId, kurulus_core::components::AbilityId)>>,
+    mut completed: Local<
+        Vec<(
+            kurulus_core::components::HeroId,
+            kurulus_core::components::AbilityId,
+        )>,
+    >,
 ) {
     for event in triggered_events.read() {
         let key = (event.hero_id, event.ability_id);
@@ -621,9 +623,9 @@ fn hero_moment_cinematic_system(
             .map(|c| {
                 // Duration varies by ability — ultimates get longer
                 match c.ability_id {
-                    AbilityId::DreamOfTheTree
-                    | AbilityId::BullsWrath
-                    | AbilityId::DeathVolley => 5.0,
+                    AbilityId::DreamOfTheTree | AbilityId::BullsWrath | AbilityId::DeathVolley => {
+                        5.0
+                    }
                     _ => 3.0,
                 }
             })
@@ -834,9 +836,9 @@ mod tests {
     fn build_core_loop_app() -> App {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, bevy_state::app::StatesPlugin))
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_state::<GamePhaseEnum>()
             .init_resource::<GameTime>()
             .init_resource::<PhaseTransitionConfig>()
@@ -898,7 +900,9 @@ mod tests {
         // Keep harvest_duration at default 5.0 so Harvest state is observable.
         // Reset combat tracker to current game time so it doesn't interfere
         let game_time = app.world().resource::<GameTime>().total_seconds;
-        app.world_mut().resource_mut::<CombatActivityTracker>().last_combat_game_time = game_time;
+        app.world_mut()
+            .resource_mut::<CombatActivityTracker>()
+            .last_combat_game_time = game_time;
     }
 
     /// Make Harvest→Planning instant too (use when testing the full cycle).
@@ -915,7 +919,7 @@ mod tests {
         set_instant_entry_transitions(&mut app);
 
         match target_phase {
-            GamePhaseEnum::Planning => {}  // already starts in Planning
+            GamePhaseEnum::Planning => {} // already starts in Planning
             GamePhaseEnum::Execution => {
                 let entity = app.world_mut().spawn_empty().id();
                 app.world_mut().send_event(MoveOrder {
@@ -1070,7 +1074,6 @@ mod tests {
             "Should transition to Execution with orders after min duration"
         );
     }
-
 
     #[test]
     fn test_planning_stays_planning_without_orders() {
@@ -1673,9 +1676,9 @@ mod tests {
     fn test_time_advances_with_game_time() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>();
         app.add_systems(FixedUpdate, time_advance_system);
 
@@ -1695,9 +1698,9 @@ mod tests {
     fn test_time_scale_affects_advancement_rate() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>();
         app.add_systems(FixedUpdate, time_advance_system);
 

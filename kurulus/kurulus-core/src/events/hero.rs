@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::components::{HeroId, SpecializationPath, TalentChoice};
+use bevy::prelude::*;
 
 // ─── Hero state machine events ───────────────────────────────────────────────
 

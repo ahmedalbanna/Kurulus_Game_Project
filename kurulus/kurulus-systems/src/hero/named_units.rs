@@ -69,7 +69,13 @@ pub fn named_unit_permadeath_system(
 /// Uses `Without<NamedUnit>` on the allies query to avoid B0001 conflict
 /// with the named units query.
 pub fn named_unit_ability_system(
-    mut units: Query<(&NamedUnit, &NamedUnitAbilities, &Stats, &Health, &WorldPosition)>,
+    mut units: Query<(
+        &NamedUnit,
+        &NamedUnitAbilities,
+        &Stats,
+        &Health,
+        &WorldPosition,
+    )>,
     all_allies: Query<(&Unit, &Stats, &WorldPosition), Without<NamedUnit>>,
 ) {
     for (_named, abilities, _stats, _health, pos) in units.iter_mut() {
@@ -279,7 +285,9 @@ mod tests {
     #[test]
     fn test_named_unit_stats_applied() {
         let mut app = test_app();
-        let _ = app.world_mut().run_system_once(initialize_named_unit_roster);
+        let _ = app
+            .world_mut()
+            .run_system_once(initialize_named_unit_roster);
 
         let entity = spawn_named(&mut app, NamedUnitId::KonurAlp);
         app.update(); // triggers Added<NamedUnit> query
@@ -287,10 +295,22 @@ mod tests {
         let health = app.world().get::<Health>(entity).unwrap();
         let stats = app.world().get::<Stats>(entity).unwrap();
 
-        assert!((health.max - 250.0).abs() < 0.01, "Expected 250 HP, got {}", health.max);
+        assert!(
+            (health.max - 250.0).abs() < 0.01,
+            "Expected 250 HP, got {}",
+            health.max
+        );
         assert!((health.current - 250.0).abs() < 0.01);
-        assert!((health.armor - 15.0).abs() < 0.01, "Expected 15 armor, got {}", health.armor);
-        assert!((stats.attack_damage - 22.0).abs() < 0.01, "Expected 22 damage, got {}", stats.attack_damage);
+        assert!(
+            (health.armor - 15.0).abs() < 0.01,
+            "Expected 15 armor, got {}",
+            health.armor
+        );
+        assert!(
+            (stats.attack_damage - 22.0).abs() < 0.01,
+            "Expected 22 damage, got {}",
+            stats.attack_damage
+        );
         assert!((stats.attack_speed - 1.3).abs() < 0.01);
         assert!((stats.move_speed - 5.2).abs() < 0.01);
         assert!((stats.vision_range - 8.0).abs() < 0.01);
@@ -299,7 +319,9 @@ mod tests {
     #[test]
     fn test_all_named_units_have_stats() {
         let mut app = test_app();
-        let _ = app.world_mut().run_system_once(initialize_named_unit_roster);
+        let _ = app
+            .world_mut()
+            .run_system_once(initialize_named_unit_roster);
         let roster = app.world().resource::<NamedUnitRoster>();
 
         assert!(roster.units.contains_key(&NamedUnitId::KonurAlp));
@@ -313,7 +335,9 @@ mod tests {
     #[test]
     fn test_ayazbey_has_ranged_stats() {
         let mut app = test_app();
-        let _ = app.world_mut().run_system_once(initialize_named_unit_roster);
+        let _ = app
+            .world_mut()
+            .run_system_once(initialize_named_unit_roster);
 
         let entity = spawn_named(&mut app, NamedUnitId::Ayazbey);
         app.update();
@@ -336,17 +360,17 @@ mod tests {
         let entity = spawn_named(&mut app, NamedUnitId::KonurAlp);
 
         // Give a Hero component too (permadeath system queries both)
-        app.world_mut().entity_mut(entity).insert(Hero::new(HeroId::Osman));
-
-        // Set HP to 0
         app.world_mut()
             .entity_mut(entity)
-            .insert(Health {
-                current: 0.0,
-                max: 250.0,
-                armor: 15.0,
-                armor_type: ArmorType::Light,
-            });
+            .insert(Hero::new(HeroId::Osman));
+
+        // Set HP to 0
+        app.world_mut().entity_mut(entity).insert(Health {
+            current: 0.0,
+            max: 250.0,
+            armor: 15.0,
+            armor_type: ArmorType::Light,
+        });
 
         // Fire death event
         app.world_mut().send_event(UnitDied {
@@ -356,24 +380,27 @@ mod tests {
         app.update();
 
         let named = app.world().get::<NamedUnit>(entity).unwrap();
-        assert!(named.is_permanently_dead, "Named unit should be marked permanently dead");
+        assert!(
+            named.is_permanently_dead,
+            "Named unit should be marked permanently dead"
+        );
     }
 
     #[test]
     fn test_permadeath_not_marked_when_alive() {
         let mut app = test_app();
         let entity = spawn_named(&mut app, NamedUnitId::KonurAlp);
-        app.world_mut().entity_mut(entity).insert(Hero::new(HeroId::Osman));
-
-        // HP > 0
         app.world_mut()
             .entity_mut(entity)
-            .insert(Health {
-                current: 100.0,
-                max: 250.0,
-                armor: 15.0,
-                armor_type: ArmorType::Light,
-            });
+            .insert(Hero::new(HeroId::Osman));
+
+        // HP > 0
+        app.world_mut().entity_mut(entity).insert(Health {
+            current: 100.0,
+            max: 250.0,
+            armor: 15.0,
+            armor_type: ArmorType::Light,
+        });
 
         app.world_mut().send_event(UnitDied {
             entity,
@@ -382,7 +409,10 @@ mod tests {
         app.update();
 
         let named = app.world().get::<NamedUnit>(entity).unwrap();
-        assert!(!named.is_permanently_dead, "Named unit should NOT be marked dead while HP > 0");
+        assert!(
+            !named.is_permanently_dead,
+            "Named unit should NOT be marked dead while HP > 0"
+        );
     }
 
     // ─── Passive ability tests ──────────────────────────────────────────
@@ -425,7 +455,9 @@ mod tests {
     #[test]
     fn test_bamsi_stats_match_gdd() {
         let mut app = test_app();
-        let _ = app.world_mut().run_system_once(initialize_named_unit_roster);
+        let _ = app
+            .world_mut()
+            .run_system_once(initialize_named_unit_roster);
 
         let entity = spawn_named(&mut app, NamedUnitId::BamsiBeyrek);
         app.update();
@@ -443,7 +475,9 @@ mod tests {
     #[test]
     fn test_salvador_has_highest_hp() {
         let mut app = test_app();
-        let _ = app.world_mut().run_system_once(initialize_named_unit_roster);
+        let _ = app
+            .world_mut()
+            .run_system_once(initialize_named_unit_roster);
         let roster = app.world().resource::<NamedUnitRoster>();
         let salvador = roster.units.get(&NamedUnitId::Salvador).unwrap();
         assert!((salvador.max_health - 350.0).abs() < 0.01);
@@ -453,7 +487,9 @@ mod tests {
     #[test]
     fn test_salur_balanced_scout() {
         let mut app = test_app();
-        let _ = app.world_mut().run_system_once(initialize_named_unit_roster);
+        let _ = app
+            .world_mut()
+            .run_system_once(initialize_named_unit_roster);
 
         let entity = spawn_named(&mut app, NamedUnitId::SalurAlp);
         app.update();

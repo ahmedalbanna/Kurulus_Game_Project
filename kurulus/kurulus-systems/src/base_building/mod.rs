@@ -95,8 +95,7 @@ fn complete_construction_system(
         // Log completion
         info!(
             "Construction complete: {:?} at {:?}",
-            building_template.building_type,
-            pos.grid.0
+            building_template.building_type, pos.grid.0
         );
     }
 }
@@ -106,27 +105,147 @@ fn complete_construction_system(
 fn build_cost_for_type(bt: BuildingType) -> BuildCost {
     use BuildingType::*;
     match bt {
-        Oba => BuildCost { food: 20, gold: 10, wood: 30, stone: 0, population: 0 },
-        Pasture => BuildCost { food: 5, gold: 0, wood: 15, stone: 0, population: 0 },
-        MiningCamp => BuildCost { food: 0, gold: 5, wood: 10, stone: 0, population: 0 },
-        LumberCamp => BuildCost { food: 0, gold: 0, wood: 5, stone: 0, population: 0 },
-        Barracks => BuildCost { food: 15, gold: 20, wood: 25, stone: 0, population: 0 },
-        ArcheryRange => BuildCost { food: 10, gold: 15, wood: 20, stone: 0, population: 0 },
-        Stable => BuildCost { food: 20, gold: 25, wood: 30, stone: 0, population: 0 },
-        SiegeWorkshop => BuildCost { food: 30, gold: 40, wood: 50, stone: 10, population: 0 },
-        Watchtower => BuildCost { food: 5, gold: 10, wood: 20, stone: 15, population: 0 },
-        Market => BuildCost { food: 0, gold: 15, wood: 20, stone: 0, population: 0 },
-        Warehouse => BuildCost { food: 0, gold: 10, wood: 25, stone: 0, population: 0 },
-        Well => BuildCost { food: 0, gold: 5, wood: 10, stone: 5, population: 0 },
-        Mosque => BuildCost { food: 10, gold: 30, wood: 20, stone: 20, population: 0 },
-        CouncilChamber => BuildCost { food: 20, gold: 50, wood: 30, stone: 30, population: 0 },
-        GuildHall => BuildCost { food: 15, gold: 35, wood: 25, stone: 20, population: 0 },
-        Monument => BuildCost { food: 50, gold: 80, wood: 40, stone: 60, population: 0 },
+        Oba => BuildCost {
+            food: 20,
+            gold: 10,
+            wood: 30,
+            stone: 0,
+            population: 0,
+        },
+        Pasture => BuildCost {
+            food: 5,
+            gold: 0,
+            wood: 15,
+            stone: 0,
+            population: 0,
+        },
+        MiningCamp => BuildCost {
+            food: 0,
+            gold: 5,
+            wood: 10,
+            stone: 0,
+            population: 0,
+        },
+        LumberCamp => BuildCost {
+            food: 0,
+            gold: 0,
+            wood: 5,
+            stone: 0,
+            population: 0,
+        },
+        Barracks => BuildCost {
+            food: 15,
+            gold: 20,
+            wood: 25,
+            stone: 0,
+            population: 0,
+        },
+        ArcheryRange => BuildCost {
+            food: 10,
+            gold: 15,
+            wood: 20,
+            stone: 0,
+            population: 0,
+        },
+        Stable => BuildCost {
+            food: 20,
+            gold: 25,
+            wood: 30,
+            stone: 0,
+            population: 0,
+        },
+        SiegeWorkshop => BuildCost {
+            food: 30,
+            gold: 40,
+            wood: 50,
+            stone: 10,
+            population: 0,
+        },
+        Watchtower => BuildCost {
+            food: 5,
+            gold: 10,
+            wood: 20,
+            stone: 15,
+            population: 0,
+        },
+        Market => BuildCost {
+            food: 0,
+            gold: 15,
+            wood: 20,
+            stone: 0,
+            population: 0,
+        },
+        Warehouse => BuildCost {
+            food: 0,
+            gold: 10,
+            wood: 25,
+            stone: 0,
+            population: 0,
+        },
+        Well => BuildCost {
+            food: 0,
+            gold: 5,
+            wood: 10,
+            stone: 5,
+            population: 0,
+        },
+        Mosque => BuildCost {
+            food: 10,
+            gold: 30,
+            wood: 20,
+            stone: 20,
+            population: 0,
+        },
+        CouncilChamber => BuildCost {
+            food: 20,
+            gold: 50,
+            wood: 30,
+            stone: 30,
+            population: 0,
+        },
+        GuildHall => BuildCost {
+            food: 15,
+            gold: 35,
+            wood: 25,
+            stone: 20,
+            population: 0,
+        },
+        Monument => BuildCost {
+            food: 50,
+            gold: 80,
+            wood: 40,
+            stone: 60,
+            population: 0,
+        },
         // Defensive & infrastructure have minimal costs
-        Palisade => BuildCost { food: 0, gold: 0, wood: 10, stone: 0, population: 0 },
-        StoneWall => BuildCost { food: 0, gold: 5, wood: 10, stone: 20, population: 0 },
-        Gate => BuildCost { food: 0, gold: 10, wood: 15, stone: 15, population: 0 },
-        Road => BuildCost { food: 0, gold: 0, wood: 2, stone: 0, population: 0 },
+        Palisade => BuildCost {
+            food: 0,
+            gold: 0,
+            wood: 10,
+            stone: 0,
+            population: 0,
+        },
+        StoneWall => BuildCost {
+            food: 0,
+            gold: 5,
+            wood: 10,
+            stone: 20,
+            population: 0,
+        },
+        Gate => BuildCost {
+            food: 0,
+            gold: 10,
+            wood: 15,
+            stone: 15,
+            population: 0,
+        },
+        Road => BuildCost {
+            food: 0,
+            gold: 0,
+            wood: 2,
+            stone: 0,
+            population: 0,
+        },
     }
 }
 
@@ -355,7 +474,10 @@ fn recruitment_progress_system(
                 // Consume population
                 stockpile.population += 1;
 
-                info!("Recruited {:?} at {:?}", recruitment.archetype, spawn_offset);
+                info!(
+                    "Recruited {:?} at {:?}",
+                    recruitment.archetype, spawn_offset
+                );
             }
         }
     }
@@ -380,9 +502,9 @@ mod tests {
     fn test_app() -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .init_resource::<ResourceStockpile>()
             .add_event::<BuildOrder>()
@@ -396,7 +518,10 @@ mod tests {
     struct RejectionCollector(Vec<BuildRejected>);
 
     /// System that runs after `build_from_order_system` to capture rejections.
-    fn collect_rejections(mut orders: EventReader<BuildRejected>, mut collector: ResMut<RejectionCollector>) {
+    fn collect_rejections(
+        mut orders: EventReader<BuildRejected>,
+        mut collector: ResMut<RejectionCollector>,
+    ) {
         for ev in orders.read() {
             collector.0.push(ev.clone());
         }
@@ -414,8 +539,10 @@ mod tests {
     /// Build a test app that includes the rejection collector.
     fn test_app_with_collector() -> App {
         let mut app = test_app();
-        app.init_resource::<RejectionCollector>()
-            .add_systems(FixedUpdate, collect_rejections.after(build_from_order_system));
+        app.init_resource::<RejectionCollector>().add_systems(
+            FixedUpdate,
+            collect_rejections.after(build_from_order_system),
+        );
         app
     }
 
@@ -447,10 +574,7 @@ mod tests {
         );
         // No rejection event
         let collector = app.world().resource::<RejectionCollector>();
-        assert!(
-            collector.0.is_empty(),
-            "No rejection expected without zone"
-        );
+        assert!(collector.0.is_empty(), "No rejection expected without zone");
     }
 
     // ── Matching zone → allowed ───────────────────────────────────────
@@ -487,10 +611,7 @@ mod tests {
             "Barracks should be placed in Military zone"
         );
         let collector = app.world().resource::<RejectionCollector>();
-        assert!(
-            collector.0.is_empty(),
-            "No rejection for matching zone"
-        );
+        assert!(collector.0.is_empty(), "No rejection for matching zone");
     }
 
     // ── Mismatched zone → rejected ────────────────────────────────────
@@ -532,7 +653,10 @@ mod tests {
             "Should emit at least one BuildRejected"
         );
         assert!(
-            collector.0.iter().any(|r| matches!(r.reason, BuildRejectionReason::ZoneMismatch(ZoneType::Residential, BuildingType::Barracks))),
+            collector.0.iter().any(|r| matches!(
+                r.reason,
+                BuildRejectionReason::ZoneMismatch(ZoneType::Residential, BuildingType::Barracks)
+            )),
             "Expected ZoneMismatch(Residential, Barracks), got: {:?}",
             collector.0.first().map(|r| &r.reason)
         );
@@ -637,7 +761,10 @@ mod tests {
         );
         let collector = app.world().resource::<RejectionCollector>();
         assert!(
-            collector.0.iter().any(|r| matches!(r.reason, BuildRejectionReason::CellOccupied)),
+            collector
+                .0
+                .iter()
+                .any(|r| matches!(r.reason, BuildRejectionReason::CellOccupied)),
             "Expected CellOccupied rejection"
         );
     }
@@ -686,7 +813,10 @@ mod tests {
         // At least one rejection for Barracks
         let collector = app.world().resource::<RejectionCollector>();
         assert!(
-            collector.0.iter().any(|r| matches!(r.reason, BuildRejectionReason::ZoneMismatch(ZoneType::Residential, BuildingType::Barracks))),
+            collector.0.iter().any(|r| matches!(
+                r.reason,
+                BuildRejectionReason::ZoneMismatch(ZoneType::Residential, BuildingType::Barracks)
+            )),
             "Should have rejected Barracks in Residential zone"
         );
     }
@@ -697,9 +827,9 @@ mod tests {
     fn test_construction_progresses_after_zone_validated_spawn() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                1.0 / 60.0,
+            )))
             .init_resource::<GameTime>()
             .init_resource::<ResourceStockpile>()
             .add_event::<BuildOrder>()
@@ -742,10 +872,7 @@ mod tests {
             .iter(app.world())
             .filter(|site| site.building_type == BuildingType::Oba)
             .count();
-        assert_eq!(
-            const_count, 0,
-            "Oba construction should have completed"
-        );
+        assert_eq!(const_count, 0, "Oba construction should have completed");
 
         // There should be a Building with 'level >= 1'
         let building_count = app
@@ -762,9 +889,7 @@ mod tests {
 }
 
 /// Returns default health, stats, and weapon for a given archetype.
-fn unit_archetype_stats(
-    archetype: UnitArchetype,
-) -> (Health, Stats, MeleeWeapon) {
+fn unit_archetype_stats(archetype: UnitArchetype) -> (Health, Stats, MeleeWeapon) {
     match archetype {
         UnitArchetype::LightInfantry => (
             Health {

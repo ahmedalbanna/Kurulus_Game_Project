@@ -1,6 +1,6 @@
+use super::building::BuildingType;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use super::building::BuildingType;
 
 // ─── Zone Components ─────────────────────────────────────────────────────────
 
@@ -288,10 +288,7 @@ impl UpgradeChain {
                 BuildingType::Warehouse,
                 vec!["Warehouse", "Depot", "Trade Center"],
             ),
-            BuildingType::Well => (
-                BuildingType::Well,
-                vec!["Well", "Fountain", "Aqueduct"],
-            ),
+            BuildingType::Well => (BuildingType::Well, vec!["Well", "Fountain", "Aqueduct"]),
             BuildingType::Mosque => (
                 BuildingType::Mosque,
                 vec!["Mosque", "Great Mosque", "Külliye"],

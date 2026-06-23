@@ -32,16 +32,18 @@ fn update_n(app: &mut App, n: usize) {
 }
 
 fn fire_mission_ended(app: &mut App, mission_id: MissionId, success: bool) {
-    app.world_mut().resource_mut::<Events<MissionEnded>>().send(MissionEnded {
-        mission_id,
-        success,
-    });
+    app.world_mut()
+        .resource_mut::<Events<MissionEnded>>()
+        .send(MissionEnded {
+            mission_id,
+            success,
+        });
 }
 
 fn fire_mission_started(app: &mut App, mission_id: MissionId) {
-    app.world_mut().resource_mut::<Events<MissionStarted>>().send(MissionStarted {
-        mission_id,
-    });
+    app.world_mut()
+        .resource_mut::<Events<MissionStarted>>()
+        .send(MissionStarted { mission_id });
 }
 
 fn assert_f32_approx_eq(a: f32, b: f32, epsilon: f32, label: &str) {
@@ -79,9 +81,18 @@ fn test_campaign_mission_sequence() {
     update_n(&mut app, 5);
 
     let state = app.world().resource::<CampaignState>();
-    assert!(state.is_completed(MissionId::Mission01), "Mission01 should be completed");
-    assert!(state.is_unlocked(MissionId::Mission02), "Mission02 should now be unlocked");
-    assert!(!state.is_unlocked(MissionId::Mission03), "Mission03 should NOT yet be unlocked");
+    assert!(
+        state.is_completed(MissionId::Mission01),
+        "Mission01 should be completed"
+    );
+    assert!(
+        state.is_unlocked(MissionId::Mission02),
+        "Mission02 should now be unlocked"
+    );
+    assert!(
+        !state.is_unlocked(MissionId::Mission03),
+        "Mission03 should NOT yet be unlocked"
+    );
 }
 
 #[test]
@@ -100,7 +111,11 @@ fn test_campaign_full_sequence() {
     ] {
         assert_eq!(CampaignState::next_mission(current), expected_next);
         state.complete_mission(current);
-        assert!(state.is_completed(current), "{:?} should be completed", current);
+        assert!(
+            state.is_completed(current),
+            "{:?} should be completed",
+            current
+        );
         if let Some(next) = expected_next {
             assert!(state.is_unlocked(next), "{:?} should be unlocked", next);
         }
@@ -190,7 +205,10 @@ fn test_campaign_no_carryover_on_failure() {
 
     // Campaign state should NOT advance on failure
     let state = app.world().resource::<CampaignState>();
-    assert!(!state.is_completed(MissionId::Mission01), "Mission01 should NOT be completed on failure");
+    assert!(
+        !state.is_completed(MissionId::Mission01),
+        "Mission01 should NOT be completed on failure"
+    );
 }
 
 #[test]
@@ -206,12 +224,21 @@ fn test_campaign_advanced_event_side_effect() {
 
     // CampaignState was updated by the system (direct mutation — reliable check)
     let state = app.world().resource::<CampaignState>();
-    assert!(state.is_completed(MissionId::Mission01), "Mission01 should be completed");
-    assert!(state.is_unlocked(MissionId::Mission02), "Mission02 should be unlocked");
+    assert!(
+        state.is_completed(MissionId::Mission01),
+        "Mission01 should be completed"
+    );
+    assert!(
+        state.is_unlocked(MissionId::Mission02),
+        "Mission02 should be unlocked"
+    );
 
     // ResourcePersistence was updated too
     let persistence = app.world().resource::<ResourcePersistence>();
-    assert!(persistence.saved_stockpile.is_some(), "Stockpile should be saved");
+    assert!(
+        persistence.saved_stockpile.is_some(),
+        "Stockpile should be saved"
+    );
 
     // The CampaignAdvanced event itself is a fire-and-forget notification.
     // It gets cleaned up by Bevy's event bus after ~3 update cycles.
@@ -222,11 +249,7 @@ fn test_campaign_advanced_event_side_effect() {
 
 /// Helper: spawn an entity with MissionStateComponent containing completed
 /// objectives that have specific gold and item rewards.
-fn spawn_mission_with_rewards(
-    app: &mut App,
-    mission_id: MissionId,
-    objectives: Vec<Objective>,
-) {
+fn spawn_mission_with_rewards(app: &mut App, mission_id: MissionId, objectives: Vec<Objective>) {
     app.world_mut().spawn(MissionStateComponent {
         mission_id,
         phase: MissionPhase::Active,
@@ -237,11 +260,7 @@ fn spawn_mission_with_rewards(
     });
 }
 
-fn make_completed_objective(
-    id: ObjectiveId,
-    gold: u32,
-    item: Option<&str>,
-) -> Objective {
+fn make_completed_objective(id: ObjectiveId, gold: u32, item: Option<&str>) -> Objective {
     Objective {
         objective_id: id,
         objective_type: ObjectiveType::Kill,
@@ -284,7 +303,12 @@ fn test_post_mission_rewards_gold_awarded() {
 
     // Base 50 + 10 + 15 + 25 = 100, within tolerance for passive income
     let stockpile = app.world().resource::<ResourceStockpile>();
-    assert_f32_approx_eq(stockpile.gold, 100.0, RESOURCE_EPSILON, "Gold after mission rewards");
+    assert_f32_approx_eq(
+        stockpile.gold,
+        100.0,
+        RESOURCE_EPSILON,
+        "Gold after mission rewards",
+    );
 }
 
 #[test]
@@ -296,9 +320,11 @@ fn test_post_mission_rewards_no_rewards_on_failure() {
     spawn_mission_with_rewards(
         &mut app,
         MissionId::Mission01,
-        vec![
-            make_completed_objective(ObjectiveId::TutorialBuildOba, 50, None),
-        ],
+        vec![make_completed_objective(
+            ObjectiveId::TutorialBuildOba,
+            50,
+            None,
+        )],
     );
 
     // Fire failure — rewards should NOT be applied
@@ -306,7 +332,12 @@ fn test_post_mission_rewards_no_rewards_on_failure() {
     update_n(&mut app, 5);
 
     let stockpile = app.world().resource::<ResourceStockpile>();
-    assert_f32_approx_eq(stockpile.gold, 50.0, RESOURCE_EPSILON, "Gold should not change on failure");
+    assert_f32_approx_eq(
+        stockpile.gold,
+        50.0,
+        RESOURCE_EPSILON,
+        "Gold should not change on failure",
+    );
 }
 
 #[test]
@@ -316,9 +347,11 @@ fn test_post_mission_rewards_items_unlocked() {
     spawn_mission_with_rewards(
         &mut app,
         MissionId::Mission01,
-        vec![
-            make_completed_objective(ObjectiveId::TutorialAttackEnemy, 30, Some("Sword_of_Osman")),
-        ],
+        vec![make_completed_objective(
+            ObjectiveId::TutorialAttackEnemy,
+            30,
+            Some("Sword_of_Osman"),
+        )],
     );
 
     fire_mission_ended(&mut app, MissionId::Mission01, true);
@@ -326,7 +359,9 @@ fn test_post_mission_rewards_items_unlocked() {
 
     let campaign = app.world().resource::<CampaignState>();
     assert!(
-        campaign.unlocked_items.contains(&"Sword_of_Osman".to_string()),
+        campaign
+            .unlocked_items
+            .contains(&"Sword_of_Osman".to_string()),
         "Item should be unlocked in CampaignState"
     );
 }
@@ -354,10 +389,7 @@ fn test_post_mission_rewards_items_deduplicated() {
         .iter()
         .filter(|i| *i == "Same_Item")
         .count();
-    assert_eq!(
-        count, 1,
-        "Item should appear only once in unlocked_items"
-    );
+    assert_eq!(count, 1, "Item should appear only once in unlocked_items");
 }
 
 #[test]
@@ -388,7 +420,9 @@ fn test_post_mission_rewards_no_items_when_objectives_incomplete() {
 
     let campaign = app.world().resource::<CampaignState>();
     assert!(
-        !campaign.unlocked_items.contains(&"Unobtained_Item".to_string()),
+        !campaign
+            .unlocked_items
+            .contains(&"Unobtained_Item".to_string()),
         "Incomplete objective should not unlock its item"
     );
 }

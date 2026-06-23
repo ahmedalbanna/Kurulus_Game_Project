@@ -1,7 +1,7 @@
-use bevy::prelude::*;
-use serde::{Deserialize, Serialize};
 use crate::components::MissionId;
 use crate::resources::ResourceStockpile;
+use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// Tracks the overall campaign state: which missions are completed/unlocked
 /// and which special items have been collected.
@@ -72,7 +72,9 @@ pub struct ResourcePersistence {
 
 impl Default for ResourcePersistence {
     fn default() -> Self {
-        Self { saved_stockpile: None }
+        Self {
+            saved_stockpile: None,
+        }
     }
 }
 

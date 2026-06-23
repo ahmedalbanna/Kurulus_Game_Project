@@ -1,6 +1,6 @@
+use crate::components::{BuildingType, WorkerRole};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::components::{BuildingType, WorkerRole};
 
 // ─── PopulationRegistry ──────────────────────────────────────────────────────
 

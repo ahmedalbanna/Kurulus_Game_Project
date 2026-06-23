@@ -16,12 +16,10 @@
 //! at their zone category, providing a clean default look.
 
 use bevy::prelude::*;
-use kurulus_core::coord::*;
 use kurulus_core::components::building::Building;
-use kurulus_core::components::city::{Zone, ZoneType, ServiceBuilding};
-use kurulus_core::resources::city::{
-    OverlaySettings, OverlayMode, CityState, overlay_colors,
-};
+use kurulus_core::components::city::{ServiceBuilding, Zone, ZoneType};
+use kurulus_core::coord::*;
+use kurulus_core::resources::city::{overlay_colors, CityState, OverlayMode, OverlaySettings};
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -107,10 +105,7 @@ pub fn update_building_sprite_colors(
     overlay: Res<OverlaySettings>,
     city_state: Option<Res<CityState>>,
     // Read-only query for service-position detection (no &mut Sprite).
-    position_query: Query<
-        (&WorldPosition, Option<&ServiceBuilding>),
-        With<Building>,
-    >,
+    position_query: Query<(&WorldPosition, Option<&ServiceBuilding>), With<Building>>,
     // Mutable query for the actual sprite update.
     mut sprite_query: Query<
         (&Building, &WorldPosition, &mut Sprite, Option<&Zone>),
@@ -142,12 +137,7 @@ pub fn update_building_sprite_colors(
             .iter()
             .any(|(svc_pos, radius)| pos.world_2d.0.distance(*svc_pos) <= *radius);
 
-        sprite.color = sprite_color_for_building(
-            zone,
-            &overlay,
-            city_state.as_deref(),
-            covered,
-        );
+        sprite.color = sprite_color_for_building(zone, &overlay, city_state.as_deref(), covered);
     }
 }
 
@@ -177,15 +167,15 @@ mod tests {
     use super::*;
     use bevy::time::TimeUpdateStrategy;
     use kurulus_core::components::building::Building;
-    use kurulus_core::components::unit::FactionId;
     use kurulus_core::components::city::ServiceBuilding;
     use kurulus_core::components::city::ServiceType;
     use kurulus_core::components::city::Zone;
     use kurulus_core::components::city::ZoneType;
+    use kurulus_core::components::unit::FactionId;
     use kurulus_core::coord::WorldPosition;
     use kurulus_core::resources::city::CityState;
-    use kurulus_core::resources::city::OverlaySettings;
     use kurulus_core::resources::city::OverlayMode;
+    use kurulus_core::resources::city::OverlaySettings;
     use std::time::Duration;
 
     // ─── Test helpers ───────────────────────────────────────────────────
@@ -339,7 +329,11 @@ mod tests {
         let diff = (sprite.color.to_srgba().red - expected.to_srgba().red).abs()
             + (sprite.color.to_srgba().green - expected.to_srgba().green).abs()
             + (sprite.color.to_srgba().blue - expected.to_srgba().blue).abs();
-        assert!(diff < 0.01, "Expected saturated tint, got {:?}", sprite.color);
+        assert!(
+            diff < 0.01,
+            "Expected saturated tint, got {:?}",
+            sprite.color
+        );
     }
 
     #[test]
@@ -359,7 +353,11 @@ mod tests {
         let diff = (sprite.color.to_srgba().red - expected.to_srgba().red).abs()
             + (sprite.color.to_srgba().green - expected.to_srgba().green).abs()
             + (sprite.color.to_srgba().blue - expected.to_srgba().blue).abs();
-        assert!(diff < 0.01, "Expected unassigned grey, got {:?}", sprite.color);
+        assert!(
+            diff < 0.01,
+            "Expected unassigned grey, got {:?}",
+            sprite.color
+        );
     }
 
     // ─── Happiness overlay ──────────────────────────────────────────────
@@ -436,18 +434,26 @@ mod tests {
         spawn_building(&mut app, 3, 0, None);
 
         app.world_mut().resource_mut::<OverlaySettings>().mode = OverlayMode::ServiceCoverage;
-        app.world_mut().resource_mut::<OverlaySettings>().active_service = ServiceType::Water;
+        app.world_mut()
+            .resource_mut::<OverlaySettings>()
+            .active_service = ServiceType::Water;
         run_frames(&mut app, 3);
 
         // Find the consumer building's sprite
-        let mut q = app.world_mut().query::<(&Building, &Sprite, &WorldPosition)>();
+        let mut q = app
+            .world_mut()
+            .query::<(&Building, &Sprite, &WorldPosition)>();
         for (b, sprite, _pos) in q.iter(app.world()) {
             if b.building_type != kurulus_core::components::building::BuildingType::Well {
                 let expected = overlay_colors::COVERAGE_FULL;
                 let diff = (sprite.color.to_srgba().red - expected.to_srgba().red).abs()
                     + (sprite.color.to_srgba().green - expected.to_srgba().green).abs()
                     + (sprite.color.to_srgba().blue - expected.to_srgba().blue).abs();
-                assert!(diff < 0.01, "Expected green (covered), got {:?}", sprite.color);
+                assert!(
+                    diff < 0.01,
+                    "Expected green (covered), got {:?}",
+                    sprite.color
+                );
             }
         }
     }
@@ -477,17 +483,25 @@ mod tests {
         spawn_building(&mut app, 10, 0, None);
 
         app.world_mut().resource_mut::<OverlaySettings>().mode = OverlayMode::ServiceCoverage;
-        app.world_mut().resource_mut::<OverlaySettings>().active_service = ServiceType::Water;
+        app.world_mut()
+            .resource_mut::<OverlaySettings>()
+            .active_service = ServiceType::Water;
         run_frames(&mut app, 3);
 
-        let mut q = app.world_mut().query::<(&Building, &Sprite, &WorldPosition)>();
+        let mut q = app
+            .world_mut()
+            .query::<(&Building, &Sprite, &WorldPosition)>();
         for (b, sprite, _pos) in q.iter(app.world()) {
             if b.building_type != kurulus_core::components::building::BuildingType::Well {
                 let expected = overlay_colors::COVERAGE_NONE;
                 let diff = (sprite.color.to_srgba().red - expected.to_srgba().red).abs()
                     + (sprite.color.to_srgba().green - expected.to_srgba().green).abs()
                     + (sprite.color.to_srgba().blue - expected.to_srgba().blue).abs();
-                assert!(diff < 0.01, "Expected red (uncovered), got {:?}", sprite.color);
+                assert!(
+                    diff < 0.01,
+                    "Expected red (uncovered), got {:?}",
+                    sprite.color
+                );
             }
         }
     }

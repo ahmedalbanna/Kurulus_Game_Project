@@ -1,7 +1,7 @@
-use bevy::prelude::*;
-use serde::{Deserialize, Serialize};
 use super::unit::FactionId;
 use crate::coord::GridPos;
+use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Building {
@@ -48,10 +48,10 @@ pub struct BuildCost {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum BuildingType {
     // Production
-    Oba,           // Main tent / town center
-    Pasture,       // Food production
-    MiningCamp,    // Gold/stone
-    LumberCamp,    // Wood
+    Oba,        // Main tent / town center
+    Pasture,    // Food production
+    MiningCamp, // Gold/stone
+    LumberCamp, // Wood
     // Military
     Barracks,
     ArcheryRange,

@@ -194,7 +194,9 @@ fn dynasty_tree_system(
             tree.root = Some(evt.new_ruler);
         }
         if heroes.get(evt.new_ruler).is_ok() {
-            commands.entity(evt.new_ruler).insert(LegacyScore::default());
+            commands
+                .entity(evt.new_ruler)
+                .insert(LegacyScore::default());
         }
     }
 }
@@ -293,9 +295,16 @@ fn council_priority_system(
         for priority in &evt.priorities {
             match priority.as_str() {
                 "justice" => {
-                    *loyalty.factions.get_mut("yeni_sehir_scholars").unwrap_or(&mut 0.0) =
-                        (loyalty.factions.get("yeni_sehir_scholars").copied().unwrap_or(50.0) + 20.0)
-                            .min(100.0);
+                    *loyalty
+                        .factions
+                        .get_mut("yeni_sehir_scholars")
+                        .unwrap_or(&mut 0.0) = (loyalty
+                        .factions
+                        .get("yeni_sehir_scholars")
+                        .copied()
+                        .unwrap_or(50.0)
+                        + 20.0)
+                        .min(100.0);
                 }
                 "power" => {
                     *loyalty.factions.get_mut("kayi_army").unwrap_or(&mut 0.0) =
@@ -303,14 +312,28 @@ fn council_priority_system(
                             .min(100.0);
                 }
                 "trade" => {
-                    *loyalty.factions.get_mut("bursa_merchants").unwrap_or(&mut 0.0) =
-                        (loyalty.factions.get("bursa_merchants").copied().unwrap_or(50.0) + 20.0)
-                            .min(100.0);
+                    *loyalty
+                        .factions
+                        .get_mut("bursa_merchants")
+                        .unwrap_or(&mut 0.0) = (loyalty
+                        .factions
+                        .get("bursa_merchants")
+                        .copied()
+                        .unwrap_or(50.0)
+                        + 20.0)
+                        .min(100.0);
                 }
                 "unity" => {
-                    *loyalty.factions.get_mut("turkmen_tribes").unwrap_or(&mut 0.0) =
-                        (loyalty.factions.get("turkmen_tribes").copied().unwrap_or(50.0) + 20.0)
-                            .min(100.0);
+                    *loyalty
+                        .factions
+                        .get_mut("turkmen_tribes")
+                        .unwrap_or(&mut 0.0) = (loyalty
+                        .factions
+                        .get("turkmen_tribes")
+                        .copied()
+                        .unwrap_or(50.0)
+                        + 20.0)
+                        .min(100.0);
                 }
                 _ => {}
             }
@@ -355,30 +378,23 @@ fn dynasty_ending_system(
 
     // Determine the ending based on testament + council combination
     // AllTestamentsChosen fields are TestamentOption (not Option<TestamentOption>)
-    let ending = if testaments.religious == TestamentOption::B
-        && council.contains(&"justice".into())
-    {
-        // Empire of Justice: Religious(B) + Justice priority
-        DynastyEnding::EmpireOfJustice
-    } else if testaments.military == TestamentOption::A
-        && council.contains(&"power".into())
-    {
-        // Holy Empire: Military(A) + Power priority
-        DynastyEnding::HolyEmpire
-    } else if testaments.religious == TestamentOption::B
-        && council.contains(&"trade".into())
-    {
-        // Empire of Science: Religious(B) + Trade priority
-        DynastyEnding::EmpireOfScience
-    } else if testaments.political == TestamentOption::A
-        && council.contains(&"unity".into())
-    {
-        // Empire of Peoples: Political(A) + Unity priority
-        DynastyEnding::EmpireOfPeoples
-    } else {
-        // Default
-        DynastyEnding::EmpireOfJustice
-    };
+    let ending =
+        if testaments.religious == TestamentOption::B && council.contains(&"justice".into()) {
+            // Empire of Justice: Religious(B) + Justice priority
+            DynastyEnding::EmpireOfJustice
+        } else if testaments.military == TestamentOption::A && council.contains(&"power".into()) {
+            // Holy Empire: Military(A) + Power priority
+            DynastyEnding::HolyEmpire
+        } else if testaments.religious == TestamentOption::B && council.contains(&"trade".into()) {
+            // Empire of Science: Religious(B) + Trade priority
+            DynastyEnding::EmpireOfScience
+        } else if testaments.political == TestamentOption::A && council.contains(&"unity".into()) {
+            // Empire of Peoples: Political(A) + Unity priority
+            DynastyEnding::EmpireOfPeoples
+        } else {
+            // Default
+            DynastyEnding::EmpireOfJustice
+        };
 
     ending_writer.send(DynastyEndingChosen { ending });
 }
@@ -408,15 +424,18 @@ mod tests {
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
                 1.0 / 60.0,
             )))
-            .add_systems(Update, (
-                succession_order_system,
-                legacy_scoring_system,
-                dynasty_tree_system,
-                testament_system,
-                beylik_loyalty_system,
-                council_priority_system,
-                dynasty_ending_system,
-            ));
+            .add_systems(
+                Update,
+                (
+                    succession_order_system,
+                    legacy_scoring_system,
+                    dynasty_tree_system,
+                    testament_system,
+                    beylik_loyalty_system,
+                    council_priority_system,
+                    dynasty_ending_system,
+                ),
+            );
         app
     }
 
@@ -450,7 +469,10 @@ mod tests {
         assert!(!succession.heirs.is_empty(), "Should have at least 1 heir");
         let pos_high = succession.heirs.iter().position(|e| *e == high_loyalty);
         let pos_low = succession.heirs.iter().position(|e| *e == low_loyalty);
-        assert!(pos_high < pos_low, "High-loyalty hero should rank above low-loyalty");
+        assert!(
+            pos_high < pos_low,
+            "High-loyalty hero should rank above low-loyalty"
+        );
     }
 
     #[test]
@@ -491,16 +513,16 @@ mod tests {
         app.update();
 
         let tree = app.world().resource::<DynastyTree>();
-        assert!(tree.nodes.contains_key(&child), "Child should be in dynasty tree");
+        assert!(
+            tree.nodes.contains_key(&child),
+            "Child should be in dynasty tree"
+        );
     }
 
     #[test]
     fn test_testament_choices_store() {
         let mut app = test_app();
-        let hero = app
-            .world_mut()
-            .spawn(TestamentChoices::default())
-            .id();
+        let hero = app.world_mut().spawn(TestamentChoices::default()).id();
 
         app.world_mut().send_event(TestamentChoiceMade {
             testament_type: "military".into(),
@@ -515,10 +537,7 @@ mod tests {
     #[test]
     fn test_all_testaments_fires_completion() {
         let mut app = test_app();
-        let hero = app
-            .world_mut()
-            .spawn(TestamentChoices::default())
-            .id();
+        let hero = app.world_mut().spawn(TestamentChoices::default()).id();
 
         app.world_mut().send_event(TestamentChoiceMade {
             testament_type: "military".into(),
@@ -570,8 +589,15 @@ mod tests {
         app.update();
 
         let loyalty = app.world().resource::<BeylikLoyalty>();
-        let scholars = loyalty.factions.get("yeni_sehir_scholars").copied().unwrap_or(0.0);
-        assert!(scholars > 85.0, "Scholars loyalty should increase with justice priority");
+        let scholars = loyalty
+            .factions
+            .get("yeni_sehir_scholars")
+            .copied()
+            .unwrap_or(0.0);
+        assert!(
+            scholars > 85.0,
+            "Scholars loyalty should increase with justice priority"
+        );
     }
 
     #[test]
@@ -608,7 +634,14 @@ mod tests {
         // Religious(B) + Justice → Empire of Justice
         // Verify by checking the BeylikLoyalty state
         let loyalty = app.world().resource::<BeylikLoyalty>();
-        let scholars = loyalty.factions.get("yeni_sehir_scholars").copied().unwrap_or(0.0);
-        assert!(scholars > 85.0, "Scholars loyalty should increase with justice priority");
+        let scholars = loyalty
+            .factions
+            .get("yeni_sehir_scholars")
+            .copied()
+            .unwrap_or(0.0);
+        assert!(
+            scholars > 85.0,
+            "Scholars loyalty should increase with justice priority"
+        );
     }
 }

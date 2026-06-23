@@ -1,6 +1,6 @@
+use crate::coord::GridPos;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::coord::GridPos;
 
 /// Types of terrain that affect stealth, movement, and vision.
 #[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

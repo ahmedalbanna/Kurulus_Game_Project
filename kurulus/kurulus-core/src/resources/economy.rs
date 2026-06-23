@@ -1,6 +1,6 @@
+use crate::components::FactionId;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::components::FactionId;
 
 #[derive(Resource, Reflect, Clone, Debug, Serialize, Deserialize)]
 #[reflect(Resource)]

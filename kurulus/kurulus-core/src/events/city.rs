@@ -1,7 +1,7 @@
-use bevy::prelude::*;
-use crate::coord::GridPos;
 use crate::components::{BuildingType, ZoneType};
-use crate::resources::city::{CityLevel, CityEventType};
+use crate::coord::GridPos;
+use crate::resources::city::{CityEventType, CityLevel};
+use bevy::prelude::*;
 
 /// Fired when a new zone district is placed on the map.
 #[derive(Event, Clone, Debug)]

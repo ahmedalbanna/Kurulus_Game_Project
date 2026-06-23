@@ -89,11 +89,7 @@ pub fn attack_move_interrupt_system(
     mut commands: Commands,
     movers: Query<
         (Entity, &WorldPosition, &Stats, &Unit),
-        (
-            With<Unit>,
-            With<AttackTargetMarker>,
-            Without<Dead>,
-        ),
+        (With<Unit>, With<AttackTargetMarker>, Without<Dead>),
     >,
     potential_targets: Query<(Entity, &WorldPosition, &Unit), Without<Dead>>,
 ) {
@@ -150,7 +146,9 @@ pub fn target_priority_system(
 
         if target_alive {
             // Check if target is still in a reasonable range (3x attack_range)
-            if let Ok((_target_e, target_pos, _health, _target_unit)) = targets.get(current_target.target) {
+            if let Ok((_target_e, target_pos, _health, _target_unit)) =
+                targets.get(current_target.target)
+            {
                 let dist = pos.world_2d.0.distance(target_pos.world_2d.0);
                 if dist <= stats.attack_range * 3.0 {
                     // Current target is still valid — keep it

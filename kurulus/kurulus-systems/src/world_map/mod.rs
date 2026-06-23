@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::math::IVec2;
+use bevy::prelude::*;
 use kurulus_core::prelude::*;
 use kurulus_core::resources::world_map::{WorldMapHover, WorldMapSelection};
 use std::collections::HashMap;
@@ -103,7 +103,9 @@ fn generate_terrain(world_map: &mut WorldMap) {
     for y in 0..height {
         for x in 0..width {
             let pos = IVec2::new(x, y);
-            let Some(tile) = world_map.get_tile_mut(pos) else { continue };
+            let Some(tile) = world_map.get_tile_mut(pos) else {
+                continue;
+            };
 
             // Simple terrain rules:
             // Water along left/right edges (Sea of Marmara / Black Sea)
@@ -154,7 +156,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "Söğüt".into(),
             tiles: collect_rect(world_map, 4, 8, 10, 14),
             owner: FactionId::Kayi,
-            resources: RegionResources { food: 30.0, gold: 5.0, wood: 20.0, stone: 10.0, population_capacity: 200 },
+            resources: RegionResources {
+                food: 30.0,
+                gold: 5.0,
+                wood: 20.0,
+                stone: 10.0,
+                population_capacity: 200,
+            },
             strategic_value: 3,
             garrison_strength: 0.2,
         },
@@ -163,7 +171,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "Domaniç".into(),
             tiles: collect_rect(world_map, 2, 2, 8, 8),
             owner: FactionId::Kayi,
-            resources: RegionResources { food: 15.0, gold: 10.0, wood: 35.0, stone: 25.0, population_capacity: 100 },
+            resources: RegionResources {
+                food: 15.0,
+                gold: 10.0,
+                wood: 35.0,
+                stone: 25.0,
+                population_capacity: 100,
+            },
             strategic_value: 4,
             garrison_strength: 0.1,
         },
@@ -172,7 +186,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "Ermeni Beli".into(),
             tiles: collect_rect(world_map, 10, 4, 16, 10),
             owner: FactionId::Byzantine,
-            resources: RegionResources { food: 10.0, gold: 15.0, wood: 10.0, stone: 30.0, population_capacity: 80 },
+            resources: RegionResources {
+                food: 10.0,
+                gold: 15.0,
+                wood: 10.0,
+                stone: 30.0,
+                population_capacity: 80,
+            },
             strategic_value: 5,
             garrison_strength: 0.3,
         },
@@ -181,7 +201,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "Karacahisar".into(),
             tiles: collect_rect(world_map, 16, 6, 22, 12),
             owner: FactionId::Byzantine,
-            resources: RegionResources { food: 20.0, gold: 20.0, wood: 15.0, stone: 20.0, population_capacity: 150 },
+            resources: RegionResources {
+                food: 20.0,
+                gold: 20.0,
+                wood: 15.0,
+                stone: 20.0,
+                population_capacity: 150,
+            },
             strategic_value: 6,
             garrison_strength: 0.5,
         },
@@ -190,7 +216,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "Bilecik".into(),
             tiles: collect_rect(world_map, 14, 12, 20, 18),
             owner: FactionId::Byzantine,
-            resources: RegionResources { food: 25.0, gold: 10.0, wood: 30.0, stone: 15.0, population_capacity: 180 },
+            resources: RegionResources {
+                food: 25.0,
+                gold: 10.0,
+                wood: 30.0,
+                stone: 15.0,
+                population_capacity: 180,
+            },
             strategic_value: 3,
             garrison_strength: 0.2,
         },
@@ -199,7 +231,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "Yarhisar".into(),
             tiles: collect_rect(world_map, 20, 14, 26, 20),
             owner: FactionId::Byzantine,
-            resources: RegionResources { food: 20.0, gold: 15.0, wood: 20.0, stone: 25.0, population_capacity: 120 },
+            resources: RegionResources {
+                food: 20.0,
+                gold: 15.0,
+                wood: 20.0,
+                stone: 25.0,
+                population_capacity: 120,
+            },
             strategic_value: 4,
             garrison_strength: 0.4,
         },
@@ -208,7 +246,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "İnegöl".into(),
             tiles: collect_rect(world_map, 22, 10, 30, 16),
             owner: FactionId::Byzantine,
-            resources: RegionResources { food: 35.0, gold: 10.0, wood: 25.0, stone: 10.0, population_capacity: 250 },
+            resources: RegionResources {
+                food: 35.0,
+                gold: 10.0,
+                wood: 25.0,
+                stone: 10.0,
+                population_capacity: 250,
+            },
             strategic_value: 4,
             garrison_strength: 0.3,
         },
@@ -217,7 +261,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "Köprühisar".into(),
             tiles: collect_rect(world_map, 28, 16, 34, 22),
             owner: FactionId::Byzantine,
-            resources: RegionResources { food: 15.0, gold: 25.0, wood: 10.0, stone: 30.0, population_capacity: 100 },
+            resources: RegionResources {
+                food: 15.0,
+                gold: 25.0,
+                wood: 10.0,
+                stone: 30.0,
+                population_capacity: 100,
+            },
             strategic_value: 5,
             garrison_strength: 0.4,
         },
@@ -226,7 +276,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "Bursa".into(),
             tiles: collect_rect(world_map, 30, 8, 38, 16),
             owner: FactionId::Byzantine,
-            resources: RegionResources { food: 50.0, gold: 30.0, wood: 20.0, stone: 40.0, population_capacity: 500 },
+            resources: RegionResources {
+                food: 50.0,
+                gold: 30.0,
+                wood: 20.0,
+                stone: 40.0,
+                population_capacity: 500,
+            },
             strategic_value: 8,
             garrison_strength: 0.7,
         },
@@ -235,7 +291,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "İznik".into(),
             tiles: collect_rect(world_map, 34, 2, 42, 10),
             owner: FactionId::Byzantine,
-            resources: RegionResources { food: 40.0, gold: 35.0, wood: 15.0, stone: 35.0, population_capacity: 400 },
+            resources: RegionResources {
+                food: 40.0,
+                gold: 35.0,
+                wood: 15.0,
+                stone: 35.0,
+                population_capacity: 400,
+            },
             strategic_value: 7,
             garrison_strength: 0.6,
         },
@@ -244,7 +306,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "İzmit".into(),
             tiles: collect_rect(world_map, 40, 6, 48, 14),
             owner: FactionId::Byzantine,
-            resources: RegionResources { food: 30.0, gold: 40.0, wood: 10.0, stone: 25.0, population_capacity: 350 },
+            resources: RegionResources {
+                food: 30.0,
+                gold: 40.0,
+                wood: 10.0,
+                stone: 25.0,
+                population_capacity: 350,
+            },
             strategic_value: 6,
             garrison_strength: 0.5,
         },
@@ -253,7 +321,13 @@ fn define_regions(world_map: &mut WorldMap) {
             name: "Sakarya".into(),
             tiles: collect_rect(world_map, 36, 16, 44, 24),
             owner: FactionId::Byzantine,
-            resources: RegionResources { food: 25.0, gold: 20.0, wood: 30.0, stone: 15.0, population_capacity: 200 },
+            resources: RegionResources {
+                food: 25.0,
+                gold: 20.0,
+                wood: 30.0,
+                stone: 15.0,
+                population_capacity: 200,
+            },
             strategic_value: 5,
             garrison_strength: 0.4,
         },
@@ -874,7 +948,9 @@ fn encounter_system(
             .unwrap_or(WorldTerrain::Grassland);
 
         // Roll for encounter (using world_map.encounter_seed)
-        world_map.encounter_seed = world_map.encounter_seed.wrapping_mul(6364136223846793005)
+        world_map.encounter_seed = world_map
+            .encounter_seed
+            .wrapping_mul(6364136223846793005)
             .wrapping_add(1442695040888963407);
         let luck = (world_map.encounter_seed % 100) as f32 / 100.0;
 
@@ -887,5 +963,3 @@ fn encounter_system(
         }
     }
 }
-
-

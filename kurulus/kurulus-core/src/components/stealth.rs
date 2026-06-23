@@ -1,6 +1,6 @@
+use crate::components::UnitArchetype;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::components::UnitArchetype;
 
 /// Stealth capability of a unit.
 #[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]

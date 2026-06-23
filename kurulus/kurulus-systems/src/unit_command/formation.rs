@@ -12,10 +12,7 @@ use kurulus_core::prelude::*;
 pub fn assign_formation_slots_system(
     mut commands: Commands,
     leader_formations: Query<(&Formation, &WorldPosition), Without<FormationFollower>>,
-    followers: Query<
-        (Entity, &Formation),
-        (With<FormationFollower>, Without<Dead>),
-    >,
+    followers: Query<(Entity, &Formation), (With<FormationFollower>, Without<Dead>)>,
 ) {
     for (follower_entity, formation) in followers.iter() {
         // Find the leader's formation to get formation type and count
@@ -79,7 +76,9 @@ pub fn assign_formation_bonus_system(
         // Only insert if it changed (or doesn't exist)
         match existing_bonuses.get(entity) {
             Ok(existing) if *existing == bonus => {} // unchanged
-            _ => { commands.entity(entity).insert(bonus); }
+            _ => {
+                commands.entity(entity).insert(bonus);
+            }
         }
     }
 
@@ -101,7 +100,9 @@ pub fn assign_formation_bonus_system(
         let bonus = leader_formation.formation_type.bonuses();
         match existing_bonuses.get(entity) {
             Ok(existing) if *existing == bonus => {}
-            _ => { commands.entity(entity).insert(bonus); }
+            _ => {
+                commands.entity(entity).insert(bonus);
+            }
         }
     }
 }
@@ -169,9 +170,9 @@ pub fn auto_form_system(
             let mut placed = false;
             for group in grouped.iter_mut() {
                 // Check if this candidate is within range of any entity in the group
-                let in_range = group.iter().any(|(_, _, pos)| {
-                    pos.distance(candidate.2) <= FORMATION_RANGE
-                });
+                let in_range = group
+                    .iter()
+                    .any(|(_, _, pos)| pos.distance(candidate.2) <= FORMATION_RANGE);
                 if in_range {
                     group.push(candidate);
                     placed = true;
@@ -198,7 +199,11 @@ pub fn auto_form_system(
             let (leader_entity, _, leader_pos) = group[leader_idx];
 
             // Determine facing from the group's average position relative to leader
-            let avg_pos = group.iter().map(|(_, _, p)| *p).reduce(|a, b| a + b).unwrap_or(leader_pos);
+            let avg_pos = group
+                .iter()
+                .map(|(_, _, p)| *p)
+                .reduce(|a, b| a + b)
+                .unwrap_or(leader_pos);
             let facing_dir = if avg_pos != leader_pos {
                 (avg_pos - leader_pos).normalize_or_zero()
             } else {
@@ -345,7 +350,9 @@ pub fn formation_breaking_system(
                 commands.entity(follower_entity).remove::<Formation>();
                 commands.entity(follower_entity).remove::<FormationSlot>();
                 commands.entity(follower_entity).remove::<FormationBonus>();
-                commands.entity(follower_entity).remove::<FormationFollower>();
+                commands
+                    .entity(follower_entity)
+                    .remove::<FormationFollower>();
             }
         }
 
@@ -415,10 +422,7 @@ fn trigger_break(
 /// behaviour.
 pub fn formation_break_movement_system(
     time: Res<bevy::time::Time<bevy::time::Fixed>>,
-    mut broken: Query<
-        (&mut WorldPosition, &Stats, &FormationBreak),
-        (With<Unit>, Without<Dead>),
-    >,
+    mut broken: Query<(&mut WorldPosition, &Stats, &FormationBreak), (With<Unit>, Without<Dead>)>,
 ) {
     let dt = time.delta_secs();
     for (mut pos, stats, break_comp) in broken.iter_mut() {

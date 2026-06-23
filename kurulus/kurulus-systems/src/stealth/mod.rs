@@ -79,8 +79,7 @@ fn vision_calculation_system(
     mut fog_tiles: Query<(&GridPos, &mut FogOfWar)>,
     terrain: Res<TerrainGrid>,
 ) {
-    let mut visible_cells: std::collections::HashSet<IVec2> =
-        std::collections::HashSet::new();
+    let mut visible_cells: std::collections::HashSet<IVec2> = std::collections::HashSet::new();
 
     for (pos, stats, unit, height) in units.iter() {
         let vision = if unit.faction == FactionId::Kayi {
@@ -159,8 +158,8 @@ fn ambush_auto_hide_system(
         let night_mod = if game_time.is_night() { 0.20 } else { 0.0 };
         let noise_factor = noise_opt.map(|n| n.noise * 0.5).unwrap_or(0.0);
         let size_factor = vis_opt.map(|v| v.footprint * 0.3).unwrap_or(0.0);
-        let effective_level = (stealth.level + terrain_mod + night_mod - noise_factor - size_factor)
-            .clamp(0.0, 1.0);
+        let effective_level =
+            (stealth.level + terrain_mod + night_mod - noise_factor - size_factor).clamp(0.0, 1.0);
 
         // Update the level for detection system
         stealth.level = effective_level;
@@ -180,7 +179,10 @@ fn ambush_auto_hide_system(
             // Auto-hide inside ambush zones (even if previously revealed)
             if !stealth.is_hidden {
                 stealth.is_hidden = true;
-                stealth.hidden_timer = zone_list.first().map(|(_, z, _)| z.duration).unwrap_or(30.0);
+                stealth.hidden_timer = zone_list
+                    .first()
+                    .map(|(_, z, _)| z.duration)
+                    .unwrap_or(30.0);
             }
         } else if stealth.ambush_zone.is_some() {
             // Left the zone — reveal
@@ -196,7 +198,13 @@ fn ambush_auto_hide_system(
 /// Enhanced detection that accounts for terrain, night, noise, and unit size.
 fn stealth_detection_system(
     mut stealth_query: Query<
-        (Entity, &WorldPosition, &mut Stealth, Option<&NoiseLevel>, Option<&UnitVisibility>),
+        (
+            Entity,
+            &WorldPosition,
+            &mut Stealth,
+            Option<&NoiseLevel>,
+            Option<&UnitVisibility>,
+        ),
         (With<Stealth>, Without<Dead>),
     >,
     detectors: Query<
@@ -207,10 +215,8 @@ fn stealth_detection_system(
     game_time: Res<GameTime>,
     mut reveal_events: EventWriter<StealthRevealed>,
 ) {
-    let detector_list: Vec<(Entity, &WorldPosition, &Detection)> = detectors
-        .iter()
-        .filter(|(_, _, det)| det.active)
-        .collect();
+    let detector_list: Vec<(Entity, &WorldPosition, &Detection)> =
+        detectors.iter().filter(|(_, _, det)| det.active).collect();
 
     for (stealth_e, stealth_pos, mut stealth, noise_opt, vis_opt) in stealth_query.iter_mut() {
         if !stealth.is_hidden {
@@ -224,8 +230,8 @@ fn stealth_detection_system(
         let size_factor = vis_opt.map(|v| v.footprint * 0.3).unwrap_or(0.0);
 
         // Effective stealth (0.0 = easily spotted, 1.0 = nearly invisible)
-        let effective_stealth = (stealth.level + terrain_mod + night_mod - noise_factor - size_factor)
-            .clamp(0.0, 1.0);
+        let effective_stealth =
+            (stealth.level + terrain_mod + night_mod - noise_factor - size_factor).clamp(0.0, 1.0);
 
         for (detector_e, detector_pos, detector_detection) in &detector_list {
             if *detector_e == stealth_e {
@@ -287,10 +293,7 @@ fn ambush_trigger_system(
         // Check if attacker is inside an AmbushZone
         let mut bonus = AmbushBonus::default();
         for (zone_e, zone, zone_pos) in ambush_zones.iter() {
-            let dist = attacker_pos
-                .world_2d
-                .0
-                .distance(zone_pos.world_2d.0);
+            let dist = attacker_pos.world_2d.0.distance(zone_pos.world_2d.0);
             if dist <= zone.radius {
                 bonus.damage_multiplier = zone.bonus_damage.max(1.0);
                 bonus.morale_bonus = zone.bonus_morale.max(0.0);
@@ -313,7 +316,8 @@ fn ambush_trigger_system(
                     attacker: attack.attacker,
                     target: attack.target,
                     amount: bonus_damage,
-                    damage_type: DamageType::Melee,
+                    damage_type: DamageType::Pierce,
+                    ..Default::default()
                 });
             }
 
@@ -353,7 +357,7 @@ fn ambush_placement_system(
             AmbushZone {
                 owner: order.entity,
                 radius: 4.0,
-                bonus_damage: 1.5,  // +50% damage
+                bonus_damage: 1.5, // +50% damage
                 bonus_morale: 0.2,
                 duration: 60.0,
                 remaining: 60.0,

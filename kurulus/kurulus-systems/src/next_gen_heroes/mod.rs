@@ -53,11 +53,9 @@ fn hero_legacy_system(
 ) {
     for evt in death_events.read() {
         if let Ok(hero) = heroes.get(evt.killer) {
-            contributions.contributions.push((
-                evt.killer,
-                "kill".into(),
-                10.0,
-            ));
+            contributions
+                .contributions
+                .push((evt.killer, "kill".into(), 10.0));
             let _ = hero.hero_id;
         }
     }
@@ -130,11 +128,8 @@ fn child_growth_system(
 
         // On first spawn, inherit traits from parent
         if traits.is_none() && child.age < 1.0 {
-            if let Ok((_, parent_hero, parent_stats, parent_traits)) = parents.get(child.parent)
-            {
-                let combat_affinity = parent_stats
-                    .map(|s| s.base_damage / 100.0)
-                    .unwrap_or(0.5);
+            if let Ok((_, parent_hero, parent_stats, parent_traits)) = parents.get(child.parent) {
+                let combat_affinity = parent_stats.map(|s| s.base_damage / 100.0).unwrap_or(0.5);
                 let diplomacy_affinity = parent_traits
                     .map(|t| t.diplomacy_affinity)
                     .unwrap_or(0.5 + parent_hero.level as f32 * 0.02);
@@ -232,10 +227,7 @@ fn synergy_pair_system(
     mut synergy_events: EventWriter<SynergyApplied>,
 ) {
     // Collect all hero entities with positions
-    let hero_positions: Vec<(Entity, IVec2)> = heroes
-        .iter()
-        .map(|(e, p)| (e, p.grid.0))
-        .collect();
+    let hero_positions: Vec<(Entity, IVec2)> = heroes.iter().map(|(e, p)| (e, p.grid.0)).collect();
 
     // Check each pair of heroes for proximity synergy
     for (i, (a_entity, a_pos)) in hero_positions.iter().enumerate() {
@@ -317,13 +309,16 @@ mod tests {
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
                 1.0 / 60.0,
             )))
-            .add_systems(Update, (
-                hero_legacy_system,
-                child_growth_system,
-                hero_marriage_system,
-                tier_ability_system,
-                synergy_pair_system,
-            ));
+            .add_systems(
+                Update,
+                (
+                    hero_legacy_system,
+                    child_growth_system,
+                    hero_marriage_system,
+                    tier_ability_system,
+                    synergy_pair_system,
+                ),
+            );
         app
     }
 
@@ -371,10 +366,7 @@ mod tests {
     #[test]
     fn test_legacy_tracks_kills() {
         let mut app = test_app();
-        let hero = app
-            .world_mut()
-            .spawn(Hero::new(HeroId::Osman))
-            .id();
+        let hero = app.world_mut().spawn(Hero::new(HeroId::Osman)).id();
         let enemy = app.world_mut().spawn_empty().id();
 
         app.world_mut().send_event(UnitDied {
@@ -441,7 +433,10 @@ mod tests {
             .query::<&SynergyPair>()
             .iter(app.world())
             .collect();
-        assert!(!synergies.is_empty(), "Synergy should be applied when in range");
+        assert!(
+            !synergies.is_empty(),
+            "Synergy should be applied when in range"
+        );
     }
 
     #[test]
@@ -495,10 +490,7 @@ mod tests {
 
         let parent = app
             .world_mut()
-            .spawn((
-                Hero::new(HeroId::Osman),
-                HeroStats::default(),
-            ))
+            .spawn((Hero::new(HeroId::Osman), HeroStats::default()))
             .id();
 
         // Spawn child and advance time slightly to trigger inheritance

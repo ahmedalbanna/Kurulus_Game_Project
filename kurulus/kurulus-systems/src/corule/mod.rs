@@ -84,8 +84,7 @@ fn co_command_dispatch_system(
         }
 
         let tier = compute_trust_tier((meter.primary_trust + meter.secondary_trust) / 2.0);
-        let (efficiency, refusal_chance, _misinterpret_chance) =
-            compute_ai_competence(tier, 1.0); // skill_level = 1.0 as default
+        let (efficiency, refusal_chance, _misinterpret_chance) = compute_ai_competence(tier, 1.0); // skill_level = 1.0 as default
 
         for order in &co_cmd.delegated_orders {
             // Check if order is refused (Rivalry/Tension have refusal chance)
@@ -124,7 +123,8 @@ fn trust_update_system(
     for _evt in objective_events.read() {
         for (_, _, mut meter) in pairs.iter_mut() {
             meter.primary_trust = (meter.primary_trust + TRUST_GAIN_PER_OBJECTIVE).min(TRUST_MAX);
-            meter.secondary_trust = (meter.secondary_trust + TRUST_GAIN_PER_OBJECTIVE).min(TRUST_MAX);
+            meter.secondary_trust =
+                (meter.secondary_trust + TRUST_GAIN_PER_OBJECTIVE).min(TRUST_MAX);
         }
     }
 
@@ -135,11 +135,9 @@ fn trust_update_system(
 
         // Sync with global trust matrix using actual entity IDs
         let avg_trust = (meter.primary_trust + meter.secondary_trust) / 2.0;
-        trust.trust_values.push((
-            state.primary_hero,
-            state.secondary_hero,
-            avg_trust,
-        ));
+        trust
+            .trust_values
+            .push((state.primary_hero, state.secondary_hero, avg_trust));
     }
 }
 
@@ -170,10 +168,7 @@ fn synergy_calculation_system(
 }
 
 /// Processes delegation orders between heroes.
-fn delegation_order_system(
-    mut co_commands: Query<&mut CoCommand>,
-    _state: Res<CoCommandState>,
-) {
+fn delegation_order_system(mut co_commands: Query<&mut CoCommand>, _state: Res<CoCommandState>) {
     for mut co_cmd in co_commands.iter_mut() {
         // Process and clean up expired delegation orders
         co_cmd.delegated_orders.retain(|order| {
@@ -232,9 +227,7 @@ fn brotherhood_ability_system(
 }
 
 /// Calculates AI competence based on trust tier and updates the state.
-fn competence_calculation_system(
-    mut pairs: Query<(&mut CoCommandStateComponent, &TrustMeter)>,
-) {
+fn competence_calculation_system(mut pairs: Query<(&mut CoCommandStateComponent, &TrustMeter)>) {
     for (mut state, meter) in pairs.iter_mut() {
         let avg_trust = (meter.primary_trust + meter.secondary_trust) / 2.0;
         state.trust_level = avg_trust;
@@ -260,14 +253,17 @@ mod tests {
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
                 1.0 / 60.0,
             )))
-            .add_systems(Update, (
-                co_command_dispatch_system,
-                trust_update_system,
-                synergy_calculation_system,
-                delegation_order_system,
-                brotherhood_ability_system,
-                competence_calculation_system,
-            ));
+            .add_systems(
+                Update,
+                (
+                    co_command_dispatch_system,
+                    trust_update_system,
+                    synergy_calculation_system,
+                    delegation_order_system,
+                    brotherhood_ability_system,
+                    competence_calculation_system,
+                ),
+            );
         app
     }
 
@@ -358,9 +354,16 @@ mod tests {
 
         app.update();
 
-        let cmds = app.world_mut().query::<&CoCommand>().iter(app.world()).collect::<Vec<_>>();
+        let cmds = app
+            .world_mut()
+            .query::<&CoCommand>()
+            .iter(app.world())
+            .collect::<Vec<_>>();
         assert!(!cmds.is_empty());
-        assert!(cmds[0].delegated_orders.is_empty(), "Expired orders should be cleaned up");
+        assert!(
+            cmds[0].delegated_orders.is_empty(),
+            "Expired orders should be cleaned up"
+        );
     }
 
     #[test]
@@ -385,7 +388,10 @@ mod tests {
     #[test]
     fn test_ai_competence_brotherhood() {
         let (efficiency, refusal, _) = compute_ai_competence(TrustTier::Brotherhood, 0.0);
-        assert!(efficiency >= 0.9, "Brotherhood AI efficiency should be ≥90%");
+        assert!(
+            efficiency >= 0.9,
+            "Brotherhood AI efficiency should be ≥90%"
+        );
         assert!(refusal == 0.0, "Brotherhood should have no refusal");
     }
 
@@ -417,7 +423,10 @@ mod tests {
         app.update();
 
         let ability = app.world().get::<BrotherhoodAbility>(pair);
-        assert!(ability.is_some(), "Brotherhood ability should be active at trust 85");
+        assert!(
+            ability.is_some(),
+            "Brotherhood ability should be active at trust 85"
+        );
         if let Some(ab) = ability {
             assert_eq!(ab.tier, 1, "Should be tier 1 at trust 85");
         }
@@ -428,29 +437,34 @@ mod tests {
         let mut app = test_app();
         let primary = app.world_mut().spawn_empty().id();
         let secondary = app.world_mut().spawn_empty().id();
-        app
-            .world_mut()
-            .spawn((
-                CoCommandStateComponent {
-                    primary_hero: primary,
-                    secondary_hero: secondary,
-                    mode: CoCommandMode::Joint,
-                    trust_level: 50.0,
-                    synergy_bonus: 0.0,
-                },
-                TrustMeter {
-                    primary_trust: 90.0,
-                    secondary_trust: 90.0,
-                    max_trust: 100.0,
-                    decay_rate: 0.01,
-                    gain_rate: 5.0,
-                },
-            ));
+        app.world_mut().spawn((
+            CoCommandStateComponent {
+                primary_hero: primary,
+                secondary_hero: secondary,
+                mode: CoCommandMode::Joint,
+                trust_level: 50.0,
+                synergy_bonus: 0.0,
+            },
+            TrustMeter {
+                primary_trust: 90.0,
+                secondary_trust: 90.0,
+                max_trust: 100.0,
+                decay_rate: 0.01,
+                gain_rate: 5.0,
+            },
+        ));
 
         app.update();
 
-        let states = app.world_mut().query::<&CoCommandStateComponent>().iter(app.world()).collect::<Vec<_>>();
+        let states = app
+            .world_mut()
+            .query::<&CoCommandStateComponent>()
+            .iter(app.world())
+            .collect::<Vec<_>>();
         assert!(!states.is_empty());
-        assert!(states[0].synergy_bonus > 0.5, "Synergy bonus should reflect high trust");
+        assert!(
+            states[0].synergy_bonus > 0.5,
+            "Synergy bonus should reflect high trust"
+        );
     }
 }

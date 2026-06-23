@@ -27,51 +27,53 @@ fn update_n(app: &mut App, n: usize) {
 }
 
 fn spawn_kayi_hero(app: &mut App, hero_id: HeroId, x: i32, y: i32) -> Entity {
-    app.world_mut().spawn((
-        Hero {
-            hero_id,
-            level: 1,
-            xp: 0,
-            skill_points: 0,
-            unlocked_abilities: vec![],
-            active_cooldowns: std::collections::HashMap::new(),
-            ..Default::default()
-        },
-        Unit {
-            archetype: UnitArchetype::LightInfantry,
-            faction: FactionId::Kayi,
-            formation: FormationType::Scatter,
-            stance: CombatStance::Defensive,
-        },
-        WorldPosition::new(IVec2::new(x, y), 1.0),
-        Stats::default(),
-        Health::default(),
-    ))
-    .id()
+    app.world_mut()
+        .spawn((
+            Hero {
+                hero_id,
+                level: 1,
+                xp: 0,
+                skill_points: 0,
+                unlocked_abilities: vec![],
+                active_cooldowns: std::collections::HashMap::new(),
+                ..Default::default()
+            },
+            Unit {
+                archetype: UnitArchetype::LightInfantry,
+                faction: FactionId::Kayi,
+                formation: FormationType::Scatter,
+                stance: CombatStance::Defensive,
+            },
+            WorldPosition::new(IVec2::new(x, y), 1.0),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id()
 }
 
 fn spawn_enemy_hero(app: &mut App) -> Entity {
-    app.world_mut().spawn((
-        Hero {
-            hero_id: HeroId::Turgut,
-            level: 1,
-            xp: 0,
-            skill_points: 0,
-            unlocked_abilities: vec![],
-            active_cooldowns: std::collections::HashMap::new(),
-            ..Default::default()
-        },
-        Unit {
-            archetype: UnitArchetype::LightInfantry,
-            faction: FactionId::Byzantine,
-            formation: FormationType::Line,
-            stance: CombatStance::Aggressive,
-        },
-        WorldPosition::new(IVec2::new(50, 50), 1.0),
-        Stats::default(),
-        Health::default(),
-    ))
-    .id()
+    app.world_mut()
+        .spawn((
+            Hero {
+                hero_id: HeroId::Turgut,
+                level: 1,
+                xp: 0,
+                skill_points: 0,
+                unlocked_abilities: vec![],
+                active_cooldowns: std::collections::HashMap::new(),
+                ..Default::default()
+            },
+            Unit {
+                archetype: UnitArchetype::LightInfantry,
+                faction: FactionId::Byzantine,
+                formation: FormationType::Line,
+                stance: CombatStance::Aggressive,
+            },
+            WorldPosition::new(IVec2::new(50, 50), 1.0),
+            Stats::default(),
+            Health::default(),
+        ))
+        .id()
 }
 
 fn fire_hero_switch(app: &mut App, direction: Option<HeroSwitchDirection>, target: Option<Entity>) {
@@ -211,7 +213,8 @@ fn test_hero_switch_fires_selection_event() {
     let _hero_a = spawn_kayi_hero(&mut app, HeroId::Osman, 0, 0);
 
     // Set up event reader before the switch
-    let mut reader = app.world_mut()
+    let mut reader = app
+        .world_mut()
         .resource_mut::<Events<SelectionChanged>>()
         .get_cursor();
 

@@ -21,14 +21,27 @@ pub enum SimulationSet {
     StealthDetection,
     AmbushTrigger,
 
-    // Phase 5: Combat Resolution
+    // Phase 5: Combat Resolution (expanded)
+    // 5a: Pre-resolution (charge tracking, flanking calc)
+    ChargeUpdate,
+    FlankingCalculation,
+    // 5b: Resolution (attack timers, melee, ranged, siege)
     AttackTimers,
     MeleeResolution,
     RangedResolution,
     SiegeResolution,
+    // 5c: Application (damage, DoT, morale checks)
     DamageApplication,
+    DotApplication,
+    MoraleCheck,
     MoraleUpdate,
+    PanicProcessing,
+    // 5d: Death
     DeathProcessing,
+    // 5e: Feedback (hit feedback, damage numbers)
+    HitFeedback,
+    // 5f: Formation combat bonus application
+    FormationCombatEffects,
 
     // Phase 6: Economy & Progression
     ResourceProduction,

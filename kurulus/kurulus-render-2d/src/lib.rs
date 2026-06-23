@@ -1,7 +1,7 @@
-pub mod sprite;
+pub mod building_sprites;
 pub mod camera;
 pub mod debug;
-pub mod building_sprites;
+pub mod sprite;
 pub mod world_map;
 
 use bevy::prelude::*;

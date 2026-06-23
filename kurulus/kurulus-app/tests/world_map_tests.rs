@@ -247,7 +247,8 @@ fn test_region_captured_event_fired() {
     let world_map = app.world().resource::<WorldMap>();
     let ermeni = world_map.get_region(RegionId::ErmeniBeli).unwrap();
     assert_eq!(
-        ermeni.owner, FactionId::Kayi,
+        ermeni.owner,
+        FactionId::Kayi,
         "Kayi should capture ErmeniBeli"
     );
 
@@ -280,15 +281,13 @@ fn test_travel_component_advances() {
 
     let entity = app
         .world_mut()
-        .spawn((
-            WorldMapTravel {
-                from_region: RegionId::Sogut,
-                to_region: RegionId::Domanic,
-                progress: 0.0,
-                duration: 5.0,
-                faction: FactionId::Kayi,
-            },
-        ))
+        .spawn((WorldMapTravel {
+            from_region: RegionId::Sogut,
+            to_region: RegionId::Domanic,
+            progress: 0.0,
+            duration: 5.0,
+            faction: FactionId::Kayi,
+        },))
         .id();
 
     update_n(&mut app, 300); // 5 seconds at 1/60
@@ -329,7 +328,12 @@ fn test_region_center() {
     let region = RegionDef {
         region_id: RegionId::Sogut,
         name: "Test".into(),
-        tiles: vec![IVec2::new(5, 10), IVec2::new(6, 10), IVec2::new(5, 11), IVec2::new(6, 11)],
+        tiles: vec![
+            IVec2::new(5, 10),
+            IVec2::new(6, 10),
+            IVec2::new(5, 11),
+            IVec2::new(6, 11),
+        ],
         owner: FactionId::Kayi,
         resources: RegionResources::default(),
         strategic_value: 1,
@@ -393,9 +397,17 @@ fn test_poi_definitions_exist() {
     let mut app = make_world_map_app();
     app.update();
     let world_map = app.world().resource::<WorldMap>();
-    assert_eq!(world_map.points_of_interest.len(), 14, "Should have 14 POIs");
+    assert_eq!(
+        world_map.points_of_interest.len(),
+        14,
+        "Should have 14 POIs"
+    );
     // Key POIs should exist
-    let poi_ids: Vec<PoiId> = world_map.points_of_interest.iter().map(|p| p.poi_id).collect();
+    let poi_ids: Vec<PoiId> = world_map
+        .points_of_interest
+        .iter()
+        .map(|p| p.poi_id)
+        .collect();
     assert!(poi_ids.contains(&PoiId::KayiCamp));
     assert!(poi_ids.contains(&PoiId::KaracahisarFort));
     assert!(poi_ids.contains(&PoiId::IznikLake));
@@ -420,7 +432,10 @@ fn test_poi_discovered_on_fog_reveal() {
 
     let world_map = app.world().resource::<WorldMap>();
     let poi = world_map.get_poi(PoiId::KayiCamp).unwrap();
-    assert!(poi.discovered, "KayiCamp should be discovered after start reveal");
+    assert!(
+        poi.discovered,
+        "KayiCamp should be discovered after start reveal"
+    );
 }
 
 #[test]
@@ -460,7 +475,10 @@ fn test_distant_poi_starts_undiscovered() {
     let poi = world_map.get_poi(PoiId::UludagShrine);
     if let Some(poi) = poi {
         // Only check if the POI exists and is far enough
-        assert!(!poi.discovered, "UludagShrine should remain undiscovered at start");
+        assert!(
+            !poi.discovered,
+            "UludagShrine should remain undiscovered at start"
+        );
     }
 }
 
@@ -478,11 +496,7 @@ fn test_all_pois_have_valid_positions() {
             poi.position
         );
         // Should have a region assignment
-        assert!(
-            poi.region.is_some(),
-            "POI {:?} has no region",
-            poi.poi_id
-        );
+        assert!(poi.region.is_some(), "POI {:?} has no region", poi.poi_id);
     }
 }
 
@@ -516,9 +530,13 @@ fn test_encounter_table_populated() {
     let mut app = make_world_map_app();
     app.update();
     let world_map = app.world().resource::<WorldMap>();
-    assert!(!world_map.encounter_table.is_empty(), "Encounter table should have entries");
+    assert!(
+        !world_map.encounter_table.is_empty(),
+        "Encounter table should have entries"
+    );
     // Should have entries for grassland, forest, mountain, etc.
-    let grass_encounters: usize = world_map.encounter_table
+    let grass_encounters: usize = world_map
+        .encounter_table
         .iter()
         .filter(|t| t.terrains.contains(&WorldTerrain::Grassland))
         .count();
@@ -555,9 +573,18 @@ fn test_encounter_has_valid_choices() {
     assert!(encounter.is_some(), "Low luck should trigger encounter");
 
     let encounter = encounter.unwrap();
-    assert!(!encounter.choices.is_empty(), "Encounter should have choices");
-    assert!(!encounter.description.is_empty(), "Encounter should have description");
-    assert!(encounter.choices.len() <= 3, "Should have at most 3 choices");
+    assert!(
+        !encounter.choices.is_empty(),
+        "Encounter should have choices"
+    );
+    assert!(
+        !encounter.description.is_empty(),
+        "Encounter should have description"
+    );
+    assert!(
+        encounter.choices.len() <= 3,
+        "Should have at most 3 choices"
+    );
 }
 
 // ── POI Display Name Tests ────────────────────────────────────────────────
@@ -579,22 +606,28 @@ fn test_poi_type_display_names() {
 
 /// Build a minimal encounter table for testing without full app setup.
 fn build_encounter_table_test(world_map: &mut WorldMap) {
-    world_map.encounter_table = vec![
-        EncounterTemplate {
-            encounter_type: EncounterType::Merchants,
-            description: "Merchants approach.".into(),
-            difficulty: EncounterDifficulty::Easy,
-            terrains: vec![WorldTerrain::Grassland],
-            choices: vec![
-                ("Trade".into(), EncounterOutcome {
-                    gold_delta: 20.0, reputation_delta: 0.0,
+    world_map.encounter_table = vec![EncounterTemplate {
+        encounter_type: EncounterType::Merchants,
+        description: "Merchants approach.".into(),
+        difficulty: EncounterDifficulty::Easy,
+        terrains: vec![WorldTerrain::Grassland],
+        choices: vec![
+            (
+                "Trade".into(),
+                EncounterOutcome {
+                    gold_delta: 20.0,
+                    reputation_delta: 0.0,
                     result_text: "Done.".into(),
-                }),
-                ("Ignore".into(), EncounterOutcome {
-                    gold_delta: 0.0, reputation_delta: 0.0,
+                },
+            ),
+            (
+                "Ignore".into(),
+                EncounterOutcome {
+                    gold_delta: 0.0,
+                    reputation_delta: 0.0,
                     result_text: "Ok.".into(),
-                }),
-            ],
-        },
-    ];
+                },
+            ),
+        ],
+    }];
 }

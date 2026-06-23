@@ -97,7 +97,9 @@ fn hero_specialization_paths(hero_id: HeroId) -> Vec<SpecializationPath> {
 pub fn specialization_description(path: SpecializationPath) -> &'static str {
     match path {
         SpecializationPath::Conquest => "Offensive powerhouse — +25% damage, +15% attack speed",
-        SpecializationPath::Sovereignty => "Balanced leadership — +10% to all stats, +1 resource regen",
+        SpecializationPath::Sovereignty => {
+            "Balanced leadership — +10% to all stats, +1 resource regen"
+        }
         SpecializationPath::Faith => "Defensive resilience — -20% damage taken, +30% max HP",
         SpecializationPath::Mountain => "Unstoppable force — +30% defense, +40% max HP",
         SpecializationPath::Storm => "Relentless assault — +20% attack speed, chain attacks",
@@ -180,10 +182,7 @@ fn apply_specialization_bonus(path: SpecializationPath, stats: &mut Stats, healt
 
 /// Returns the talent option descriptions for a given hero+level combination.
 /// These should be displayed by the UI when `TalentChoiceRequest` fires.
-pub fn get_talent_option_descriptions(
-    hero_id: HeroId,
-    level: u8,
-) -> (String, String) {
+pub fn get_talent_option_descriptions(hero_id: HeroId, level: u8) -> (String, String) {
     match (hero_id, level) {
         // Osman
         (HeroId::Osman, 6) => (
@@ -236,7 +235,14 @@ mod tests {
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
                 1.0 / 60.0,
             )))
-            .add_systems(Update, (hero_talent_request_system, hero_talent_apply_system, hero_specialization_apply_system));
+            .add_systems(
+                Update,
+                (
+                    hero_talent_request_system,
+                    hero_talent_apply_system,
+                    hero_specialization_apply_system,
+                ),
+            );
         app
     }
 
@@ -245,10 +251,8 @@ mod tests {
         let mut app = test_app();
         let hero = app.world_mut().spawn(Hero::new(HeroId::Osman)).id();
 
-        app.world_mut().send_event(HeroLeveledUp {
-            hero,
-            new_level: 6,
-        });
+        app.world_mut()
+            .send_event(HeroLeveledUp { hero, new_level: 6 });
         app.update();
 
         let events = app.world().resource::<Events<TalentChoiceRequest>>();
@@ -262,10 +266,8 @@ mod tests {
         let mut app = test_app();
         let hero = app.world_mut().spawn(Hero::new(HeroId::Osman)).id();
 
-        app.world_mut().send_event(HeroLeveledUp {
-            hero,
-            new_level: 8,
-        });
+        app.world_mut()
+            .send_event(HeroLeveledUp { hero, new_level: 8 });
         app.update();
 
         let events = app.world().resource::<Events<SpecializationRequest>>();
@@ -296,15 +298,17 @@ mod tests {
         let mut app = test_app();
         let hero = app.world_mut().spawn(Hero::new(HeroId::Osman)).id();
 
-        app.world_mut().send_event(HeroLeveledUp {
-            hero,
-            new_level: 4,
-        });
+        app.world_mut()
+            .send_event(HeroLeveledUp { hero, new_level: 4 });
         app.update();
 
         let talent_events = app.world().resource::<Events<TalentChoiceRequest>>();
         let spec_events = app.world().resource::<Events<SpecializationRequest>>();
-        assert!(talent_events.get_cursor().read(&talent_events).next().is_none());
+        assert!(talent_events
+            .get_cursor()
+            .read(&talent_events)
+            .next()
+            .is_none());
         assert!(spec_events.get_cursor().read(&spec_events).next().is_none());
     }
 
@@ -321,7 +325,10 @@ mod tests {
         app.update();
 
         let hero_comp = app.world().get::<Hero>(hero).unwrap();
-        assert_eq!(hero_comp.talent_choices.get(&6), Some(&TalentChoice::OptionA));
+        assert_eq!(
+            hero_comp.talent_choices.get(&6),
+            Some(&TalentChoice::OptionA)
+        );
     }
 
     #[test]
@@ -380,11 +387,23 @@ mod tests {
     fn test_osman_talent_descriptions() {
         let (a1, b1) = get_talent_option_descriptions(HeroId::Osman, 6);
         assert!(a1.contains("WarCry"), "Expected WarCry talent, got: {}", a1);
-        assert!(b1.contains("CallOfTheTribe"), "Expected CallOfTheTribe talent, got: {}", b1);
+        assert!(
+            b1.contains("CallOfTheTribe"),
+            "Expected CallOfTheTribe talent, got: {}",
+            b1
+        );
 
         let (a2, b2) = get_talent_option_descriptions(HeroId::Osman, 10);
-        assert!(a2.contains("Lionheart"), "Expected Lionheart talent, got: {}", a2);
-        assert!(b2.contains("DreamOfTheTree"), "Expected DreamOfTheTree talent, got: {}", b2);
+        assert!(
+            a2.contains("Lionheart"),
+            "Expected Lionheart talent, got: {}",
+            a2
+        );
+        assert!(
+            b2.contains("DreamOfTheTree"),
+            "Expected DreamOfTheTree talent, got: {}",
+            b2
+        );
     }
 
     #[test]

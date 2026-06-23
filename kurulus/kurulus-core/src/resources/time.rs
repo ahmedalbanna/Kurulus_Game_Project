@@ -1,6 +1,6 @@
+use crate::events::world::SeasonType;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::events::world::SeasonType;
 
 #[derive(Resource, Reflect, Clone, Debug, Serialize, Deserialize)]
 #[reflect(Resource)]
@@ -41,14 +41,16 @@ impl GameTime {
         self.minute = (total_minutes % 60) as u8;
         self.hour = ((total_minutes / 60) % 24) as u8;
         self.day = (total_minutes / (24 * 60)) % Self::DAYS_PER_SEASON + 1;
-        let season_index = (total_minutes / (24 * 60 * Self::DAYS_PER_SEASON)) % Self::SEASONS_PER_YEAR;
+        let season_index =
+            (total_minutes / (24 * 60 * Self::DAYS_PER_SEASON)) % Self::SEASONS_PER_YEAR;
         self.season = match season_index {
             0 => SeasonType::Spring,
             1 => SeasonType::Summer,
             2 => SeasonType::Autumn,
             _ => SeasonType::Winter,
         };
-        self.year = 1280 + (total_minutes / (24 * 60 * Self::DAYS_PER_SEASON * Self::SEASONS_PER_YEAR)) as u32;
+        self.year = 1280
+            + (total_minutes / (24 * 60 * Self::DAYS_PER_SEASON * Self::SEASONS_PER_YEAR)) as u32;
     }
 
     pub fn is_night(&self) -> bool {

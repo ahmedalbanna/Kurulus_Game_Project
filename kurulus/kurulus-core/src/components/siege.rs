@@ -1,6 +1,6 @@
+use crate::coord::HeightLevel;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::coord::HeightLevel;
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct WallSegment {

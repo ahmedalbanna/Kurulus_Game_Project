@@ -1,12 +1,11 @@
-use bevy::prelude::*;
+use crate::components::{
+    Encounter, EncounterChoice, EncounterDifficulty, EncounterOutcome, EncounterType, FactionId,
+    FogState, PoiId, PointOfInterest, RegionDef, RegionId, WorldTerrain, WorldTile,
+};
 use bevy::math::IVec2;
+use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::components::{
-    Encounter, EncounterChoice, EncounterDifficulty, EncounterOutcome, EncounterType,
-    FactionId, FogState, PointOfInterest, PoiId, RegionDef, RegionId, WorldTerrain,
-    WorldTile,
-};
 
 /// World map tile size in world units (used for rendering).
 /// The grid is 48×36 tiles; at 2.0 units per tile the map is 96×72 units.
@@ -224,29 +223,43 @@ impl WorldMap {
                 count += 1;
             }
         }
-        if count == 0 { 1.0 } else { total_cost / count as f32 }
+        if count == 0 {
+            1.0
+        } else {
+            total_cost / count as f32
+        }
     }
 
     // ── Points of Interest ────────────────────────────────────────────
 
     /// Get all POIs that are currently undiscovered.
     pub fn undiscovered_pois(&self) -> Vec<&PointOfInterest> {
-        self.points_of_interest.iter().filter(|poi| !poi.discovered).collect()
+        self.points_of_interest
+            .iter()
+            .filter(|poi| !poi.discovered)
+            .collect()
     }
 
     /// Get all POIs that have been discovered.
     pub fn discovered_pois_list(&self) -> Vec<&PointOfInterest> {
-        self.points_of_interest.iter().filter(|poi| poi.discovered).collect()
+        self.points_of_interest
+            .iter()
+            .filter(|poi| poi.discovered)
+            .collect()
     }
 
     /// Get a POI by ID.
     pub fn get_poi(&self, poi_id: PoiId) -> Option<&PointOfInterest> {
-        self.points_of_interest.iter().find(|poi| poi.poi_id == poi_id)
+        self.points_of_interest
+            .iter()
+            .find(|poi| poi.poi_id == poi_id)
     }
 
     /// Get a mutable POI by ID.
     pub fn get_poi_mut(&mut self, poi_id: PoiId) -> Option<&mut PointOfInterest> {
-        self.points_of_interest.iter_mut().find(|poi| poi.poi_id == poi_id)
+        self.points_of_interest
+            .iter_mut()
+            .find(|poi| poi.poi_id == poi_id)
     }
 
     /// Mark a POI as discovered.
@@ -265,16 +278,21 @@ impl WorldMap {
 
     /// Find a POI at a given tile position.
     pub fn poi_at(&self, pos: IVec2) -> Option<&PointOfInterest> {
-        self.points_of_interest.iter().find(|poi| poi.position == pos)
+        self.points_of_interest
+            .iter()
+            .find(|poi| poi.position == pos)
     }
 
     /// Find all POIs within a given radius of a position.
     pub fn pois_in_radius(&self, center: IVec2, radius: f32) -> Vec<&PointOfInterest> {
-        self.points_of_interest.iter().filter(|poi| {
-            let dx = (poi.position.x - center.x) as f32;
-            let dy = (poi.position.y - center.y) as f32;
-            (dx * dx + dy * dy).sqrt() <= radius
-        }).collect()
+        self.points_of_interest
+            .iter()
+            .filter(|poi| {
+                let dx = (poi.position.x - center.x) as f32;
+                let dy = (poi.position.y - center.y) as f32;
+                (dx * dx + dy * dy).sqrt() <= radius
+            })
+            .collect()
     }
 
     /// Find all undiscovered POIs within a radius.
@@ -295,7 +313,8 @@ impl WorldMap {
             return None;
         }
         // Pick a random encounter template matching this terrain
-        let candidates: Vec<&EncounterTemplate> = self.encounter_table
+        let candidates: Vec<&EncounterTemplate> = self
+            .encounter_table
             .iter()
             .filter(|t| t.terrains.contains(&terrain))
             .collect();

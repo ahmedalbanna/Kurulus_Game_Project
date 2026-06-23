@@ -216,9 +216,7 @@ mod tests {
         let mut app = test_app();
 
         // Enable Zones overlay
-        app.world_mut()
-            .resource_mut::<OverlaySettings>()
-            .mode = OverlayMode::Zones;
+        app.world_mut().resource_mut::<OverlaySettings>().mode = OverlayMode::Zones;
 
         run_frames(&mut app, 3);
 
@@ -227,7 +225,10 @@ mod tests {
             .query_filtered::<Entity, With<ZoneLegendRoot>>()
             .iter(app.world())
             .count();
-        assert_eq!(count, 1, "Legend entity should exist when overlay is active");
+        assert_eq!(
+            count, 1,
+            "Legend entity should exist when overlay is active"
+        );
     }
 
     #[test]
@@ -235,9 +236,7 @@ mod tests {
         let mut app = test_app();
 
         // Set to Coverage mode
-        app.world_mut()
-            .resource_mut::<OverlaySettings>()
-            .mode = OverlayMode::ServiceCoverage;
+        app.world_mut().resource_mut::<OverlaySettings>().mode = OverlayMode::ServiceCoverage;
 
         run_frames(&mut app, 3);
 
@@ -264,15 +263,11 @@ mod tests {
         let mut app = test_app();
 
         // Enable overlay
-        app.world_mut()
-            .resource_mut::<OverlaySettings>()
-            .mode = OverlayMode::Zones;
+        app.world_mut().resource_mut::<OverlaySettings>().mode = OverlayMode::Zones;
         run_frames(&mut app, 3);
 
         // Then turn off
-        app.world_mut()
-            .resource_mut::<OverlaySettings>()
-            .mode = OverlayMode::None;
+        app.world_mut().resource_mut::<OverlaySettings>().mode = OverlayMode::None;
         run_frames(&mut app, 3);
 
         let count = app
@@ -288,15 +283,11 @@ mod tests {
         let mut app = test_app();
 
         // Start with Zones
-        app.world_mut()
-            .resource_mut::<OverlaySettings>()
-            .mode = OverlayMode::Zones;
+        app.world_mut().resource_mut::<OverlaySettings>().mode = OverlayMode::Zones;
         run_frames(&mut app, 3);
 
         // Switch to Happiness
-        app.world_mut()
-            .resource_mut::<OverlaySettings>()
-            .mode = OverlayMode::Happiness;
+        app.world_mut().resource_mut::<OverlaySettings>().mode = OverlayMode::Happiness;
         run_frames(&mut app, 3);
 
         let roots: Vec<Entity> = app
@@ -311,10 +302,7 @@ mod tests {
             "Text should update to Happiness mode, got: {}",
             text.0
         );
-        assert!(
-            text.0.contains("Unhappy"),
-            "Should mention Unhappy"
-        );
+        assert!(text.0.contains("Unhappy"), "Should mention Unhappy");
         // Should not contain old zone content
         assert!(
             !text.0.contains("Residential"),

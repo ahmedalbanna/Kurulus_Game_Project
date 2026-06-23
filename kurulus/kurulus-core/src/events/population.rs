@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::components::{BuildingType, WorkerRole};
+use bevy::prelude::*;
 
 // ─── Population Growth / Decline ────────────────────────────────────────────
 

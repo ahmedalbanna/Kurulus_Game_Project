@@ -1,6 +1,6 @@
+use crate::components::corule::DelegationOrder;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::components::corule::DelegationOrder;
 
 #[derive(Resource, Clone, Debug, Serialize, Deserialize, Reflect)]
 #[reflect(Resource)]

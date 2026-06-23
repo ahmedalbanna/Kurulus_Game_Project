@@ -1,5 +1,5 @@
+use crate::components::{DialogueTrigger, MissionId, ObjectiveId};
 use bevy::prelude::*;
-use crate::components::{ObjectiveId, MissionId, DialogueTrigger};
 
 #[derive(Event, Clone, Debug)]
 pub struct ObjectiveCompleted {

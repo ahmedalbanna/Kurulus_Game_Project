@@ -162,7 +162,9 @@ fn romance_progression_system(
 
             // Update registry
             registry.links.push((entity, link.partner, new_stage));
-            registry.links.retain(|(a, b, _)| !(*a == entity && *b == link.partner));
+            registry
+                .links
+                .retain(|(a, b, _)| !(*a == entity && *b == link.partner));
         }
     }
 }
@@ -252,7 +254,8 @@ fn choice_impact_system(
     for evt in objective_events.read() {
         for mut pair in pairs.iter_mut() {
             // Record the event in the pair's history
-            pair.events_completed.push(format!("obj_{:?}", evt.objective_id));
+            pair.events_completed
+                .push(format!("obj_{:?}", evt.objective_id));
 
             // Apply a small affinity boost for shared objective completion
             if let Ok(mut link) = links.get_mut(pair.hero_a) {
@@ -300,13 +303,16 @@ mod tests {
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
                 1.0 / 60.0,
             )))
-            .add_systems(Update, (
-                loyalty_calculation_system,
-                romance_progression_system,
-                relationship_event_system,
-                love_impact_system,
-                choice_impact_system,
-            ));
+            .add_systems(
+                Update,
+                (
+                    loyalty_calculation_system,
+                    romance_progression_system,
+                    relationship_event_system,
+                    love_impact_system,
+                    choice_impact_system,
+                ),
+            );
         app
     }
 
@@ -348,11 +354,18 @@ mod tests {
         app.update();
 
         // Find the romance link
-        let links: Vec<&RomanceLink> = app.world_mut().query::<&RomanceLink>().iter(app.world()).collect();
+        let links: Vec<&RomanceLink> = app
+            .world_mut()
+            .query::<&RomanceLink>()
+            .iter(app.world())
+            .collect();
         assert!(!links.is_empty());
         let link = links[0];
-        assert!(matches!(link.stage, RomanceStage::Romance | RomanceStage::Betrothal),
-            "Expected Romance/Betrothal at affinity 80, got {:?}", link.stage);
+        assert!(
+            matches!(link.stage, RomanceStage::Romance | RomanceStage::Betrothal),
+            "Expected Romance/Betrothal at affinity 80, got {:?}",
+            link.stage
+        );
     }
 
     #[test]
@@ -440,15 +453,18 @@ mod tests {
     fn test_love_impact_tier_computed() {
         let mut app = test_app();
         let partner = app.world_mut().spawn_empty().id();
-        let hero = app.world_mut().spawn(RelationshipPair {
-            hero_a: Entity::PLACEHOLDER,
-            hero_b: Entity::PLACEHOLDER,
-            relationship_type: RelationshipType::Romantic,
-            starting_value: 90.0,
-            current_value: 90.0,
-            max_value: 100.0,
-            events_completed: Vec::new(),
-        }).id();
+        let hero = app
+            .world_mut()
+            .spawn(RelationshipPair {
+                hero_a: Entity::PLACEHOLDER,
+                hero_b: Entity::PLACEHOLDER,
+                relationship_type: RelationshipType::Romantic,
+                starting_value: 90.0,
+                current_value: 90.0,
+                max_value: 100.0,
+                events_completed: Vec::new(),
+            })
+            .id();
 
         app.update();
 
@@ -462,11 +478,14 @@ mod tests {
     fn test_love_tier_inspired_at_high_affinity() {
         let mut app = test_app();
         let partner = app.world_mut().spawn_empty().id();
-        let hero = app.world_mut().spawn(RomanceLink {
-            partner,
-            stage: RomanceStage::Betrothal,
-            affinity: 95.0,
-        }).id();
+        let hero = app
+            .world_mut()
+            .spawn(RomanceLink {
+                partner,
+                stage: RomanceStage::Betrothal,
+                affinity: 95.0,
+            })
+            .id();
 
         // Spawn a corresponding RelationshipPair
         app.world_mut().spawn(RelationshipPair {

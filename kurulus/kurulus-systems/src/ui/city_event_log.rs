@@ -90,27 +90,26 @@ pub fn city_event_log_render_system(
     let entity = if let Ok(entity) = root_query.get_single() {
         entity
     } else {
-        let _ = commands
-            .spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    right: Val::Px(12.0),
-                    top: Val::Px(8.0),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::End,
-                    padding: PANEL_PADDING,
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.55)),
-                Text::new(""),
-                TextFont {
-                    font_size: FONT_SIZE,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                CityEventLogRoot,
-                Name::new("CityEventLog"),
-            ));
+        let _ = commands.spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                right: Val::Px(12.0),
+                top: Val::Px(8.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::End,
+                padding: PANEL_PADDING,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.55)),
+            Text::new(""),
+            TextFont {
+                font_size: FONT_SIZE,
+                ..default()
+            },
+            TextColor(Color::srgb(0.9, 0.9, 0.9)),
+            CityEventLogRoot,
+            Name::new("CityEventLog"),
+        ));
 
         // First frame — text is empty, nothing more to do.
         return;
@@ -131,10 +130,9 @@ pub fn city_event_log_render_system(
         })
         .unwrap_or(Color::srgb(0.9, 0.9, 0.9));
 
-    commands.entity(entity).insert((
-        Text::new(&body),
-        TextColor(dominant_colour),
-    ));
+    commands
+        .entity(entity)
+        .insert((Text::new(&body), TextColor(dominant_colour)));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -308,7 +306,10 @@ mod tests {
             .query_filtered::<Entity, With<CityEventLogRoot>>()
             .iter(app.world())
             .count();
-        assert_eq!(count, 1, "Render system should spawn CityEventLogRoot entity");
+        assert_eq!(
+            count, 1,
+            "Render system should spawn CityEventLogRoot entity"
+        );
     }
 
     #[test]
@@ -337,7 +338,10 @@ mod tests {
         let root = root[0];
 
         // Should have Text component with non-empty content
-        let text = app.world().get::<Text>(root).expect("Root should have Text");
+        let text = app
+            .world()
+            .get::<Text>(root)
+            .expect("Root should have Text");
         assert!(!text.0.is_empty(), "Text should contain event description");
         // Should mention "festival" (case-insensitive check)
         assert!(
@@ -369,7 +373,10 @@ mod tests {
         assert_eq!(roots.len(), 1, "Exactly one CityEventLogRoot entity");
         let root = roots[0];
 
-        let color = app.world().get::<TextColor>(root).expect("Should have TextColor");
+        let color = app
+            .world()
+            .get::<TextColor>(root)
+            .expect("Should have TextColor");
         let rgba = color.0.to_srgba();
         // Positive events should have a green-ish tint (G component > R & B)
         assert!(
@@ -401,7 +408,10 @@ mod tests {
         assert_eq!(roots.len(), 1, "Exactly one CityEventLogRoot entity");
         let root = roots[0];
 
-        let color = app.world().get::<TextColor>(root).expect("Should have TextColor");
+        let color = app
+            .world()
+            .get::<TextColor>(root)
+            .expect("Should have TextColor");
         let rgba = color.0.to_srgba();
         // Negative events should have a red-ish tint (R component > G)
         assert!(
@@ -425,7 +435,10 @@ mod tests {
         assert_eq!(roots.len(), 1, "Exactly one CityEventLogRoot entity");
         let root = roots[0];
 
-        let text = app.world().get::<Text>(root).expect("Root should have Text");
+        let text = app
+            .world()
+            .get::<Text>(root)
+            .expect("Root should have Text");
         assert!(text.0.is_empty(), "Empty log should have empty text");
     }
 
@@ -462,7 +475,10 @@ mod tests {
         assert_eq!(roots.len(), 1, "Exactly one CityEventLogRoot entity");
         let root = roots[0];
 
-        let text = app.world().get::<Text>(root).expect("Root should have Text");
+        let text = app
+            .world()
+            .get::<Text>(root)
+            .expect("Root should have Text");
         // Text should contain both events (they appear multi-line)
         assert!(
             text.0.to_lowercase().contains("festival"),

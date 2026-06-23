@@ -1,8 +1,8 @@
-use bevy::prelude::*;
+use crate::components::TerrainType;
 use bevy::math::IVec2;
+use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::components::TerrainType;
 
 /// Global terrain grid — maps grid positions to their terrain type.
 /// Systems read this to determine stealth modifiers, movement costs,
@@ -23,7 +23,10 @@ impl Default for TerrainGrid {
 
 impl TerrainGrid {
     pub fn get(&self, pos: IVec2) -> TerrainType {
-        self.tiles.get(&pos).copied().unwrap_or(TerrainType::OpenField)
+        self.tiles
+            .get(&pos)
+            .copied()
+            .unwrap_or(TerrainType::OpenField)
     }
 
     pub fn stealth_modifier(&self, pos: IVec2) -> f32 {

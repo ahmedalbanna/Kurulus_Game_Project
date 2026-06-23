@@ -1,7 +1,7 @@
+use super::diplomacy::GoodType;
+use super::unit::FactionId;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use super::unit::FactionId;
-use super::diplomacy::GoodType;
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Ship {
