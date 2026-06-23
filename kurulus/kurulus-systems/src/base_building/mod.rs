@@ -6,12 +6,14 @@ pub struct BaseBuildingPlugin;
 impl Plugin for BaseBuildingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<RecruitmentTimer>()
+            .add_event::<BuildRejected>()
             .add_systems(
                 FixedUpdate,
                 (
                     construction_progress_system.in_set(SimulationSet::ConstructionProgress),
                     complete_construction_system,
                     building_upgrade_system,
+                    build_from_order_system.in_set(SimulationSet::InputProcessing),
                     process_recruit_orders_system,
                     recruitment_progress_system,
                 ),
@@ -82,6 +84,102 @@ fn complete_construction_system(
             building_template.building_type,
             pos.grid.0
         );
+    }
+}
+
+/// Reasonable default build costs for each building type.
+/// Used when spawning a new `BuildCost` component from a `BuildOrder`.
+fn build_cost_for_type(bt: BuildingType) -> BuildCost {
+    use BuildingType::*;
+    match bt {
+        Oba => BuildCost { food: 20, gold: 10, wood: 30, stone: 0, population: 0 },
+        Pasture => BuildCost { food: 5, gold: 0, wood: 15, stone: 0, population: 0 },
+        MiningCamp => BuildCost { food: 0, gold: 5, wood: 10, stone: 0, population: 0 },
+        LumberCamp => BuildCost { food: 0, gold: 0, wood: 5, stone: 0, population: 0 },
+        Barracks => BuildCost { food: 15, gold: 20, wood: 25, stone: 0, population: 0 },
+        ArcheryRange => BuildCost { food: 10, gold: 15, wood: 20, stone: 0, population: 0 },
+        Stable => BuildCost { food: 20, gold: 25, wood: 30, stone: 0, population: 0 },
+        SiegeWorkshop => BuildCost { food: 30, gold: 40, wood: 50, stone: 10, population: 0 },
+        Watchtower => BuildCost { food: 5, gold: 10, wood: 20, stone: 15, population: 0 },
+        Market => BuildCost { food: 0, gold: 15, wood: 20, stone: 0, population: 0 },
+        Warehouse => BuildCost { food: 0, gold: 10, wood: 25, stone: 0, population: 0 },
+        Well => BuildCost { food: 0, gold: 5, wood: 10, stone: 5, population: 0 },
+        Mosque => BuildCost { food: 10, gold: 30, wood: 20, stone: 20, population: 0 },
+        CouncilChamber => BuildCost { food: 20, gold: 50, wood: 30, stone: 30, population: 0 },
+        GuildHall => BuildCost { food: 15, gold: 35, wood: 25, stone: 20, population: 0 },
+        Monument => BuildCost { food: 50, gold: 80, wood: 40, stone: 60, population: 0 },
+        // Defensive & infrastructure have minimal costs
+        Palisade => BuildCost { food: 0, gold: 0, wood: 10, stone: 0, population: 0 },
+        StoneWall => BuildCost { food: 0, gold: 5, wood: 10, stone: 20, population: 0 },
+        Gate => BuildCost { food: 0, gold: 10, wood: 15, stone: 15, population: 0 },
+        Road => BuildCost { food: 0, gold: 0, wood: 2, stone: 0, population: 0 },
+    }
+}
+
+/// Reads `BuildOrder` events, validates against existing zones, and spawns
+/// construction entities if the building is allowed at that position.
+///
+/// ## Zone validation rules
+///
+/// | Condition | Result |
+/// |-----------|--------|
+/// | No zone at target cell | ✅ Allowed (backwards compatible) |
+/// | Zone type matches building type | ✅ Allowed |
+/// | Zone type does NOT match | ❌ Rejected → emits `BuildRejected` |
+/// | Target cell already has a building/construction | ❌ Rejected → emits `BuildRejected` |
+fn build_from_order_system(
+    mut orders: EventReader<BuildOrder>,
+    mut rejected_writer: EventWriter<BuildRejected>,
+    mut commands: Commands,
+    zones: Query<(&Zone, &WorldPosition)>,
+    existing: Query<&WorldPosition, Or<(With<Building>, With<ConstructionSite>)>>,
+) {
+    for order in orders.read() {
+        let target = order.position;
+        let building_type = order.building_type;
+
+        // ── Check for existing building/construction at this cell ──────
+        let cell_occupied = existing.iter().any(|wp| wp.grid.0 == target.0);
+        if cell_occupied {
+            rejected_writer.send(BuildRejected {
+                order: order.clone(),
+                reason: BuildRejectionReason::CellOccupied,
+            });
+            continue;
+        }
+
+        // ── Check zone compatibility ──────────────────────────────────
+        let zone_at_target = zones.iter().find(|(_, wp)| wp.grid.0 == target.0);
+
+        if let Some((zone, _)) = zone_at_target {
+            if !zone.zone_type.matches_building(building_type) {
+                rejected_writer.send(BuildRejected {
+                    order: order.clone(),
+                    reason: BuildRejectionReason::ZoneMismatch(zone.zone_type, building_type),
+                });
+                continue;
+            }
+        }
+
+        // ── All checks passed — spawn the construction ────────────────
+        let max_level = building_type.max_level();
+        commands.spawn((
+            ConstructionSite {
+                building_type,
+                progress: 0.0,
+                max_progress: building_type.build_time(),
+                assigned_workers: vec![order.entity],
+            },
+            Building {
+                building_type,
+                faction: FactionId::Kayi, // default faction, overridden by mission setup
+                level: 1,
+                max_level,
+                name: format!("{:?} I", building_type),
+            },
+            build_cost_for_type(building_type),
+            WorldPosition::new(target.0, CELL_SIZE),
+        ));
     }
 }
 
@@ -251,6 +349,401 @@ fn recruitment_progress_system(
     // Remove completed recruitments (reverse order)
     for idx in completed.into_iter().rev() {
         timer.active_recruitments.remove(idx);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tests
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::time::TimeUpdateStrategy;
+    use std::time::Duration;
+
+    /// Helper: build an app with `build_from_order_system` and basic resources.
+    fn test_app() -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(TimeUpdateStrategy::ManualDuration(
+                Duration::from_secs_f32(1.0 / 60.0),
+            ))
+            .init_resource::<GameTime>()
+            .init_resource::<ResourceStockpile>()
+            .add_event::<BuildOrder>()
+            .add_event::<BuildRejected>()
+            .add_systems(FixedUpdate, build_from_order_system);
+        app
+    }
+
+    /// Marker resource that collects `BuildRejected` events during simulation.
+    #[derive(Resource, Default)]
+    struct RejectionCollector(Vec<BuildRejected>);
+
+    /// System that runs after `build_from_order_system` to capture rejections.
+    fn collect_rejections(mut orders: EventReader<BuildRejected>, mut collector: ResMut<RejectionCollector>) {
+        for ev in orders.read() {
+            collector.0.push(ev.clone());
+        }
+    }
+
+    /// Count construction-site entities at a given grid position.
+    fn constructions_at(app: &mut App, pos: IVec2) -> usize {
+        app.world_mut()
+            .query_filtered::<&WorldPosition, With<ConstructionSite>>()
+            .iter(app.world())
+            .filter(|wp| wp.grid.0 == pos)
+            .count()
+    }
+
+    /// Build a test app that includes the rejection collector.
+    fn test_app_with_collector() -> App {
+        let mut app = test_app();
+        app.init_resource::<RejectionCollector>()
+            .add_systems(FixedUpdate, collect_rejections.after(build_from_order_system));
+        app
+    }
+
+    // ── No zone → allowed (backwards compatible) ──────────────────────
+
+    #[test]
+    fn test_build_without_zone_is_allowed() {
+        let mut app = test_app_with_collector();
+
+        // Send a BuildOrder for a cell with no zone
+        app.world_mut()
+            .resource_mut::<Events<BuildOrder>>()
+            .send(BuildOrder {
+                entity: Entity::from_raw(1),
+                building_type: BuildingType::Barracks,
+                position: GridPos(IVec2::new(5, 5)),
+            });
+
+        // Run enough frames for FixedUpdate to fire
+        for _ in 0..5 {
+            app.update();
+        }
+
+        // ConstructionSite should exist at (5, 5)
+        assert_eq!(
+            constructions_at(&mut app, IVec2::new(5, 5)),
+            1,
+            "Barracks should be placed without a zone"
+        );
+        // No rejection event
+        let collector = app.world().resource::<RejectionCollector>();
+        assert!(
+            collector.0.is_empty(),
+            "No rejection expected without zone"
+        );
+    }
+
+    // ── Matching zone → allowed ───────────────────────────────────────
+
+    #[test]
+    fn test_build_in_matching_zone() {
+        let mut app = test_app_with_collector();
+
+        // Place a Military zone at (3, 3)
+        app.world_mut().spawn((
+            Zone {
+                zone_type: ZoneType::Military,
+                level: 1,
+            },
+            WorldPosition::new(IVec2::new(3, 3), CELL_SIZE),
+        ));
+
+        // Barracks matches Military zone
+        app.world_mut()
+            .resource_mut::<Events<BuildOrder>>()
+            .send(BuildOrder {
+                entity: Entity::from_raw(1),
+                building_type: BuildingType::Barracks,
+                position: GridPos(IVec2::new(3, 3)),
+            });
+
+        for _ in 0..5 {
+            app.update();
+        }
+
+        assert_eq!(
+            constructions_at(&mut app, IVec2::new(3, 3)),
+            1,
+            "Barracks should be placed in Military zone"
+        );
+        let collector = app.world().resource::<RejectionCollector>();
+        assert!(
+            collector.0.is_empty(),
+            "No rejection for matching zone"
+        );
+    }
+
+    // ── Mismatched zone → rejected ────────────────────────────────────
+
+    #[test]
+    fn test_build_in_wrong_zone_is_rejected() {
+        let mut app = test_app_with_collector();
+
+        // Residential zone at (2, 2)
+        app.world_mut().spawn((
+            Zone {
+                zone_type: ZoneType::Residential,
+                level: 1,
+            },
+            WorldPosition::new(IVec2::new(2, 2), CELL_SIZE),
+        ));
+
+        // Barracks does NOT match Residential
+        app.world_mut()
+            .resource_mut::<Events<BuildOrder>>()
+            .send(BuildOrder {
+                entity: Entity::from_raw(1),
+                building_type: BuildingType::Barracks,
+                position: GridPos(IVec2::new(2, 2)),
+            });
+
+        for _ in 0..5 {
+            app.update();
+        }
+
+        assert_eq!(
+            constructions_at(&mut app, IVec2::new(2, 2)),
+            0,
+            "Barracks should NOT be placed in Residential zone"
+        );
+        let collector = app.world().resource::<RejectionCollector>();
+        assert!(
+            !collector.0.is_empty(),
+            "Should emit at least one BuildRejected"
+        );
+        assert!(
+            collector.0.iter().any(|r| matches!(r.reason, BuildRejectionReason::ZoneMismatch(ZoneType::Residential, BuildingType::Barracks))),
+            "Expected ZoneMismatch(Residential, Barracks), got: {:?}",
+            collector.0.first().map(|r| &r.reason)
+        );
+    }
+
+    // ── All zone-type / building-type match pairs ─────────────────────
+
+    #[test]
+    fn test_all_zone_type_matches() {
+        let pairs = vec![
+            (ZoneType::Residential, BuildingType::Oba),
+            (ZoneType::Military, BuildingType::Barracks),
+            (ZoneType::Military, BuildingType::ArcheryRange),
+            (ZoneType::Military, BuildingType::Stable),
+            (ZoneType::Military, BuildingType::SiegeWorkshop),
+            (ZoneType::Military, BuildingType::Watchtower),
+            (ZoneType::Economic, BuildingType::Market),
+            (ZoneType::Economic, BuildingType::Warehouse),
+            (ZoneType::Economic, BuildingType::Pasture),
+            (ZoneType::Economic, BuildingType::MiningCamp),
+            (ZoneType::Economic, BuildingType::LumberCamp),
+            (ZoneType::Religious, BuildingType::Mosque),
+            (ZoneType::Religious, BuildingType::Monument),
+            (ZoneType::Administrative, BuildingType::CouncilChamber),
+            (ZoneType::Administrative, BuildingType::GuildHall),
+        ];
+
+        for (zone_type, building_type) in pairs {
+            let mut app = test_app_with_collector();
+            app.world_mut().spawn((
+                Zone {
+                    zone_type,
+                    level: 1,
+                },
+                WorldPosition::new(IVec2::new(7, 7), CELL_SIZE),
+            ));
+
+            app.world_mut()
+                .resource_mut::<Events<BuildOrder>>()
+                .send(BuildOrder {
+                    entity: Entity::from_raw(1),
+                    building_type,
+                    position: GridPos(IVec2::new(7, 7)),
+                });
+
+            for _ in 0..5 {
+                app.update();
+            }
+
+            assert_eq!(
+                constructions_at(&mut app, IVec2::new(7, 7)),
+                1,
+                "{:?} should be placeable in {:?} zone",
+                building_type,
+                zone_type
+            );
+            let collector = app.world().resource::<RejectionCollector>();
+            assert!(
+                collector.0.is_empty(),
+                "No rejection for {:?} in {:?}",
+                building_type,
+                zone_type
+            );
+        }
+    }
+
+    // ── Cell occupied → rejected ──────────────────────────────────────
+
+    #[test]
+    fn test_build_on_occupied_cell_is_rejected() {
+        let mut app = test_app_with_collector();
+
+        // An existing Building at (4, 4)
+        app.world_mut().spawn((
+            Building {
+                building_type: BuildingType::Oba,
+                faction: FactionId::Kayi,
+                level: 1,
+                max_level: 3,
+                name: "Test Oba".into(),
+            },
+            WorldPosition::new(IVec2::new(4, 4), CELL_SIZE),
+        ));
+
+        // Try to build on the same cell
+        app.world_mut()
+            .resource_mut::<Events<BuildOrder>>()
+            .send(BuildOrder {
+                entity: Entity::from_raw(2),
+                building_type: BuildingType::Market,
+                position: GridPos(IVec2::new(4, 4)),
+            });
+
+        for _ in 0..5 {
+            app.update();
+        }
+
+        assert_eq!(
+            constructions_at(&mut app, IVec2::new(4, 4)),
+            0,
+            "No construction on occupied cell"
+        );
+        let collector = app.world().resource::<RejectionCollector>();
+        assert!(
+            collector.0.iter().any(|r| matches!(r.reason, BuildRejectionReason::CellOccupied)),
+            "Expected CellOccupied rejection"
+        );
+    }
+
+    // ── Mismatched zone does NOT prevent other builds ─────────────────
+
+    #[test]
+    fn test_rejected_build_does_not_block_other_orders() {
+        let mut app = test_app_with_collector();
+
+        // Residential zone at (1, 1)
+        app.world_mut().spawn((
+            Zone {
+                zone_type: ZoneType::Residential,
+                level: 1,
+            },
+            WorldPosition::new(IVec2::new(1, 1), CELL_SIZE),
+        ));
+
+        // Send TWO orders: Barracks (wrong for Residential) and Oba (right)
+        app.world_mut()
+            .resource_mut::<Events<BuildOrder>>()
+            .send(BuildOrder {
+                entity: Entity::from_raw(1),
+                building_type: BuildingType::Barracks,
+                position: GridPos(IVec2::new(1, 1)),
+            });
+        app.world_mut()
+            .resource_mut::<Events<BuildOrder>>()
+            .send(BuildOrder {
+                entity: Entity::from_raw(2),
+                building_type: BuildingType::Oba,
+                position: GridPos(IVec2::new(1, 1)),
+            });
+
+        for _ in 0..5 {
+            app.update();
+        }
+
+        // Oba should be placed (matches Residential)
+        assert_eq!(
+            constructions_at(&mut app, IVec2::new(1, 1)),
+            1,
+            "Oba should be placed after Barracks was rejected"
+        );
+        // At least one rejection for Barracks
+        let collector = app.world().resource::<RejectionCollector>();
+        assert!(
+            collector.0.iter().any(|r| matches!(r.reason, BuildRejectionReason::ZoneMismatch(ZoneType::Residential, BuildingType::Barracks))),
+            "Should have rejected Barracks in Residential zone"
+        );
+    }
+
+    // ── Construction proceeds normally after zone-validated spawn ─────
+
+    #[test]
+    fn test_construction_progresses_after_zone_validated_spawn() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(TimeUpdateStrategy::ManualDuration(
+                Duration::from_secs_f32(1.0 / 60.0),
+            ))
+            .init_resource::<GameTime>()
+            .init_resource::<ResourceStockpile>()
+            .add_event::<BuildOrder>()
+            .add_event::<BuildRejected>()
+            .add_systems(
+                FixedUpdate,
+                (
+                    build_from_order_system,
+                    construction_progress_system,
+                    complete_construction_system,
+                ),
+            );
+
+        // Send a BuildOrder for Oba in a Residential zone
+        app.world_mut().spawn((
+            Zone {
+                zone_type: ZoneType::Residential,
+                level: 1,
+            },
+            WorldPosition::new(IVec2::new(0, 0), CELL_SIZE),
+        ));
+
+        app.world_mut()
+            .resource_mut::<Events<BuildOrder>>()
+            .send(BuildOrder {
+                entity: Entity::from_raw(1),
+                building_type: BuildingType::Oba,
+                position: GridPos(IVec2::new(0, 0)),
+            });
+
+        // Run many frames — construction should start, progress, and complete
+        for _ in 0..120 {
+            app.update();
+        }
+
+        // After many ticks, the ConstructionSite should be gone (completed)
+        let const_count = app
+            .world_mut()
+            .query_filtered::<&ConstructionSite, With<WorldPosition>>()
+            .iter(app.world())
+            .filter(|site| site.building_type == BuildingType::Oba)
+            .count();
+        assert_eq!(
+            const_count, 0,
+            "Oba construction should have completed"
+        );
+
+        // There should be a Building with 'level >= 1'
+        let building_count = app
+            .world_mut()
+            .query_filtered::<&Building, With<WorldPosition>>()
+            .iter(app.world())
+            .filter(|b| b.building_type == BuildingType::Oba)
+            .count();
+        assert_eq!(
+            building_count, 1,
+            "Oba should exist as a completed Building"
+        );
     }
 }
 

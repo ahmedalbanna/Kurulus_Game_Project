@@ -4,6 +4,9 @@ use bevy::input::ButtonInput;
 use kurulus_core::prelude::*;
 use std::collections::HashMap;
 
+mod building_placement;
+use building_placement::*;
+
 pub struct CityBuilderPlugin;
 
 impl Plugin for CityBuilderPlugin {
@@ -17,6 +20,8 @@ impl Plugin for CityBuilderPlugin {
             .init_resource::<PolicySettings>()
             .init_resource::<PolicyFocus>()
             .init_resource::<ZonePlacementState>()
+            .init_resource::<BuildingPlacementState>()
+            .add_event::<BuildOrder>()
             .add_event::<ZonePlaced>()
             .add_event::<ZoneUpgraded>()
             .add_event::<CityLevelUp>()
@@ -68,6 +73,9 @@ impl Plugin for CityBuilderPlugin {
                     zone_placement_toggle_system,
                     zone_placement_hover_system,
                     zone_placement_execute_system,
+                    building_placement_toggle_system,
+                    building_placement_hover_system,
+                    building_placement_execute_system,
                 ),
             );
     }

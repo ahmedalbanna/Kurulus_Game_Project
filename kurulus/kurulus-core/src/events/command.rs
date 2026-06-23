@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use crate::coord::GridPos;
-use crate::components::{BuildingType, UnitArchetype, AbilityId};
+use crate::components::{BuildingType, ZoneType, UnitArchetype, AbilityId};
 
 #[derive(Event, Clone, Debug)]
 pub struct MoveOrder {
@@ -21,6 +21,24 @@ pub struct BuildOrder {
     pub entity: Entity,
     pub building_type: BuildingType,
     pub position: GridPos,
+}
+
+/// Fired when a `BuildOrder` is rejected because the target grid cell
+/// has a zone that doesn't allow the requested building type.
+#[derive(Event, Clone, Debug)]
+pub struct BuildRejected {
+    pub order: BuildOrder,
+    pub reason: BuildRejectionReason,
+}
+
+/// Why a build order was rejected.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BuildRejectionReason {
+    /// The zone at the target position does not match the building type.
+    /// `.0` = the zone type found, `.1` = the building type requested.
+    ZoneMismatch(ZoneType, BuildingType),
+    /// The target grid cell is already occupied by another building or construction.
+    CellOccupied,
 }
 
 #[derive(Event, Clone, Debug)]

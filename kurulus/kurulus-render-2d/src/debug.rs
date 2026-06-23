@@ -2,28 +2,30 @@ use bevy::prelude::*;
 use kurulus_core::coord::*;
 use kurulus_core::components::unit::*;
 use kurulus_core::components::stealth::Detection;
-use kurulus_core::components::building::Building;
-use kurulus_core::components::city::{Zone, ZoneType, ServiceBuilding};
+use kurulus_core::components::building::BuildingType;
+use kurulus_core::components::city::{Zone, ZoneType};
 use kurulus_core::resources::city::{
-    OverlaySettings, OverlayMode, CityState, ZonePlacementState, overlay_colors,
+    OverlaySettings, OverlayMode, ZonePlacementState, BuildingPlacementState, overlay_colors,
 };
 
 pub struct DebugRenderPlugin;
 
 impl Plugin for DebugRenderPlugin {
     fn build(&self, app: &mut App) {
+        // Note: building overlay colours are now rendered via real sprites
+        // (see building_sprites::BuildingSpritePlugin). We keep only the
+        // non-building gizmos here (grid, formations, detection, zone
+        // boundaries, placement preview, and the no-op legend hook).
         app.add_systems(
             Update,
             (
                 draw_grid_gizmos,
                 draw_formation_gizmos,
                 draw_detection_gizmos,
-                draw_overlay_zone_gizmos,
-                draw_overlay_service_gizmos,
-                draw_overlay_happiness_gizmos,
                 draw_overlay_legend_gizmos,
                 draw_zone_entity_gizmos,
                 draw_placement_preview_gizmos,
+                draw_building_placement_preview_gizmos,
             ),
         );
     }
@@ -103,152 +105,18 @@ fn draw_detection_gizmos(
 // the corresponding OverlayMode is active.  They share the same cell-size
 // conventions as the rest of the game (CELL_SIZE = 1.0).
 
-/// Helper: draw a filled semi-transparent rectangle at a world position.
-fn draw_building_gizmo(gizmos: &mut Gizmos, pos: Vec2, color: Color) {
-    let half = CELL_SIZE * 0.4;
-    gizmos.rect_2d(pos, Vec2::splat(half * 2.0), color);
-}
+// Note: building overlay colours (Zones / ServiceCoverage / Happiness) are
+// now rendered via real sprites in building_sprites::BuildingSpritePlugin.
+// The helper functions draw_building_gizmo and draw_building_circle have been
+// removed along with the three overlay systems.
 
-/// Helper: draw a circle around a building (for service coverage).
-fn draw_building_circle(gizmos: &mut Gizmos, pos: Vec2, radius: f32, color: Color) {
-    // circle_2d takes (position, radius, color)
-    gizmos.circle_2d(pos, radius, color);
-}
+// ── 8d. Overlay Legend (replaced by bevy_ui legend in UILogicPlugin) ──
 
-// ── 8a. Zone Overlay ─────────────────────────────────────────────────────────
-
-/// Color-code buildings by their zone district.
-/// - Residential → green
-/// - Military    → red
-/// - Economic    → yellow
-/// - Religious   → blue
-/// - Admin       → purple
-/// - Unzoned     → grey
-fn draw_overlay_zone_gizmos(
-    mut gizmos: Gizmos,
-    settings: Res<OverlaySettings>,
-    buildings: Query<(&Building, &WorldPosition, Option<&Zone>)>,
-) {
-    if settings.mode != OverlayMode::Zones {
-        return;
-    }
-
-    for (_building, pos, zone) in buildings.iter() {
-        let color = match zone.map(|z| z.zone_type) {
-            Some(ZoneType::Residential) => overlay_colors::ZONE_RESIDENTIAL,
-            Some(ZoneType::Military) => overlay_colors::ZONE_MILITARY,
-            Some(ZoneType::Economic) => overlay_colors::ZONE_ECONOMIC,
-            Some(ZoneType::Religious) => overlay_colors::ZONE_RELIGIOUS,
-            Some(ZoneType::Administrative) => overlay_colors::ZONE_ADMIN,
-            None => overlay_colors::ZONE_UNASSIGNED,
-        };
-
-        // Make unzoned buildings more transparent so they don't dominate
-        let alpha = if zone.is_some() { 0.5 } else { 0.2 };
-        let mut c = color;
-        c.set_alpha(alpha);
-        draw_building_gizmo(&mut gizmos, pos.world_2d.0, c);
-    }
-}
-
-// ── 8b. Service Coverage Overlay ─────────────────────────────────────────────
-
-/// Show which buildings are within coverage radius of a selected service type.
-/// Buildings within range → green, partial → yellow, out of range → red.
-/// Also draws a faint circle showing the coverage radius of each service building.
-fn draw_overlay_service_gizmos(
-    mut gizmos: Gizmos,
-    settings: Res<OverlaySettings>,
-    all_buildings: Query<(&WorldPosition, Option<&ServiceBuilding>), With<Building>>,
-) {
-    if settings.mode != OverlayMode::ServiceCoverage {
-        return;
-    }
-
-    let active = settings.active_service;
-
-    // Collect all service-building positions that provide this service
-    let service_positions: Vec<(Vec2, f32)> = all_buildings
-        .iter()
-        .filter_map(|(pos, svc)| {
-            svc.and_then(|s| {
-                if s.service_type == active {
-                    Some((pos.world_2d.0, s.coverage_radius))
-                } else {
-                    None
-                }
-            })
-        })
-        .collect();
-
-    // Draw coverage-radius circles around each service building
-    for (svc_pos, radius) in &service_positions {
-        draw_building_circle(&mut gizmos, *svc_pos, *radius, Color::srgba(0.2, 0.8, 0.2, 0.08));
-    }
-
-    // Colour each building based on whether it's within range of any service
-    for (pos, _optional_svc) in all_buildings.iter() {
-        let covered = service_positions
-            .iter()
-            .any(|(svc_pos, radius)| pos.world_2d.0.distance(*svc_pos) <= *radius);
-
-        let color = if covered {
-            overlay_colors::COVERAGE_FULL
-        } else {
-            overlay_colors::COVERAGE_NONE
-        };
-        let mut c = color;
-        c.set_alpha(0.4);
-        draw_building_gizmo(&mut gizmos, pos.world_2d.0, c);
-    }
-}
-
-// ── 8c. Happiness Overlay ────────────────────────────────────────────────────
-
-/// Color-code buildings by the city's current happiness level.
-/// - Happiness ≥ 60 → green (happy)
-/// - Happiness ≥ 40 → yellow (neutral)
-/// - Happiness ≥ 20 → orange (unhappy)
-/// - Happiness < 20 → red (miserable)
-fn draw_overlay_happiness_gizmos(
-    mut gizmos: Gizmos,
-    settings: Res<OverlaySettings>,
-    city: Res<CityState>,
-    buildings: Query<&WorldPosition, With<Building>>,
-) {
-    if settings.mode != OverlayMode::Happiness {
-        return;
-    }
-
-    let color = if city.happiness >= 60.0 {
-        overlay_colors::HAPPY
-    } else if city.happiness >= 40.0 {
-        overlay_colors::NEUTRAL
-    } else if city.happiness >= 20.0 {
-        overlay_colors::UNHAPPY
-    } else {
-        overlay_colors::MISERABLE
-    };
-
-    let mut c = color;
-    c.set_alpha(0.35);
-
-    for pos in buildings.iter() {
-        draw_building_gizmo(&mut gizmos, pos.world_2d.0, c);
-    }
-}
-
-// ── 8d. Overlay Legend (placeholder — text requires bevy_ui, not available in gizmos) ──
-
-/// Placeholder legend system.  In the current codebase, overlay text legends
-/// will be added when proper `bevy_ui` HUD rendering is implemented.
-/// For now the mode name is logged to the console when toggled.
-fn draw_overlay_legend_gizmos(
-    _settings: Res<OverlaySettings>,
-) {
-    // Gizmos do not support text rendering directly.
-    // Legend will be implemented when the game gains a proper HUD layer.
-}
+/// Kept as a no-op to preserve the system registration in `DebugRenderPlugin`.
+/// The actual text overlay is rendered via `bevy_ui` by
+/// [`zone_legend_render_system`] in the `UILogicPlugin` — see
+/// `kurulus-systems/src/ui/zone_legend.rs`.
+fn draw_overlay_legend_gizmos() {}
 
 // ── Zone Entity Rendering ──────────────────────────────────────────────────
 
@@ -302,6 +170,55 @@ fn draw_placement_preview_gizmos(
     c.set_alpha(0.60);
     let half = CELL_SIZE * 0.48;
     gizmos.rect_2d(world_pos, Vec2::splat(half * 2.0), c);
+}
+
+// ── Building Placement Preview ──────────────────────────────────────────────
+
+/// Draws a semi-transparent preview rectangle at the hovered grid position
+/// when building placement mode is active.
+///
+/// The preview colour matches the building's zone category (e.g. green for
+/// Residential buildings, red for Military), helping the player see what
+/// zone the building belongs to before they click.
+fn draw_building_placement_preview_gizmos(
+    mut gizmos: Gizmos,
+    placement: Res<BuildingPlacementState>,
+) {
+    if !placement.active {
+        return;
+    }
+    let Some(grid) = placement.hovered_grid else {
+        return;
+    };
+
+    let world_pos = Vec2::new(grid.x as f32 * CELL_SIZE, grid.y as f32 * CELL_SIZE);
+    // Try to map the building type to its zone-category colour; fall back to
+    // a neutral blue for buildings that don't have a zone (infrastructure,
+    // defensive).
+    let color = zone_color_for_building(placement.selected_type);
+    let mut c = color;
+    c.set_alpha(0.55);
+    let half = CELL_SIZE * 0.48;
+    gizmos.rect_2d(world_pos, Vec2::splat(half * 2.0), c);
+}
+
+/// Pick a zone-category colour for a building type preview.
+fn zone_color_for_building(building_type: BuildingType) -> Color {
+    // Walk zone types until we find one that matches this building
+    use kurulus_core::components::city::ZoneType;
+    for zt in &[
+        ZoneType::Residential,
+        ZoneType::Military,
+        ZoneType::Economic,
+        ZoneType::Religious,
+        ZoneType::Administrative,
+    ] {
+        if zt.matches_building(building_type) {
+            return zone_color(*zt);
+        }
+    }
+    // Fallback: neutral tan for infrastructure / defensive buildings
+    Color::srgb(0.6, 0.5, 0.3)
 }
 
 /// Resolve a zone type to its standard colour.

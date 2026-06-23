@@ -1,6 +1,7 @@
 pub mod sprite;
 pub mod camera;
 pub mod debug;
+pub mod building_sprites;
 
 use bevy::prelude::*;
 
@@ -12,6 +13,7 @@ impl Plugin for Render2DPlugin {
             sprite::SpritePlugin,
             camera::Camera2DPlugin,
             debug::DebugRenderPlugin,
+            building_sprites::BuildingSpritePlugin,
         ));
     }
 }

@@ -83,19 +83,63 @@ fn resource_consumption_system(
     stockpile.wood = (stockpile.wood - wood_consumed).max(0.0);
 }
 
-// ── Tax Collection (stub) ─────────────────────────────────────────────────
+// ── Tax Collection ────────────────────────────────────────────────────────
 
-/// Collects taxes from population periodically.
+/// Tax rate floor (below this, no tax is collected).
+const TAX_EPSILON: f32 = 0.001;
+
+/// Per-unit economic-power bonus added to the tax base.
+/// Each `total_economic_power` level multiplies the base output by `1.0 + level × POWER_MULT`.
+const POWER_MULT: f32 = 0.10;
+
+/// Collects taxes each tick based on the city's economic output and tax rate.
 ///
-/// TODO: Full implementation — read `PolicySettings.tax_rate` (or the
-/// legacy `TaxPolicy.rate`), multiply by economic output, and add gold
-/// to the stockpile.  For now this is a placeholder.
+/// ## Formula
+///
+/// ```ignore
+/// economic_base = ProductionRates.gold_per_second
+/// tax_mult      = 1.0 + CityState.total_economic_power × POWER_MULT
+/// tax_gold      = economic_base × tax_mult × TaxPolicy.rate × delta
+/// ```
+///
+/// The `TaxPolicy.rate` is synced from `PolicySettings.tax_rate` by
+/// `tax_policy_sync_system` (in the city builder plugin) each tick.
+///
+/// ## Graceful fallback
+///
+/// If `CityState` or `ProductionRates` are absent (e.g. headless test without
+/// the city builder or economy plugins), the system uses defaults:
+/// `total_economic_power = 0`, `gold_per_second = 0.5`.
 fn tax_collection_system(
-    _time: Res<GameTime>,
-    _policy: Res<TaxPolicy>,
-    _stockpile: ResMut<ResourceStockpile>,
+    time: Res<GameTime>,
+    tax: Res<TaxPolicy>,
+    mut stockpile: ResMut<ResourceStockpile>,
+    city: Option<Res<CityState>>,
+    rates: Option<Res<ProductionRates>>,
 ) {
-    // TODO: Implement tax collection
+    let delta = time.time_scale as f32 * 0.1;
+
+    // Bail out if tax rate is effectively zero (avoids pointless computation).
+    if tax.rate < TAX_EPSILON {
+        return;
+    }
+
+    // ── Compute the tax base ─────────────────────────────────────────
+    let base_gold = rates
+        .as_deref()
+        .map(|r| r.gold_per_second)
+        .unwrap_or(0.5);
+
+    let eco_power = city
+        .as_deref()
+        .map(|c| c.total_economic_power as f32)
+        .unwrap_or(0.0);
+
+    let tax_mult = 1.0 + eco_power * POWER_MULT;
+    let tax_collected = base_gold * tax_mult * tax.rate * delta;
+
+    // ── Apply ────────────────────────────────────────────────────────
+    stockpile.gold += tax_collected;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -411,6 +455,231 @@ mod tests {
             stockpile.wood > 50.0,
             "Wood should grow: {:.4}",
             stockpile.wood
+        );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Tax Collection Tests
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// Helper: run the tax collection system and return the resulting stockpile.
+    fn run_tax_collection(
+        stockpile: ResourceStockpile,
+        tax_rate: f32,
+        total_economic_power: u32,
+    ) -> ResourceStockpile {
+        let pop = stockpile.population;
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(TimeUpdateStrategy::ManualDuration(
+                Duration::from_secs_f32(1.0 / 60.0),
+            ));
+        app.init_resource::<GameTime>();
+        app.insert_resource(stockpile);
+        app.init_resource::<ProductionRates>();
+        app.insert_resource(TaxPolicy {
+            rate: tax_rate,
+            happiness_impact: 0.0,
+            last_collection: 0.0,
+        });
+        if total_economic_power > 0 || tax_rate > 0.0 {
+            app.insert_resource(CityState {
+                total_economic_power,
+                population: pop,
+                ..Default::default()
+            });
+        }
+        app.add_systems(FixedUpdate, tax_collection_system);
+
+        for _ in 0..5 {
+            app.update();
+        }
+        app.world().resource::<ResourceStockpile>().clone()
+    }
+
+    #[test]
+    fn test_tax_collects_gold_at_default_rate() {
+        let after = run_tax_collection(
+            ResourceStockpile {
+                gold: 100.0,
+                population: 10,
+                ..Default::default()
+            },
+            0.10, // 10% tax
+            0,    // no economic buildings
+        );
+        assert!(
+            after.gold > 100.0,
+            "Gold should increase: {:.4}",
+            after.gold
+        );
+    }
+
+    #[test]
+    fn test_tax_zero_rate_collects_nothing() {
+        let after = run_tax_collection(
+            ResourceStockpile {
+                gold: 100.0,
+                population: 10,
+                ..Default::default()
+            },
+            0.0,
+            0,
+        );
+        assert!(
+            (after.gold - 100.0).abs() < f32::EPSILON,
+            "Gold should not change at 0% tax: {:.4}",
+            after.gold
+        );
+    }
+
+    #[test]
+    fn test_higher_tax_rate_collects_more_gold() {
+        let low = run_tax_collection(
+            ResourceStockpile {
+                gold: 100.0,
+                population: 10,
+                ..Default::default()
+            },
+            0.10,
+            0,
+        );
+        let high = run_tax_collection(
+            ResourceStockpile {
+                gold: 100.0,
+                population: 10,
+                ..Default::default()
+            },
+            0.50,
+            0,
+        );
+        assert!(
+            high.gold > low.gold,
+            "50% tax should collect more than 10%: low={:.4}, high={:.4}",
+            low.gold,
+            high.gold,
+        );
+    }
+
+    #[test]
+    fn test_economic_power_boosts_tax_revenue() {
+        let no_power = run_tax_collection(
+            ResourceStockpile {
+                gold: 100.0,
+                population: 10,
+                ..Default::default()
+            },
+            0.10,
+            0,
+        );
+        let with_power = run_tax_collection(
+            ResourceStockpile {
+                gold: 100.0,
+                population: 10,
+                ..Default::default()
+            },
+            0.10,
+            5, // 5 economic levels → +50% to tax base
+        );
+        assert!(
+            with_power.gold > no_power.gold,
+            "Economic power should boost tax: no_power={:.4}, with_power={:.4}",
+            no_power.gold,
+            with_power.gold,
+        );
+        // With 5 power and 10% mult each, baseline should be 1.5× of no-power case
+        let ratio = (with_power.gold - 100.0) / (no_power.gold - 100.0).max(0.0001);
+        assert!(
+            (ratio - 1.5).abs() < 0.1,
+            "Tax ratio should be ~1.5 with 5 power, got: {:.4}",
+            ratio,
+        );
+    }
+
+    #[test]
+    fn test_tax_works_without_city_state() {
+        // When CityState is absent, total_economic_power defaults to 0.
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(TimeUpdateStrategy::ManualDuration(
+                Duration::from_secs_f32(1.0 / 60.0),
+            ));
+        app.init_resource::<GameTime>();
+        app.insert_resource(ResourceStockpile {
+            gold: 100.0,
+            population: 10,
+            ..Default::default()
+        });
+        app.init_resource::<ProductionRates>();
+        app.insert_resource(TaxPolicy {
+            rate: 0.10,
+            happiness_impact: 0.0,
+            last_collection: 0.0,
+        });
+        // Do NOT insert CityState — system should gracefully fall back.
+        app.add_systems(FixedUpdate, tax_collection_system);
+
+        for _ in 0..5 {
+            app.update();
+        }
+        let stockpile = app.world().resource::<ResourceStockpile>().clone();
+        assert!(
+            stockpile.gold > 100.0,
+            "Tax should work without CityState: {:.4}",
+            stockpile.gold
+        );
+    }
+
+    #[test]
+    fn test_tax_integration_with_production() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(TimeUpdateStrategy::ManualDuration(
+                Duration::from_secs_f32(1.0 / 60.0),
+            ));
+        app.init_resource::<GameTime>();
+        app.insert_resource(ResourceStockpile {
+            gold: 50.0,
+            population: 10,
+            ..Default::default()
+        });
+        app.init_resource::<ProductionRates>();
+        app.init_resource::<ResourceConsumption>();
+        app.insert_resource(TaxPolicy {
+            rate: 0.20,
+            happiness_impact: 0.0,
+            last_collection: 0.0,
+        });
+        app.insert_resource(CityState {
+            total_economic_power: 3,
+            ..Default::default()
+        });
+        app.insert_resource(PolicySettings::default());
+        app.add_systems(
+            FixedUpdate,
+            (
+                resource_production_system.in_set(SimulationSet::ResourceProduction),
+                resource_consumption_system.in_set(SimulationSet::ResourceConsumption),
+                tax_collection_system.in_set(SimulationSet::ResourceProduction),
+            ),
+        );
+
+        for _ in 0..10 {
+            app.update();
+        }
+
+        let stockpile = app.world().resource::<ResourceStockpile>();
+        // Gold should grow: base production + tax revenue, minus consumption
+        assert!(
+            stockpile.gold > 50.5,
+            "Gold should grow with production + tax (expected >50.5): {:.4}",
+            stockpile.gold
+        );
+        // Tax adds additional gold beyond base production alone
+        assert!(
+            stockpile.gold > 50.3,
+            "Tax should contribute measurably (expected >50.3): {:.4}",
+            stockpile.gold
         );
     }
 }

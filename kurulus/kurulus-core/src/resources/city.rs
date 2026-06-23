@@ -656,6 +656,61 @@ impl Default for ZonePlacementState {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Building Placement (player interaction state)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Tracks the player's building placement interaction state.
+///
+/// Activated by pressing **U**, deactivated by **Escape** or **U** again.
+/// While active, the player can:
+///   • Hover over the grid to preview building placement.
+///   • Left-click to send a [`BuildOrder`](crate::events::command::BuildOrder).
+///   • Press **Tab** / **Shift+Tab** to cycle through building types.
+#[derive(Resource, Clone, Debug, PartialEq)]
+pub struct BuildingPlacementState {
+    /// Whether building placement mode is currently active.
+    pub active: bool,
+    /// Which building type is selected for placement.
+    pub selected_type: crate::components::building::BuildingType,
+    /// Grid position currently under the cursor, if any.
+    pub hovered_grid: Option<IVec2>,
+}
+
+/// Ordered list of building types for keyboard cycling.
+pub const BUILDING_TYPE_CYCLE: &[crate::components::building::BuildingType] = &[
+    crate::components::building::BuildingType::Oba,
+    crate::components::building::BuildingType::Barracks,
+    crate::components::building::BuildingType::ArcheryRange,
+    crate::components::building::BuildingType::Stable,
+    crate::components::building::BuildingType::SiegeWorkshop,
+    crate::components::building::BuildingType::Watchtower,
+    crate::components::building::BuildingType::Market,
+    crate::components::building::BuildingType::Warehouse,
+    crate::components::building::BuildingType::Pasture,
+    crate::components::building::BuildingType::MiningCamp,
+    crate::components::building::BuildingType::LumberCamp,
+    crate::components::building::BuildingType::Mosque,
+    crate::components::building::BuildingType::Monument,
+    crate::components::building::BuildingType::CouncilChamber,
+    crate::components::building::BuildingType::GuildHall,
+    crate::components::building::BuildingType::Road,
+    crate::components::building::BuildingType::Well,
+    crate::components::building::BuildingType::Palisade,
+    crate::components::building::BuildingType::StoneWall,
+    crate::components::building::BuildingType::Gate,
+];
+
+impl Default for BuildingPlacementState {
+    fn default() -> Self {
+        Self {
+            active: false,
+            selected_type: crate::components::building::BuildingType::Oba,
+            hovered_grid: None,
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // City Event Log (for HUD display)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -729,6 +784,11 @@ impl CityEventLog {
 /// Allows systems to find and update the UI tree efficiently.
 #[derive(Component, Clone, Debug, Default)]
 pub struct CityEventLogRoot;
+
+/// Marker component placed on the root UI node of the overlay legend HUD.
+/// Allows systems to find and update the legend UI tree efficiently.
+#[derive(Component, Clone, Debug, Default)]
+pub struct ZoneLegendRoot;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Overlay colours

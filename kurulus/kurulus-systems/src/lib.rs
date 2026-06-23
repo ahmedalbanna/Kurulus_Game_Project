@@ -62,6 +62,7 @@ fn register_common_events(app: &mut bevy::prelude::App) {
         .add_event::<AttackOrder>()
         .add_event::<BuildOrder>()
         .add_event::<RecruitOrder>()
+        .add_event::<BuildRejected>()
         .add_event::<ResearchOrder>()
         .add_event::<AbilityUsed>()
         .add_event::<ObjectiveCompleted>()
