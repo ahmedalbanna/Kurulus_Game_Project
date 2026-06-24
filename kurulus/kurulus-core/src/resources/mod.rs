@@ -11,6 +11,7 @@ pub mod selection;
 pub mod tech;
 pub mod terrain;
 pub mod time;
+pub mod ui_state;
 pub mod world_map;
 
 pub use ai_config::*;
@@ -25,6 +26,7 @@ pub use selection::*;
 pub use tech::*;
 pub use terrain::*;
 pub use time::*;
+pub use ui_state::*;
 pub use world_map::*;
 
 pub mod prelude {
@@ -44,5 +46,6 @@ pub mod prelude {
     pub use crate::resources::tech::*;
     pub use crate::resources::terrain::*;
     pub use crate::resources::time::*;
+    pub use crate::resources::ui_state::*;
     pub use crate::resources::world_map::*;
 }

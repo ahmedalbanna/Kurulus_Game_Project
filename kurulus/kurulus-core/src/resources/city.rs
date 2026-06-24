@@ -1201,6 +1201,38 @@ pub struct WorldMapSelectionRoot;
 pub struct WorldMapLegendRoot;
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// HUD Marker Components
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Marker component on the top resource bar root UI node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct TopBarRoot;
+
+/// Marker component on the minimap panel root UI node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct MinimapRoot;
+
+/// Marker component on the command bar root UI node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct CommandBarRoot;
+
+/// Marker component on the selection info panel root UI node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct SelectionPanelRoot;
+
+/// Marker component on the hero bar root UI node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct HeroBarRoot;
+
+/// Marker component on the notification stack root UI node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct NotificationStackRoot;
+
+/// Marker component on the objectives panel root UI node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct ObjectivesPanelRoot;
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Overlay colours
 // ═══════════════════════════════════════════════════════════════════════════════
 

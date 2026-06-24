@@ -26,6 +26,7 @@ bevy = { version = "0.15", features = [
     "bevy_gizmos",
     "bevy_gltf",
     "bevy_remote",
+    "bevy_winit",
 ] }
 bevy_state = "0.15"
 serde = { version = "1", features = ["derive"] }
