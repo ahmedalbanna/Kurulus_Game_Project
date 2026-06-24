@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use kurulus_config::register_config_assets;
-use kurulus_core::prelude::*;
 use kurulus_systems::*;
 
 /// Registers all plugins in the correct dependency order
@@ -14,136 +13,73 @@ pub fn register_plugins(app: &mut App) {
             .add_plugins(RemoteHttpPlugin::default());
     }
 
+    // === CORE INFRASTRUCTURE PLUGINS ===
+    // App::new() starts with only MainSchedulePlugin. Add essential
+    // infrastructure: task pools (IoTaskPool for asset I/O), time,
+    // transforms, state management, and the asset server.
+    app.add_plugins((
+        bevy::core::TaskPoolPlugin::default(),
+        bevy::core::TypeRegistrationPlugin,
+        bevy::core::FrameCountPlugin,
+        TransformPlugin,
+        bevy::time::TimePlugin,
+        // StatesPlugin is added later by register_logic_plugins
+        AssetPlugin::default(),
+    ));
+
     // === CONFIG ASSET LOADERS ===
     register_config_assets(app);
 
-    // === CORE SETUP ===
-    app
-        // States (must be first)
-        .init_state::<AppState>()
-        .init_state::<GamePhase>()
-        .init_state::<MissionState>()
-        // Core resources
-        .init_resource::<GameTime>()
-        .init_resource::<ResourceStockpile>()
-        .init_resource::<ProductionRates>()
-        .init_resource::<TaxPolicy>()
-        .init_resource::<TechTree>()
-        .init_resource::<FactionRelations>()
-        .init_resource::<TickTimer>()
-        .init_resource::<CoCommandState>()
-        .init_resource::<TrustMatrix>()
-        // Event channels
-        .add_event::<DamageDealt>()
-        .add_event::<UnitDied>()
-        .add_event::<AttackTriggered>()
-        .add_event::<MoraleBroken>()
-        .add_event::<AmbushTriggered>()
-        .add_event::<StealthRevealed>()
-        .add_event::<MoveOrder>()
-        .add_event::<AttackOrder>()
-        .add_event::<BuildOrder>()
-        .add_event::<RecruitOrder>()
-        .add_event::<ResearchOrder>()
-        .add_event::<AbilityUsed>()
-        .add_event::<ObjectiveCompleted>()
-        .add_event::<MissionEnded>()
-        .add_event::<MissionStarted>()
-        .add_event::<DialogueTriggered>()
-        .add_event::<ObjectiveProgress>()
-        .add_event::<FactionRelationChanged>()
-        .add_event::<RegionCaptured>()
-        .add_event::<WarDeclared>()
-        .add_event::<TreatySigned>()
-        .add_event::<SeasonChanged>()
-        .add_event::<DayNightCycle>()
-        .add_event::<SelectionChanged>()
-        .add_event::<PanelOpened>()
-        .add_event::<PanelClosed>()
-        .add_event::<Notification>();
-
-    // === LOGIC PLUGINS (Order matters for system dependencies) ===
-    // 1. Core Loop — drives GamePhase transitions
-    app.add_plugins(CoreLoopPlugin);
-
-    // 2. World Map — provides region/faction context for all others
-    app.add_plugins(WorldMapPlugin);
-
-    // 3. AI — needs world context, provides threats
-    app.add_plugins(AIPlugin);
-
-    // 4. Economy — resource production/consumption
-    app.add_plugins(EconomyPlugin);
-
-    // 5. Unit Command — movement, formations, orders
-    app.add_plugins(UnitCommandPlugin);
-
-    // 6. Combat — needs units positioned, produces damage events
-    app.add_plugins(CombatPlugin);
-
-    // 7. Stealth — needs combat for ambush triggers
-    app.add_plugins(StealthPlugin);
-
-    // 8. Hero — abilities interact with combat/stealth
-    app.add_plugins(HeroPlugin);
-
-    // 9. Base Building — consumes economy, produces units
-    app.add_plugins(BaseBuildingPlugin);
-
-    // 10. Progression — XP, tech tree, sovereignty points
-    app.add_plugins(ProgressionPlugin);
-
-    // 11. Narrative — missions, objectives, dialogue triggers
-    app.add_plugins(NarrativePlugin);
-
-    // 12. Diplomacy — faction relations, treaties
-    app.add_plugins(DiplomacyPlugin);
-
-    // 13. Beylik Politics (Season 3+)
-    app.add_plugins(BeylikPoliticsPlugin);
-
-    // 14. Next-Gen Heroes (Season 5+)
-    app.add_plugins(NextGenHeroesPlugin);
-
-    // 15. Romance/Loyalty (Season 5+)
-    app.add_plugins(RomanceLoyaltyPlugin);
-
-    // 16. Succession Legacy (Season 5+)
-    app.add_plugins(SuccessionLegacyPlugin);
-
-    // 17. Siege Warfare (Season 6)
-    app.add_plugins(SiegeWarfarePlugin);
-
-    // 18. Imperial Admin (Season 6)
-    app.add_plugins(ImperialAdminPlugin);
-
-    // 19. Naval Warfare (Season 6)
-    app.add_plugins(NavalWarfarePlugin);
-
-    // 20. Heir Co-Rule (Season 6)
-    app.add_plugins(CoRulePlugin);
-
-    // 21. Audio Logic (event -> sound mapping)
-    app.add_plugins(AudioLogicPlugin);
-
-    // 22. UI Logic (data binding, no bevy_ui rendering)
-    app.add_plugins(UILogicPlugin);
-
-    // 23. UiPlugin for bevy_ui rendering (node layout, text, etc.)
-    //     Registered unconditionally — harmless when no camera is present.
-    app.add_plugins(bevy::ui::UiPlugin::default());
+    // === ALL LOGIC (resources, events, plugins) via register_logic_plugins ===
+    // This handles state initialization, resource setup, event registration,
+    // and all 22 logic plugins in the correct order.
+    register_logic_plugins(app);
 
     // === STARTUP: Spawn Mission 1 tutorial scenario ===
     app.add_systems(Startup, |mut commands: Commands| {
         narrative::setup_mission1_scenario(&mut commands);
     });
 
-    // === RENDER PLUGIN (Conditional — Phase 1 = 2D, Phase 2 = 3D) ===
+    // === RENDER PLUGIN (Conditional) ===
+    // Phase 1 uses 2D sprite rendering; Phase 2 will use 3D PBR.
+    // Each rendering path includes the necessary Bevy render infrastructure
+    // (RenderPlugin, ImagePlugin, core render pipeline, text, UI) plus the
+    // project-specific render plugins.
     #[cfg(feature = "render-2d")]
-    app.add_plugins(kurulus_render_2d::Render2DPlugin);
+    app.add_plugins((
+        // Window + input infrastructure
+        bevy::window::WindowPlugin::default(),
+        bevy::input::InputPlugin,
+        // Picking (required by sprite and UI picking backends)
+        bevy::picking::PickingPlugin::default(),
+        // Render pipeline
+        bevy::render::RenderPlugin::default(),
+        bevy::render::texture::ImagePlugin::default(),
+        bevy::core_pipeline::CorePipelinePlugin,
+        bevy::sprite::SpritePlugin::default(),
+        bevy::text::TextPlugin,
+        bevy::ui::UiPlugin::default(),
+        bevy::gizmos::GizmoPlugin,
+        // Project-specific 2D render
+        kurulus_render_2d::Render2DPlugin,
+    ));
 
     #[cfg(feature = "render-3d")]
-    app.add_plugins(kurulus_render_3d::Render3DPlugin);
+    app.add_plugins((
+        // Window + input infrastructure
+        bevy::window::WindowPlugin::default(),
+        bevy::input::InputPlugin,
+        // Picking (required by sprite and UI picking backends)
+        bevy::picking::PickingPlugin::default(),
+        // Render pipeline
+        bevy::render::RenderPlugin::default(),
+        bevy::render::texture::ImagePlugin::default(),
+        bevy::core_pipeline::CorePipelinePlugin,
+        bevy::pbr::PbrPlugin::default(),
+        bevy::ui::UiPlugin::default(),
+        // Project-specific 3D render
+        kurulus_render_3d::Render3DPlugin,
+    ));
 
     // === HEADLESS TEST HARNESS ===
     #[cfg(feature = "headless-test")]
