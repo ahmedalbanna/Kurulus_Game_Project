@@ -12,6 +12,7 @@ remote = []
 
 [dependencies]
 bevy = { workspace = true }
+bevy_a11y = { workspace = true }
 kurulus-core = { path = "../kurulus-core" }
 kurulus-config = { path = "../kurulus-config" }
 kurulus-systems = { path = "../kurulus-systems" }

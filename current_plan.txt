@@ -1,683 +1,798 @@
-Now I have a comprehensive understanding of the existing stealth/ambush system. Let me synthesize my findings and create a detailed architecture plan.
-
-## Current State Analysis
-
-### What's Already Implemented:
-1. **Core Components** (kurulus-core/src/components/stealth.rs):
-   - `Stealth` - level, is_hidden, hidden_timer, ambush_zone
-   - `Detection` - radius, height_bonus, active
-   - `AmbushZone` - owner, radius, bonus_damage, bonus_morale, duration, remaining
-   - `NoiseLevel` - noise (0.0-1.0)
-   - `UnitVisibility` - footprint (from archetype)
-   - `AmbushMarker` - position, placed_by
-
-2. **Events** (kurulus-core/src/events/combat.rs):
-   - `AmbushTriggered` - ambusher, target, damage_bonus, zone
-   - `StealthRevealed` - entity, revealer
-   - `AttackTriggered` - includes `is_from_stealth` flag
-
-3. **Systems** (kurulus-systems/src/stealth/mod.rs):
-   - `terrain_stealth_system` - no-op hook
-   - `night_stealth_system` - no-op hook
-   - `noise_calculation_system` - calculates noise from move_speed
-   - `vision_calculation_system` - fog of war + terrain blocking
-   - `ambush_auto_hide_system` - auto-hide in ambush zones, applies terrain/night/noise/size modifiers
-   - `stealth_detection_system` - detection with modifiers
-   - `ambush_trigger_system` - bonus damage from ambush zones
-   - `ambush_placement_system` - spawns ambush zones (30 gold)
-
-4. **System Sets**:
-   - `VisionCalculation` → `StealthDetection` → `AmbushTrigger`
-
-### What's Missing (Gap Analysis vs GDD):
-
-#### 1. **Stealth Zones (GDD: 8 types, Code: TerrainType has 6)**
-   - GDD specifies: Dense Forest, Medium Forest, Tall Grass, Night Darkness, Ruins, Caves, Crop Field, Artificial
-   - Code has: OpenField, Forest, Water, Mountain, Road, Building
-   - **Gap**: No distinction between Dense/Medium Forest, no Tall Grass, no Caves, no Crop Field, no Artificial cover
-   - **Gap**: No zone capacity system (how many units per zone)
-   - **Gap**: No zone entry/exit timing (0.5s → 1.5s → 2.0s progression)
-
-#### 2. **Detection System (GDD: Vision Cones, Code: Radius-only)**
-   - GDD specifies: 120° front, 180° peripheral, 0° rear vision cones with multipliers
-   - Code uses: Simple distance-based detection (no vision cones)
-   - **Gap**: No vision cone mechanic (front/side/rear detection multipliers)
-   - **Gap**: No observer factors (Alert, Tired, Sleeping, Frightened, etc.)
-   - **Gap**: No target factors (Open, Forest, Moving, Attacking, etc.)
-   - **Gap**: No detection chain (Suspicion → Confirmation → Alarm)
-   - **Gap**: No silent kill mechanics
-
-#### 3. **Ambush Mechanics (GDD: Full lifecycle, Code: Basic trigger)**
-   - GDD specifies: Setup → Wait → Trigger → Execute → Reward phases
-   - Code has: Basic placement + auto-hide + trigger
-   - **Gap**: No "Ready" state (units stop auto-attacking)
-   - **Gap**: No staged trigger (Manual, Auto, Staged, Solo)
-   - **Gap**: No ambush effects: panic (-30 morale), formation break, shock (2s stun)
-   - **Gap**: No failed ambush penalties
-   - **Gap**: No ambush scoring/rewards system
-
-#### 4. **Decoy/Lure System (GDD: Full system, Code: Not implemented)**
-   - **Gap**: No Bait Rider unit type
-   - **Gap**: No luring mechanics (leash range, AI decision)
-   - **Gap**: No decoy types (Scarecrow, False Fire, etc.)
-
-#### 5. **Night Stealth (GDD: Comprehensive, Code: +0.20 bonus only)**
-   - GDD specifies: Full day/night cycle affecting vision, accuracy, speed, stealth
-   - Code has: Simple boolean is_night() check
-   - **Gap**: No dusk/dawn transitions
-   - **Gap**: No night-specific activities (infiltration, camp burning, assassination)
-   - **Gap**: No enemy night behavior (sleeping guards, fewer patrols)
-
-#### 6. **Hit & Run (GDD: Full tactics, Code: Not implemented)**
-   - **Gap**: No hit-and-run cycle tracking
-   - **Gap**: No withdrawal mechanics
-   - **Gap**: No fatigue system
-
-Now I need to create a comprehensive architecture plan that addresses all these gaps while being realistic about implementation priority.
-
-Now I have a complete picture. Let me compile the comprehensive architecture plan.
+Now I have everything I need. Here is the comprehensive architecture plan for the **In-Game HUD interfaces**.
 
 ---
 
-# Ambush & Stealth System — Architecture & Feature Breakdown Plan
+# 🎮 Kurulus In-Game HUD — Architecture & Feature Breakdown Plan
 
 ## Executive Summary
 
-The Kurulus Ambush & Stealth system is the game's "X-Factor" — described in the GDD as *"Ambush is the DNA of the game."* The current implementation provides a solid skeleton (components, 8 systems, 2 events, 2 tests) but has significant gaps against the 6-feature-spec document suite. This plan proposes the ECS structures, plugin architecture, and phased implementation to close those gaps.
+This plan designs the ECS architecture for the complete in-game HUD: the Top Resource Bar, Minimap Panel, Command Bar, Selection Panel, Hero Bar, Notification Stack, and Objectives Panel. It builds on the existing `UILogicPlugin` pattern (marker components + render systems in `Update` + logic systems in `FixedUpdate`) and integrates with the existing ~40 event types and game state system.
 
 ---
 
-## 1. Current Implementation State
+## 1. Current State Assessment
 
-### 1.1 What Exists (Working)
+### What Exists ✅
 
-| Layer | Item | Status |
-|-------|------|--------|
-| **Components** | `Stealth`, `Detection`, `AmbushZone`, `NoiseLevel`, `UnitVisibility`, `AmbushMarker` | ✅ Implemented |
-| **Events** | `AmbushTriggered`, `StealthRevealed`, `AttackTriggered.is_from_stealth` | ✅ Implemented |
-| **Systems** | `noise_calculation_system`, `vision_calculation_system`, `ambush_auto_hide_system`, `stealth_detection_system`, `ambush_trigger_system`, `ambush_placement_system` | ✅ Implemented |
-| **System Sets** | `VisionCalculation → StealthDetection → AmbushTrigger` | ✅ Ordered |
-| **Tests** | 2 integration tests (detection in-range, stays-hidden out-of-range) | ✅ Passing |
+|Component|File|Status|
+|---|---|---|
+|`UILogicPlugin`|`kurulus-systems/src/ui/mod.rs`|Registered, 5 render systems active|
+|City Event Log|`kurulus-systems/src/ui/city_event_log.rs`|Full implementation + 12 tests|
+|Zone Legend|`kurulus-systems/src/ui/zone_legend.rs`|Full implementation + 9 tests|
+|World Map UI|`kurulus-systems/src/ui/world_map.rs`|Tooltip, Legend, Selection Panel + 11 tests|
+|UI Events|`kurulus-core/src/events/ui.rs`|`SelectionChanged`, `PanelOpened/Closed`, `Notification`, etc.|
+|UI Resources|`kurulus-core/src/resources/city.rs`|`CityState`, `PolicySettings`, `OverlaySettings`, `ZonePlacementState`, `BuildingPlacementState`|
 
-### 1.2 Gap Analysis vs GDD Specs
+### What's Missing ❌ (TODO stubs)
 
-| Feature Area | GDD Spec | Current Code | Gap Severity |
-|-------------|----------|-------------|-------------|
-| **Stealth Zones** | 8 types with capacities, entry/exit timing, overcrowding | `TerrainType` has 6 variants (no Dense/Medium Forest split, no Tall Grass, no Caves, no Crop Field) | 🔴 High |
-| **Vision Cones** | 120° front, 180° peripheral, 0° rear with multipliers | Simple radius-only distance check | 🔴 High |
-| **Observer Factors** | Alert, Tired, Sleeping, Frightened, In Formation, etc. (8 states) | Not implemented | 🔴 High |
-| **Target Factors** | Open, Forest, Moving, Attacking, Size (11 states) | Partially via `UnitVisibility.footprint` | 🟡 Medium |
-| **Detection Chain** | Suspicion (1-3s) → Confirmation (1s) → Alarm chain | Instant reveal on proximity | 🔴 High |
-| **Silent Kill** | 6 methods with different alarm probabilities | Not implemented | 🟡 Medium |
-| **Ambush Phases** | Setup → Wait → Trigger → Execute → Reward | Basic placement + auto-trigger only | 🔴 High |
-| **Ready State** | Units stop auto-attacking, noise suppressed | Not implemented | 🔴 High |
-| **Staged Trigger** | Manual, Auto-First-Contact, Staged (3-wave), Solo | Only manual placement | 🔴 High |
-| **Ambush Effects** | ×2 damage (10s), Panic (-30 morale), Formation Break (3s), Shock (2s stun) | Only bonus damage | 🔴 High |
-| **Failed Ambush** | Discovery penalties, early trigger, alternative routes | Not implemented | 🟡 Medium |
-| **Decoy/Lure** | Bait Rider unit, leash range, 5 lure methods, 4 decoy types | Not implemented | 🔴 High |
-| **Night Stealth** | Full day/night cycle, 4 phases, sleeping guards, camp fires | Only `+0.20` boolean bonus | 🟡 Medium |
-| **Ambush Scoring** | Points for kills, no-detection, staged use, hero involvement | Not implemented | 🟢 Low |
-| **Hit & Run** | 6-phase cycle, withdrawal rules, fatigue | Not implemented | 🟢 Low (stretch) |
+|System|Current State|
+|---|---|
+|`selection_processing_system`|Empty TODO stub|
+|`notification_dispatch_system`|Empty TODO stub|
+|Top Resource Bar|Not implemented|
+|Minimap Panel|Not implemented|
+|Command Bar|Not implemented|
+|Selection Panel|Not implemented|
+|Hero Bar|Not implemented|
+|Notification Stack|Not implemented|
+|Objectives Panel|Not implemented|
 
 ---
 
-## 2. Proposed ECS Architecture
+## 2. Architecture Pattern (Established Convention)
 
-### 2.1 Component Changes (kurulus-core)
-
-#### A. Expand `TerrainType` Enum
+Every UI element follows this exact pattern:
 
 ```
-Current:  OpenField | Forest | Water | Mountain | Road | Building
-Proposed: OpenField | DenseForest | MediumForest | TallGrass | NightDarkness
-          | Ruins | Caves | CropField | ArtificialCover | Water | Mountain | Road | Building
+┌─────────────────────────────────────────────────────┐
+│ 1. Marker Component (kurulus-core)                   │
+│    #[derive(Component)] struct FooBarRoot;           │
+│                                                      │
+│ 2. Resource (kurulus-core, if state needed)          │
+│    #[derive(Resource)] struct FooBarState { ... }    │
+│                                                      │
+│ 3. Logic System (FixedUpdate schedule)               │
+│    fn foo_logic_system(..., ResMut<FooBarState>)     │
+│    → Reads events, mutates state resource            │
+│                                                      │
+│ 4. Render System (Update schedule)                   │
+│    fn foo_render_system(..., Query<Entity, With<FooBarRoot>>>) │
+│    → Spawns/updates/despawns Bevy UI entities        │
+│                                                      │
+│ 5. Tests in same module                              │
+│    #[cfg(test)] mod tests { ... }                    │
+└─────────────────────────────────────────────────────┘
 ```
 
-**Rationale**: The GDD distinguishes 8 stealth zone types with different detection ranges and capacities. A single `Forest` variant cannot express Dense (5m) vs Medium (8m) detection differences.
+**Key rules:**
 
-**Alternative (less invasive)**: Keep `TerrainType` as-is, add a new `StealthZoneType` enum and a `StealthZone` component on terrain tiles:
+- Render systems use `Commands` to spawn/update/despawn — never direct world mutation
+- Marker components enable O(1) entity lookup each frame
+- Logic runs in `FixedUpdate` (deterministic), rendering in `Update` (visual)
+- All UI entities use `PositionType::Absolute` for precise placement
+- Headless mode: entities spawn but are invisible (no `UiPlugin`)
 
-```rust
-#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
-pub struct StealthZone {
-    pub zone_type: StealthZoneType,
-    pub capacity: u32,
-    pub current_occupancy: u32,
-    pub detection_range_static: f32,   // 5m for dense forest
-    pub detection_range_moving: f32,   // 8m for dense forest
-    pub destructible: bool,
-}
+---
 
-pub enum StealthZoneType {
-    DenseForest,
-    MediumForest,
-    TallGrass,
-    NightDarkness,
-    Ruins,
-    Caves,
-    CropField,
-    ArtificialCover,
-}
+## 3. New Components & Resources
+
+### 3.1 Marker Components (add to `kurulus-core/src/resources/city.rs` or new `ui_markers.rs`)
+
 ```
+// ─── HUD Marker Components ───────────────────────────────────────────────
 
-**Recommended**: The alternative approach — keeps `TerrainType` clean for movement/pathfinding while adding a parallel stealth zone layer. This avoids a massive refactor of all terrain-consuming systems.
+/// Root node of the top resource bar
+#[derive(Component, Clone, Debug, Default)]
+pub struct TopBarRoot;
 
-#### B. New Component: `VisionCone`
+/// Root node of the minimap panel
+#[derive(Component, Clone, Debug, Default)]
+pub struct MinimapRoot;
 
-```rust
-#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
-pub struct VisionCone {
-    pub front_angle: f32,      // degrees, default 120°
-    pub side_angle: f32,       // degrees, default 180° (peripheral)
-    pub front_mult: f32,       // 1.0
-    pub peripheral_mult: f32,  // 0.7
-    pub side_mult: f32,        // 0.4
-    pub rear_mult: f32,        // 0.0 (blind behind)
-    pub facing: Vec2,          // direction the unit faces
+/// Root node of the command bar (bottom-left)
+#[derive(Component, Clone, Debug, Default)]
+pub struct CommandBarRoot;
+
+/// Root node of the selection info panel (bottom-right)
+#[derive(Component, Clone, Debug, Default)]
+pub struct SelectionPanelRoot;
+
+/// Root node of the hero bar (below top bar or above command bar)
+#[derive(Component, Clone, Debug, Default)]
+pub struct HeroBarRoot;
+
+/// Root node of the notification stack
+#[derive(Component, Clone, Debug, Default)]
+pub struct NotificationStackRoot;
+
+/// Individual notification entry (child of NotificationStackRoot)
+#[derive(Component, Clone, Debug, Default)]
+pub struct NotificationEntry {
+    pub notification_type: NotificationType,
+    pub spawned_at: f32,
+    pub duration: f32,
 }
-```
 
-**Purpose**: Replaces simple radius checks with angular detection multipliers. The `stealth_detection_system` will compute the angle between detector→target and the detector's `facing`, then apply the appropriate multiplier.
+/// Root node of the objectives panel
+#[derive(Component, Clone, Debug, Default)]
+pub struct ObjectivesPanelRoot;
 
-**Lifetime/Sync Risk**: `facing` must be read from `Formation.facing` or `Unit` direction. No mutability conflicts — `VisionCone.facing` is updated by a separate system in `FormationMovement` set, before `StealthDetection`.
-
-#### C. New Component: `ObserverState`
-
-```rust
-#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
-pub struct ObserverState {
-    pub alert_level: AlertLevel,
-    pub fatigue: f32,           // 0.0 = fresh, 1.0 = exhausted
-    pub in_formation: bool,
-    pub is_alone: bool,
-    pub morale_state: MoraleState, // from existing morale system
+/// A single command button in the command bar
+#[derive(Component, Clone, Debug)]
+pub struct CommandButton {
+    pub action: CommandAction,
+    pub hotkey: String,
 }
 
-pub enum AlertLevel {
-    Unaware,    // ×0.8 — normal patrol
-    Suspicious, // ×1.0 — heard something
-    Alert,      // ×1.2 — after alarm
-    Combat,     // ×1.3 — in active combat
-}
-```
-
-**Purpose**: Multiplied into the detection formula per the GDD's "Observer Factors" table.
-
-**Sync Risk**: `AlertLevel` is mutated by the detection chain system (Phase 4b) and by alarm events (Phase 4c). Must run sequentially within `StealthDetection` set.
-
-#### D. New Component: `StealthState` (extends `Stealth`)
-
-The existing `Stealth` component is adequate for basic hidden/not-hidden. Add fields for the GDD's stealth phases:
-
-```rust
-// Extend existing Stealth component:
-pub struct Stealth {
-    pub level: f32,
-    pub is_hidden: bool,
-    pub hidden_timer: f32,
-    pub ambush_zone: Option<Entity>,
-    // NEW fields:
-    pub entry_timer: f32,           // 0-2s entry progression
-    pub is_ready: bool,             // Ready state for ambush
-    pub stealth_type: StealthType,  // Passive, Active, Group
-    pub zone_type: Option<StealthZoneType>,  // current zone
-    pub partial_stealth: bool,      // overcrowded zone
+/// Action triggered by command bar buttons
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CommandAction {
+    Move,
+    Attack,
+    Stop,
+    Patrol,
+    Formation,
+    HoldPosition,
+    AttackMove,
 }
 ```
 
-#### E. New Component: `AmbushState` (for units in an ambush)
-
-```rust
-#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
-pub struct AmbushState {
-    pub phase: AmbushPhase,
-    pub trigger_type: TriggerType,
-    pub staged_wave: u8,            // 0=not staged, 1/2/3=current wave
-    pub ready_since: f32,           // time entered ready state
-    pub bonus_damage_remaining: f32, // 10s countdown after trigger
-    pub shock_remaining: f32,        // 2s stun on targets
-}
-
-pub enum AmbushPhase {
-    Idle,
-    Setup,
-    Ready,
-    Triggered,
-    Executing,
-    Cooldown,
-}
-
-pub enum TriggerType {
-    Manual,
-    AutoFirstContact,
-    Staged,
-    Solo,  // Boran only
-}
-```
-
-#### F. New Component: `LureTarget` (for bait/decoy mechanics)
-
-```rust
-#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
-pub struct LureTarget {
-    pub leash_range: f32,       // max follow distance
-    pub origin_point: Vec2,     // where to return if leash breaks
-    pub is_bait_rider: bool,
-    pub taunt_cooldown: Timer,
-    pub sprint_cooldown: Timer,
-}
-```
-
-#### G. New Component: `DetectionChain`
-
-```rust
-#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
-pub struct DetectionChain {
-    pub suspicion_level: f32,   // 0.0 = none, 1.0 = confirmed
-    pub suspicion_timer: f32,   // 1-3s to confirm
-    pub alarm_raised: bool,
-    pub alarm_timer: f32,       // time since alarm raised
-}
-```
-
-**Purpose**: Implements the GDD's 3-stage detection chain: Suspicion → Confirmation → Alarm.
-
-### 2.2 Event Changes (kurulus-core)
-
-#### New Events
-
-```rust
-/// Emitted when a unit enters suspicion phase
-pub struct UnitSuspicionRaised {
-    pub observer: Entity,
-    pub suspected: Entity,
-    pub suspicion_level: f32,
-}
-
-/// Emitted when alarm is raised (alerts all nearby enemies)
-pub struct AlarmRaised {
-    pub raiser: Entity,
-    pub position: Vec2,
-    pub radius: f32,           // 50m default
-    pub duration: f32,         // 30s alert boost
-}
-
-/// Emitted when an ambush phase changes
-pub struct AmbushPhaseChanged {
-    pub ambush_entity: Entity,
-    pub old_phase: AmbushPhase,
-    pub new_phase: AmbushPhase,
-}
-
-/// Emitted when a lure target is engaged by AI
-pub struct LureEngaged {
-    pub lure_entity: Entity,
-    pub pursuers: Vec<Entity>,
-}
-
-/// Emitted when a silent kill occurs
-pub struct SilentKill {
-    pub killer: Entity,
-    pub victim: Entity,
-    pub alarm_probability: f32,
-}
-
-/// Emitted when a staged ambush wave triggers
-pub struct StagedAmbushWave {
-    pub ambusher: Entity,
-    pub wave_number: u8,
-    pub units: Vec<Entity>,
-}
-```
-
-### 2.3 Resource Changes (kurulus-core)
-
-```rust
-/// Global ambush configuration (loaded from RON)
-#[derive(Resource, Reflect, Clone, Serialize, Deserialize)]
-pub struct AmbushConfig {
-    pub zone_defaults: ZoneDefaults,
-    pub detection: DetectionConfig,
-    pub effects: AmbushEffectsConfig,
-    pub lure: LureConfig,
-}
-
-pub struct ZoneDefaults {
-    pub dense_forest_detection_static: f32,  // 5.0
-    pub dense_forest_detection_moving: f32,  // 8.0
-    pub medium_forest_detection_static: f32, // 8.0
-    pub medium_forest_detection_moving: f32, // 12.0
-    pub tall_grass_detection: f32,           // 4.0
-    pub night_detection: f32,                // 3.0
-    pub ruins_detection: f32,                // 6.0
-    pub caves_detection: f32,                // 3.0
-    // ... capacities per zone type
-}
-
-pub struct DetectionConfig {
-    pub vision_cone_front_angle: f32,    // 120°
-    pub vision_cone_peripheral_angle: f32, // 180°
-    pub front_mult: f32,                 // 1.0
-    pub peripheral_mult: f32,            // 0.7
-    pub side_mult: f32,                  // 0.4
-    pub rear_mult: f32,                  // 0.0
-    pub noise_detection_mult: f32,       // 0.3
-    pub alarm_radius: f32,               // 50.0
-    pub alarm_duration: f32,             // 30.0
-    pub suspicion_time_min: f32,         // 1.0
-    pub suspicion_time_max: f32,         // 3.0
-}
-
-pub struct AmbushEffectsConfig {
-    pub damage_multiplier: f32,          // 2.0
-    pub damage_duration: f32,            // 10.0
-    pub panic_morale_penalty: f32,       // -30.0
-    pub panic_threshold: f32,            // triggers if morale below this
-    pub formation_break_duration: f32,   // 3.0
-    pub shock_duration: f32,             // 2.0
-    pub failed_ambush_enemy_bonus: f32,  // 1.5
-    pub placement_cost: f32,             // 30.0
-}
-
-pub struct LureConfig {
-    pub bait_rider_speed: f32,           // 6.0
-    pub bait_rider_hp: f32,              // 100.0
-    pub bait_rider_cost: f32,            // 50.0
-    pub max_bait_riders: u32,            // 2
-    pub default_leash_range: f32,        // 40.0
-    pub mongol_leash_range: f32,         // 60.0
-    pub byzantine_leash_range: f32,      // 40.0
-}
-```
-
-### 2.4 System Changes (kurulus-systems)
-
-#### Modified Systems
-
-| System | Set | Change |
-|--------|-----|--------|
-| `terrain_stealth_system` | VisionCalculation | **Implement** — read `StealthZone` component, compute zone-specific detection ranges |
-| `night_stealth_system` | VisionCalculation | **Implement** — read `GameTime` phase (Day/Dusk/Night/Dawn), apply graduated modifiers |
-| `noise_calculation_system` | VisionCalculation | **Enhance** — account for running vs walking, combat noise, ability noise per GDD table |
-| `vision_calculation_system` | VisionCalculation | **Enhance** — use `VisionCone` angular checks instead of pure distance |
-| `ambush_auto_hide_system` | StealthDetection | **Enhance** — implement zone entry timer (0.5→1.5→2.0s), capacity overflow, zone destruction |
-| `stealth_detection_system` | StealthDetection | **Major rewrite** — integrate vision cones, observer factors, target factors, detection chain |
-| `ambush_trigger_system` | AmbushTrigger | **Enhance** — add panic, formation break, shock effects; support staged triggers |
-| `ambush_placement_system` | AmbushTrigger | **Enhance** — validate terrain (must be stealth zone), support ready state |
-
-#### New Systems
-
-| System | Set | Purpose |
-|--------|-----|---------|
-| `detection_chain_system` | StealthDetection | Manages Suspicion→Confirmation→Alarm progression |
-| `alarm_broadcast_system` | AmbushTrigger | Propagates alarm to all enemies within 50m |
-| `ambush_phase_system` | AmbushTrigger | Manages ambush state machine (Idle→Setup→Ready→Triggered→Executing→Cooldown) |
-| `staged_ambush_system` | AmbushTrigger | Handles 3-wave staged triggers |
-| `silent_kill_system` | AmbushTrigger | Processes stealth kills with alarm probability |
-| `lure_ai_system` | AIDecision | AI decision to pursue bait riders (personality-based) |
-| `lure_pursuit_system` | Pathfinding | Moves pursuing AI units toward lure target |
-| `lure_leash_system` | Pathfinding | Breaks pursuit when leash range exceeded |
-| `ambush_scoring_system` | MissionObjectiveCheck | Tracks ambush score for mission evaluation |
-| `zone_capacity_system` | StealthDetection | Tracks occupancy, applies overcrowding penalties |
-| `zone_destruction_system` | DamageApplication | Handles fire arrows destroying forests, siege destroying ruins |
-| `ready_state_enforcement_system` | CommandQueueing | Prevents auto-attack for units in Ready state |
-
-### 2.5 Updated System Set Architecture
+### 3.2 Resources (add to `kurulus-core/src/resources/`)
 
 ```
-Phase 4: Detection & Stealth (existing)
-  VisionCalculation
-    ├── terrain_stealth_system          [ENHANCED]
-    ├── night_stealth_system            [ENHANCED]
-    ├── noise_calculation_system        [ENHANCED]
-    ├── vision_calculation_system       [ENHANCED with VisionCone]
-    └── zone_capacity_system            [NEW]
-  StealthDetection
-    ├── ambush_auto_hide_system         [ENHANCED]
-    ├── detection_chain_system          [NEW]
-    └── stealth_detection_system        [MAJOR REWRITE]
-  AmbushTrigger
-    ├── ready_state_enforcement_system  [NEW]
-    ├── ambush_phase_system             [NEW]
-    ├── staged_ambush_system            [NEW]
-    ├── ambush_trigger_system           [ENHANCED]
-    ├── silent_kill_system              [NEW]
-    ├── alarm_broadcast_system          [NEW]
-    └── ambush_placement_system         [ENHANCED]
+// ─── HUD State Resources ─────────────────────────────────────────────────
+
+/// Snapshot of resource counts for the top bar display
+#[derive(Resource, Clone, Debug, Default)]
+pub struct ResourceBarState {
+    pub gold: u32,
+    pub wood: u32,
+    pub food: u32,
+    pub iron: u32,
+    pub population_current: u32,
+    pub population_max: u32,
+    pub sovereignty_points: u32,
+    /// Per-resource deltas for arrow indicators (+/-)
+    pub gold_delta: i32,
+    pub wood_delta: i32,
+    pub food_delta: i32,
+    pub iron_delta: i32,
+}
+
+/// Active selection state — drives selection panel and command bar
+#[derive(Resource, Clone, Debug, Default)]
+pub struct SelectionState {
+    /// Currently selected entities
+    pub selected: Vec<Entity>,
+    /// Selection mode (single, multi, box)
+    pub mode: SelectionMode,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SelectionMode {
+    #[default]
+    None,
+    Single,
+    Multi,
+}
+
+/// Control groups (Ctrl+1-9 stores, 1-9 recalls)
+#[derive(Resource, Clone, Debug, Default)]
+pub struct ControlGroups {
+    /// Group index → list of entities
+    pub groups: [Vec<Entity>; 9],
+}
+
+/// Active notifications for the notification stack
+#[derive(Resource, Clone, Debug, Default)]
+pub struct NotificationStack {
+    pub entries: Vec<NotificationEntry>,
+}
+
+/// Current mission objectives for display
+#[derive(Resource, Clone, Debug, Default)]
+pub struct ObjectiveTracker {
+    pub primary: Vec<ObjectiveEntry>,
+    pub secondary: Vec<ObjectiveEntry>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ObjectiveEntry {
+    pub id: String,
+    pub description: String,
+    pub completed: bool,
+    pub progress: Option<(u32, u32)>, // (current, target) for progress objectives
+}
+
+/// Hero bar state — which heroes are available, health, abilities
+#[derive(Resource, Clone, Debug, Default)]
+pub struct HeroBarState {
+    pub heroes: Vec<HeroSlot>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct HeroSlot {
+    pub entity: Option<Entity>,
+    pub name: String,
+    pub health_pct: f32,
+    pub mana_pct: f32,
+    pub available: bool,
+    pub hotkey: String,
+    pub abilities: Vec<AbilitySlot>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct AbilitySlot {
+    pub key: String, // "Q", "W", "E", "R"
+    pub name: String,
+    pub on_cooldown: bool,
+    pub cooldown_pct: f32,
+    pub available: bool, // false if hero not yet unlocked
+}
 ```
 
 ---
 
-## 3. Data Flow Diagram
+## 4. System Designs
+
+### 4.1 Top Resource Bar
+
+**File:** `kurulus-systems/src/ui/top_bar.rs`
+
+**Logic System (`FixedUpdate`):**
 
 ```
-                    ┌─────────────────┐
-                    │   GameTime      │
-                    │ (day/night)     │
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │ VisionCalculation│
-                    │                 │
-                    │ TerrainGrid ────┼──► terrain_stealth_system
-                    │ GameTime ───────┼──► night_stealth_system
-                    │ Stats ──────────┼──► noise_calculation_system
-                    │ VisionCone ─────┼──► vision_calculation_system
-                    │ StealthZone ────┼──► zone_capacity_system
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │StealthDetection │
-                    │                 │
-                    │ ObserverState ──┼──► detection_chain_system
-                    │ Stealth ────────┼──► ambush_auto_hide_system
-                    │ Detection ──────┼──► stealth_detection_system
-                    │ VisionCone ─────┤
-                    │ NoiseLevel ─────┤
-                    └────────┬────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-     ┌────────▼───┐  ┌──────▼──────┐  ┌───▼────────┐
-     │StealthRevealed│ │UnitSuspicion│  │AmbushTrigger│
-     │  Event     │  │  Raised     │  │  System     │
-     └────────────┘  └──────┬──────┘  └───┬────────┘
-                            │              │
-                   ┌────────▼───┐  ┌──────▼──────┐
-                   │AlarmRaised │  │AmbushPhase  │
-                   │  Event     │  │  System     │
-                   └────────────┘  └──────┬──────┘
-                                          │
-                                 ┌────────▼────────┐
-                                 │ AmbushTrigger    │
-                                 │ (Damage ×2,      │
-                                 │  Panic, Break,   │
-                                 │  Shock)          │
-                                 └─────────────────┘
+fn top_bar_logic_system(
+    resources: Res<ResourceStockpile>,
+    city: Res<CityState>,
+    game_time: Res<GameTime>,
+    mut bar_state: ResMut<ResourceBarState>,
+)
 ```
 
----
+- Reads `ResourceStockpile` (gold, wood, food, iron) and `CityState` (population)
+- Reads `GameTime` for the clock display
+- Computes deltas by comparing current frame to previous frame (store `previous_*` fields)
+- Updates `ResourceBarState` each tick
 
-## 4. Phased Implementation Plan
+**Render System (`Update`):**
 
-### Phase 1: Foundation (Week 1-2) — Core Detection Overhaul
-**Goal**: Replace radius-only detection with vision cones + observer factors
+```
+fn top_bar_render_system(
+    bar_state: Res<ResourceBarState>,
+    mut commands: Commands,
+    root_query: Query<Entity, With<TopBarRoot>>,
+)
+```
 
-| Task | Crate | Complexity |
-|------|-------|-----------|
-| Add `StealthZone` component + `StealthZoneType` enum | core | Low |
-| Add `VisionCone` component | core | Low |
-| Add `ObserverState` component + `AlertLevel` enum | core | Low |
-| Add `DetectionChain` component | core | Low |
-| Create `AmbushConfig` resource with RON schema | core + config | Medium |
-| Implement `terrain_stealth_system` (read StealthZone) | systems | Low |
-| Implement `vision_calculation_system` with VisionCone | systems | High |
-| Implement `detection_chain_system` | systems | Medium |
-| Rewrite `stealth_detection_system` with all factors | systems | High |
-| Add 10+ integration tests | app | Medium |
+- Spawns a horizontal `Node` at the top of the screen (`position_type: Absolute, top: 0, left/right: stretch`)
+- Child nodes for each resource: icon + text + delta arrow
+- Color coding: normal (white), low (<10% → orange), empty (0 → red with warning)
+- Population shown as "current/max" fraction
+- SP shown as clickable counter
+- Time shown as "HH:MM" format
+- Speed control: three small buttons (1×, 2×, 3×) that mutate a `GameSpeed` resource
 
-**Verification**: `cargo test` passes, `cargo check` emits 0 warnings.
+**Layout:**
 
-### Phase 2: Ambush Lifecycle (Week 3-4) — Full Ambush Phases
-**Goal**: Implement Setup → Ready → Trigger → Execute → Reward
-
-| Task | Crate | Complexity |
-|------|-------|-----------|
-| Add `AmbushState` component + phase enum | core | Low |
-| Add `AmbushPhaseChanged`, `StagedAmbushWave` events | core | Low |
-| Implement `ambush_phase_system` (state machine) | systems | Medium |
-| Implement `ready_state_enforcement_system` | systems | Low |
-| Enhance `ambush_trigger_system` with panic/break/shock | systems | High |
-| Implement `staged_ambush_system` (3-wave) | systems | Medium |
-| Implement `silent_kill_system` | systems | Medium |
-| Implement `alarm_broadcast_system` | systems | Low |
-| Enhance `ambush_placement_system` with terrain validation | systems | Low |
-| Implement `night_stealth_system` (graduated day/night) | systems | Medium |
-| Add 15+ integration tests | app | Medium |
-
-**Verification**: Full ambush lifecycle works in headless test.
-
-### Phase 3: Decoy & Lure (Week 5-6) — AI Pursuit
-**Goal**: Implement bait rider + AI lure response
-
-| Task | Crate | Complexity |
-|------|-------|-----------|
-| Add `LureTarget` component | core | Low |
-| Add `LureEngaged` event | core | Low |
-| Implement `lure_ai_system` (personality-based decisions) | systems | High |
-| Implement `lure_pursuit_system` (pathfinding toward bait) | systems | Medium |
-| Implement `lure_leash_system` (leash range enforcement) | systems | Low |
-| Implement `zone_capacity_system` + overcrowding | systems | Medium |
-| Implement `zone_destruction_system` (fire arrows) | systems | Medium |
-| Add config RON files for lure parameters | config | Low |
-| Add 10+ integration tests | app | Medium |
-
-### Phase 4: Polish & Scoring (Week 7) — Rewards + Hit&Run
-**Goal**: Ambush scoring, hit-and-run tracking, final polish
-
-| Task | Crate | Complexity |
-|------|-------|-----------|
-| Implement `ambush_scoring_system` | systems | Low |
-| Add ambush reward events + mission integration | systems + core | Medium |
-| Implement basic hit-and-run cycle tracking (stretch) | systems | High |
-| Final integration tests (20+ new) | app | Medium |
-| Debug rendering for vision cones, stealth zones | render-2d | Medium |
-
----
-
-## 5. Cross-Cutting Concerns
-
-### 5.1 Lifetime & Sync Risks
-
-| Risk | Mitigation |
-|------|-----------|
-| `VisionCone.facing` mutated by FormationMovement, read by StealthDetection | Ensure `FormationMovement` set runs before `VisionCalculation` (already ordered) |
-| `ObserverState.alert_level` mutated by detection_chain, read by stealth_detection | Both in same `StealthDetection` set — use ordering `.chain()` |
-| `AmbushState` mutated by multiple systems (phase, trigger, staged) | Centralize mutations in `ambush_phase_system`, other systems only read |
-| `DetectionChain` concurrent mutation from multiple detectors | Use `&mut` query with `for` loop — Bevy guarantees exclusive access per entity |
-| `StealthZone.current_occupancy` updated by zone_capacity, read by ambush_auto_hide | Same set, sequential — safe |
-
-### 5.2 Performance Considerations
-
-| Concern | Approach |
-|---------|----------|
-| Vision cone angle computation per detector-target pair | O(detectors × stealth_units) — acceptable for <1000 units. Use spatial hashing if needed later |
-| Detection chain timers | Only active for units with `DetectionChain` component (sparse) |
-| Zone capacity tracking | Increment/decrement on entry/exit events, not per-frame recalculation |
-
-### 5.3 Config-Driven Design
-
-All GDD magic numbers (detection ranges, damage multipliers, durations, costs) will live in `AmbushConfig` loaded from `kurulus-config/assets/ambush_config.ron`. This enables:
-- Balance tuning without code changes
-- Mission-specific overrides
-- Easy A/B testing
-
-### 5.4 BRP/MCP Integration
-
-All new components and events will be registered for BRP reflection in `register_logic_plugins()`:
-```rust
-app.register_type::<VisionCone>()
-   .register_type::<ObserverState>()
-   .register_type::<DetectionChain>()
-   .register_type::<AmbushState>()
-   .register_type::<LureTarget>()
-   .register_type::<StealthZone>();
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🪵 250(+3)  ⛏️ 120(-1)  🌾 180  💰 45  👑 8  ⏰ 14:30  ▶▶ │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. Testing Strategy
+### 4.2 Minimap Panel
 
-### 6.1 Unit Tests (per system)
-- Vision cone angle calculation (front/side/rear detection)
-- Observer factor multiplication
-- Detection chain progression (suspicion → confirmation → alarm)
-- Zone capacity overflow penalties
-- Ambush phase state machine transitions
-- Staged wave sequencing
-- Silent kill alarm probability
+**File:** `kurulus-systems/src/ui/minimap.rs`
 
-### 6.2 Integration Tests (full pipeline)
-- Hidden unit in dense forest: detected only within 5m
-- Hidden unit behind detector (rear): not detected even at 2m
-- Alarm propagation: one detector raises alarm, all enemies within 50m go alert
-- Ready state: units in ambush don't auto-attack
-- Staged ambush: 3 waves fire in sequence
-- Failed ambush: enemy discovers units, gets ×1.5 damage bonus
-- Night stealth: detection ranges reduced by 60%
-- Lure pursuit: AI follows bait rider up to leash range, then returns
+**Logic System (`FixedUpdate`):**
 
-### 6.3 Target: 30+ new tests (total 96+ → 126+)
+```
+fn minimap_logic_system(
+    terrain: Res<TerrainGrid>,
+    units: Query<(&WorldPosition, &Unit)>,
+    camera: Query<&Camera>,
+    // minimap click events
+    mut minimap_click_events: EventReader<MinimapClickEvent>,
+)
+```
 
----
+- Generates a small terrain texture from `TerrainGrid` data (color per tile)
+- Plots unit positions as colored dots (green=friendly, red=enemy)
+- Draws camera viewport rectangle
+- Handles click-to-pan by emitting camera move events
 
-## 7. Files to Create/Modify
+**Render System (`Update`):**
 
-### New Files
-| Path | Purpose |
-|------|---------|
-| `kurulus-core/src/components/stealth_zone.rs` | `StealthZone`, `StealthZoneType` |
-| `kurulus-core/src/components/vision_cone.rs` | `VisionCone` |
-| `kurulus-core/src/components/observer.rs` | `ObserverState`, `AlertLevel` |
-| `kurulus-core/src/components/detection_chain.rs` | `DetectionChain` |
-| `kurulus-core/src/components/ambush_state.rs` | `AmbushState`, `AmbushPhase`, `TriggerType` |
-| `kurulus-core/src/components/lure.rs` | `LureTarget` |
-| `kurulus-core/src/resources/ambush_config.rs` | `AmbushConfig` and sub-configs |
-| `kurulus-core/src/events/stealth.rs` | New stealth events (split from combat.rs) |
-| `kurulus-config/assets/ambush_config.ron` | Default config values |
-| `kurulus-systems/src/stealth/detection.rs` | Detection chain + vision cone systems |
-| `kurulus-systems/src/stealth/ambush_lifecycle.rs` | Ambush phase + staged + scoring systems |
-| `kurulus-systems/src/stealth/lure.rs` | Lure AI + pursuit + leash systems |
-| `kurulus-app/tests/stealth_detection_tests.rs` | Vision cone + observer factor tests |
-| `kurulus-app/tests/ambush_lifecycle_tests.rs` | Full ambush phase tests |
-| `kurulus-app/tests/lure_tests.rs` | Decoy + lure pursuit tests |
+```
+fn minimap_render_system(
+    minimap_state: Res<MinimapState>,
+    mut commands: Commands,
+    root_query: Query<Entity, With<MinimapRoot>>,
+)
+```
 
-### Modified Files
-| Path | Changes |
-|------|---------|
-| `kurulus-core/src/components/stealth.rs` | Add `entry_timer`, `is_ready`, `stealth_type`, `zone_type`, `partial_stealth` fields |
-| `kurulus-core/src/components/mod.rs` | Export new modules |
-| `kurulus-core/src/events/combat.rs` | Move `AmbushTriggered`/`StealthRevealed` to `events/stealth.rs` |
-| `kurulus-core/src/resources/mod.rs` | Export `AmbushConfig` |
-| `kurulus-systems/src/stealth/mod.rs` | Register new systems, restructure plugin |
-| `kurulus-systems/src/lib.rs` | Register new events/types for BRP |
-| `kurulus-app/src/plugins.rs` | Add new event registrations |
-| `kurulus-app/tests/stealth_tests.rs` | Update to use new components |
+- Spawns a 200×200px panel in the top-left corner
+- Uses Bevy's `Image` component to display the minimap texture
+- Overlays unit dots and camera rectangle
+- Click detection via Bevy UI picking
+
+**Note:** The minimap texture can be a low-res `Image` asset updated periodically (every 0.25s per the GDD spec) rather than every frame.
 
 ---
 
-## 8. Open Questions for the User
+### 4.3 Command Bar
 
-Before proceeding to implementation, I'd like to clarify a few design decisions:
+**File:** `kurulus-systems/src/ui/command_bar.rs`
 
-1. **TerrainType expansion vs parallel StealthZone layer**: The GDD needs 8 stealth zone types but the current `TerrainType` only has 6 variants. Do you prefer expanding `TerrainType` directly (simpler but touches many systems) or adding a parallel `StealthZone` component on tiles (more modular, less invasive)?
+**Logic System (`FixedUpdate`):**
 
-2. **Hit & Run scope**: The GDD has a full hit-and-run system (6-phase cycle, fatigue, withdrawal rules). This is marked as stretch in Phase 4. Should it be included in this sprint or deferred?
+```
+fn command_bar_logic_system(
+    selection: Res<SelectionState>,
+    mut command_bar_state: ResMut<CommandBarState>,
+    units: Query<(&Unit, Option<&Hero>)>,
+)
+```
 
-3. **Bait Rider as new UnitArchetype**: The GDD defines a Bait Rider unit with unique stats (6 m/s, 100 HP, doesn't stop under fire). Should this be a new `UnitArchetype::BaitRider` variant, or a special entity with custom components?
+- Reads current selection to determine which commands are available
+- Filters commands based on selected unit type (e.g., non-combat units can't Attack)
+- Updates available/unavailable state per button
 
-4. **Config RON location**: Should the ambush config live in `kurulus-config/assets/ambush_config.ron` (loaded at runtime) or be hardcoded initially with config as a follow-up?
+**Render System (`Update`):**
 
-5. **Priority**: Given the gap analysis, should I prioritize the **detection overhaul** (vision cones + observer factors) or the **ambush lifecycle** (phases + staged triggers) first? The detection system is more foundational but the ambush lifecycle is more visible to players.
+```
+fn command_bar_render_system(
+    command_bar_state: Res<CommandBarState>,
+    mut commands: Commands,
+    root_query: Query<Entity, With<CommandBarRoot>>,
+    interaction_query: Query<&Interaction, Changed<Interaction>>,
+)
+```
+
+- Spawns a 2×3 grid of buttons in the bottom-left
+- Each button: icon + label + hotkey text
+- Available buttons: gold background, interactive
+- Unavailable buttons: grayed out, non-interactive
+- Hover tooltip showing command description
+- Click emits the appropriate command event (`MoveOrder`, `AttackOrder`, etc.)
+
+**Button Layout:**
+
+```
+┌─────────┐ ┌─────────┐ ┌─────────┐
+│ ⚔️ Move │ │ 🗡️ Attack│ │ ⏹ Stop  │
+│    [M]  │ │    [A]  │ │    [S]  │
+└─────────┘ └─────────┘ └─────────┘
+┌─────────┐ ┌─────────┐ ┌─────────┐
+│ 📯 Patrol│ │ 📐 Form │ │ 🛡️ Hold │
+│    [P]  │ │    [F]  │ │    [H]  │
+└─────────┘ └─────────┘ └─────────┘
+```
 
 ---
+
+### 4.4 Selection Panel
+
+**File:** `kurulus-systems/src/ui/selection_panel.rs`
+
+**Logic System (`FixedUpdate`):**
+
+```
+fn selection_panel_logic_system(
+    selection: Res<SelectionState>,
+    units: Query<(&Unit, &Health, &Stats, Option<&Hero>)>,
+    buildings: Query<(&Building, &Health)>,
+    mut panel_state: ResMut<SelectionPanelState>,
+)
+```
+
+- Reads `SelectionState.selected` entities
+- Queries each selected entity for its components
+- Computes aggregate stats (total HP, unit count, unit types)
+- Updates `SelectionPanelState` with display data
+
+**Render System (`Update`):**
+
+```
+fn selection_panel_render_system(
+    panel_state: Res<SelectionPanelState>,
+    mut commands: Commands,
+    root_query: Query<Entity, With<SelectionPanelRoot>>,
+)
+```
+
+- Spawns a panel in the bottom-right (above objectives)
+- Shows: unit name/icon, count, HP bar (green→yellow→red), morale bar, status effects
+- Multi-selection: shows up to 3 unit portraits + "N units" label
+- Empty selection: panel despawns
+
+**Layout:**
+
+```
+┌────────────────────────┐
+│ 🗡️ Swordsmen ×3        │
+│ HP:  ████████░░ 80%    │
+│ Morale: ██████░░░░ 60% │
+│ Abilities: [⚔️][🛡️]    │
+│ Status: 🟢 Healthy      │
+└────────────────────────┘
+```
+
+---
+
+### 4.5 Hero Bar
+
+**File:** `kurulus-systems/src/ui/hero_bar.rs`
+
+**Logic System (`FixedUpdate`):**
+
+```
+fn hero_bar_logic_system(
+    heroes: Query<(Entity, &Hero, &Health, &Stats)>,
+    game_time: Res<GameTime>,
+    mut hero_bar: ResMut<HeroBarState>,
+)
+```
+
+- Queries all hero entities in the game
+- Updates health/mana percentages
+- Checks ability cooldown states
+- Updates `HeroBarState` with current hero data
+
+**Render System (`Update`):**
+
+```
+fn hero_bar_render_system(
+    hero_bar: Res<HeroBarState>,
+    mut commands: Commands,
+    root_query: Query<Entity, With<HeroBarRoot>>,
+    interaction_query: Query<&Interaction, Changed<Interaction>>,
+)
+```
+
+- Spawns a horizontal bar below the top resource bar (or above command bar)
+- Each hero slot: circular portrait + name + HP bar + MP bar
+- Ability icons (Q/W/E/R) shown when hero is selected
+- Click to select hero, click ability to use
+- Unavailable heroes: grayed with lock icon + "Unlocked at mission N"
+
+**Layout:**
+
+```
+┌──────────────────────────────────────────────────┐
+│ [Osman 🟢❤️❤️❤️❤️❤️  Q][Turgut 🟢❤️❤️❤️❤️❤️  W][Boran 🟢❤️❤️❤️❤️❤️  E] │
+└──────────────────────────────────────────────────┘
+```
+
+---
+
+### 4.6 Notification Stack
+
+**File:** `kurulus-systems/src/ui/notifications.rs`
+
+**Logic System (`FixedUpdate`):**
+
+```
+fn notification_dispatch_system(
+    damage_events: EventReader<DamageDealt>,
+    death_events: EventReader<UnitDied>,
+    objective_events: EventReader<ObjectiveCompleted>,
+    mission_events: EventReader<MissionEnded>,
+    mut notifications: ResMut<NotificationStack>,
+    game_time: Res<GameTime>,
+)
+```
+
+- Reads combat events → generates warning notifications ("Archer under attack!")
+- Reads death events → generates error notifications ("Unit lost!")
+- Reads objective events → generates success notifications ("Objective complete!")
+- Reads mission events → generates achievement notifications
+- Applies priority-based filtering (combat alerts always shown, tips deferred during battle)
+- Ticks down durations, removes expired entries
+
+**Render System (`Update`):**
+
+```
+fn notification_render_system(
+    notifications: Res<NotificationStack>,
+    mut commands: Commands,
+    root_query: Query<Entity, With<NotificationStackRoot>>,
+    entry_query: Query<Entity, With<NotificationEntry>>,
+)
+```
+
+- Spawns a vertical stack in the center-left area
+- Each notification: colored background + icon + text + fade-out animation
+- Priority determines max visible count (High=3, Medium=2, Low=1)
+- Fade-out: alpha decreases over last 1 second of duration
+- Color by type: Warning=orange, Error=red, Success=green, Info=blue, Achievement=gold
+
+**Layout:**
+
+```
+┌──────────────────────────────────────┐
+│ ⚠ "Archer under attack!"            │
+│ ✅ "New objective: Capture the keep" │
+│ ℹ "Tip: Use stealth in forests"     │
+└──────────────────────────────────────┘
+```
+
+---
+
+### 4.7 Objectives Panel
+
+**File:** `kurulus-systems/src/ui/objectives.rs`
+
+**Logic System (`FixedUpdate`):**
+
+```
+fn objectives_logic_system(
+    objective_events: EventReader<ObjectiveProgress>,
+    completion_events: EventReader<ObjectiveCompleted>,
+    mut tracker: ResMut<ObjectiveTracker>,
+)
+```
+
+- Reads `ObjectiveProgress` events to update progress counters
+- Reads `ObjectiveCompleted` events to mark objectives as done
+- Maintains ordered list of primary and secondary objectives
+
+**Render System (`Update`):**
+
+```
+fn objectives_render_system(
+    tracker: Res<ObjectiveTracker>,
+    mut commands: Commands,
+    root_query: Query<Entity, With<ObjectivesPanelRoot>>,
+)
+```
+
+- Spawns a panel on the right side of the screen
+- Primary objectives on top, secondary below
+- Each objective: checkbox (☐/☑) + description + progress bar if applicable
+- Completed objectives: green checkmark, slightly dimmed
+
+**Layout:**
+
+```
+┌────────────────────────┐
+│ 📋 Objectives           │
+│ ────────────────────── │
+│ Primary                │
+│ ☑ Capture the keep     │
+│ ☐ Defeat commander     │
+│ ────────────────────── │
+│ Secondary              │
+│ ★ Bonus: <5 deaths     │
+└────────────────────────┘
+```
+
+---
+
+### 4.8 Selection Processing System (TODO → Implementation)
+
+**File:** `kurulus-systems/src/ui/mod.rs` (replace TODO stub)
+
+```
+fn selection_processing_system(
+    mut select_events: EventReader<SelectEvent>,
+    mut box_select_events: EventReader<BoxSelectEvent>,
+    mut control_group_events: EventReader<ControlGroupEvent>,
+    mut selection_changed: EventWriter<SelectionChanged>,
+    mut selection_state: ResMut<SelectionState>,
+    mut control_groups: ResMut<ControlGroups>,
+    selectables: Query<Entity, With<Selectable>>,
+)
+```
+
+**Logic:**
+
+1. `SelectEvent` → If `entity` is `Some`, select that entity (replace or add based on shift). If `None`, deselect all.
+2. `BoxSelectEvent` → Replace/add all entities in the box to selection.
+3. `ControlGroupEvent` →
+    - `Create`: Store current selection into `control_groups.groups[group]`
+    - `Recall`: Replace selection with group's entities
+    - `Append`: Add group's entities to current selection
+4. After processing, emit `SelectionChanged` with `selected` and `previous` lists.
+5. Update `SelectionState.selected`.
+
+---
+
+## 5. New Files & Module Structure
+
+```
+kurulus-systems/src/ui/
+├── mod.rs                    ← UILogicPlugin (existing, add new systems)
+├── city_event_log.rs         ← Existing ✅
+├── zone_legend.rs            ← Existing ✅
+├── world_map.rs              ← Existing ✅
+├── top_bar.rs                ← NEW: Resource bar + time + speed
+├── minimap.rs                ← NEW: Minimap panel
+├── command_bar.rs            ← NEW: Command buttons
+├── selection_panel.rs        ← NEW: Unit/building info
+├── hero_bar.rs               ← NEW: Hero portraits + abilities
+├── notifications.rs          ← NEW: Notification stack + dispatch
+└── objectives.rs             ← NEW: Mission objectives
+```
+
+**kurulus-core additions:**
+
+```
+kurulus-core/src/resources/
+├── city.rs                   ← Add marker components here
+└── ui_state.rs               ← NEW: ResourceBarState, SelectionState, etc.
+```
+
+---
+
+## 6. System Registration Order
+
+In `UILogicPlugin::build()`:
+
+```
+// FixedUpdate — Logic systems (data processing)
+app.add_systems(FixdUpdate, (
+    selection_processing_system,        // Process input events → SelectionState
+    notification_dispatch_system,       // Game events → NotificationStack
+    top_bar_logic_system,               // ResourceStockpile → ResourceBarState
+    hero_bar_logic_system,              // Hero queries → HeroBarState
+    selection_panel_logic_system,       // SelectionState → SelectionPanelState
+    command_bar_logic_system,           // SelectionState → CommandBarState
+    objectives_logic_system,            // Objective events → ObjectiveTracker
+    minimap_logic_system,               // TerrainGrid + units → MinimapState
+    city_event_log_logic_system.in_set(SimulationSet::CityProgression),
+));
+
+// Update — Render systems (UI tree manipulation)
+app.add_systems(Update, (
+    top_bar_render_system,
+    minimap_render_system,
+    command_bar_render_system,
+    selection_panel_render_system,
+    hero_bar_render_system,
+    notification_render_system,
+    objectives_render_system,
+    city_event_log_render_system,
+    zone_legend_render_system,
+    world_map::world_map_tooltip_system,
+    world_map::world_map_legend_system,
+    world_map::world_map_selection_panel_system,
+));
+```
+
+---
+
+## 7. Event Flow Diagram
+
+```
+┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│ Render Layer │────▶│ UI Events        │────▶│ UILogicPlugin    │
+│ (click/hover)│     │ SelectEvent      │     │                  │
+│              │     │ BoxSelectEvent   │     │ selection_       │
+│              │     │ ControlGroupEvent│     │   processing_    │
+│              │     └──────────────────┘     │   system         │
+│              │                               │        │         │
+│              │     ┌──────────────────┐     │        ▼         │
+│ Game Systems │────▶│ Game Events      │     │ SelectionState   │
+│ (combat etc) │     │ DamageDealt      │────▶│        │         │
+│              │     │ UnitDied         │     │        ▼         │
+│              │     │ ObjectiveComplete│     │ Render Systems   │
+│              │     └──────────────────┘     │ (spawn/update UI)│
+│              │                               └──────────────────┘
+│              │     ┌──────────────────┐
+│ Resources    │────▶│ Resource Bar     │────▶ Top Bar UI
+│ (Stockpile)  │     │ Logic System     │
+│              │     └──────────────────┘
+└──────────────┘
+```
+
+---
+
+## 8. Implementation Phases
+
+### Phase 1: Foundation (First)
+
+1. Create `kurulus-core/src/resources/ui_state.rs` with all new resources
+2. Add marker components to `kurulus-core/src/resources/city.rs`
+3. Implement `selection_processing_system` (replaces TODO)
+4. Implement `notification_dispatch_system` (replaces TODO)
+5. Write unit tests for both logic systems
+
+### Phase 2: Core HUD Elements
+
+6. Implement `top_bar.rs` (resource bar, time, speed control)
+7. Implement `selection_panel.rs` (unit info, HP/morale bars)
+8. Implement `command_bar.rs` (action buttons)
+9. Write integration tests for each
+
+### Phase 3: Advanced HUD Elements
+
+10. Implement `hero_bar.rs` (hero portraits, abilities)
+11. Implement `notifications.rs` (notification stack with priorities)
+12. Implement `objectives.rs` (mission objectives panel)
+13. Implement `minimap.rs` (terrain + unit dot rendering)
+
+### Phase 4: Polish
+
+14. Add HUD customization settings (scale, visibility toggles)
+15. Add animation/fade effects for notifications
+16. Add accessibility: font size scaling, colorblind mode support
+17. Final integration tests + `cargo check` clean
+
+---
+
+## 9. Risk Areas & Mitigations
+
+|Risk|Mitigation|
+|---|---|
+|**Performance**: Minimap texture update every frame|Update minimap texture every 0.25s (4×/sec), not every frame. Cache the `Image` handle.|
+|**Headless test compatibility**: UI render systems need `UiPlugin`|All render systems are harmless without `UiPlugin` — entities spawn but are invisible. Logic systems work independently.|
+|**Selection state consistency**: Multiple input events per frame|Process all selection events in a single system, accumulate changes, emit one `SelectionChanged` at the end.|
+|**Notification spam**: Too many events flooding the stack|Priority-based filtering + max visible count (3 high, 2 medium, 1 low) + deduplication (same message within 2s).|
+|**Hero bar data availability**: Heroes may not exist in early game|`HeroBarState.heroes` is empty vec when no heroes → hero bar renders nothing or shows "No heroes available" placeholder.|
+|**Minimap click coordinate mapping**: Screen ↔ world conversion|Use camera transform + viewport size to convert minimap pixel coords to world coords. Test with known positions.|
+
+---
+
+## 10. Test Strategy
+
+Each new module follows the existing pattern (see `city_event_log.rs` tests):
+
+```
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::time::TimeUpdateStrategy;
+    use std::time::Duration;
+
+    fn test_app() -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(TimeUpdateStrategy::ManualDuration(
+                Duration::from_secs_f32(1.0 / 60.0),
+            ))
+            // init resources, add events, add systems
+        app
+    }
+
+    // Unit tests for logic (resource manipulation)
+    // Integration tests for render (entity spawning/despawning)
+    // Edge case tests (empty selection, no heroes, zero resources)
+}
+```
+
+**Target:** 8-12 tests per new UI module, matching the existing coverage level.
+
+The architecture plan is complete. Here's a summary of what was designed:
+
+---
+
+## Summary: In-Game HUD Architecture Plan
+
+**7 new UI modules** designed, plus 2 TODO stubs filled in:
+
+|Module|Purpose|State|
+|---|---|---|
+|`top_bar.rs`|Resource bar, population, SP, time, speed control|New|
+|`minimap.rs`|200px minimap with terrain, units, fog|New|
+|`command_bar.rs`|Move/Attack/Stop/Patrol/Formation/Hold buttons|New|
+|`selection_panel.rs`|Unit info, HP/morale bars, abilities|New|
+|`hero_bar.rs`|Hero portraits, health/mana, Q/W/E/R abilities|New|
+|`notifications.rs`|Priority-based notification stack|New|
+|`objectives.rs`|Primary/secondary mission objectives|New|
+|`selection_processing_system`|Process click/box/ctrl-group events|Filled TODO|
+|`notification_dispatch_system`|Game events → notifications|Filled TODO|
+
+**Key design decisions:**
+
+- Follows the exact existing pattern: marker component → logic system (FixedUpdate) → render system (Update) → tests
+- All data flows through `Resource` types, never direct entity queries in render systems
+- Minimap uses cached texture updated 4×/sec, not every frame
+- Notification stack has priority filtering to prevent spam
+- Selection processing accumulates all input events per frame, emits one `SelectionChanged`
+- Everything is headless-test compatible (logic works without `UiPlugin`)
+
+**4 implementation phases** spanning foundation → core HUD → advanced HUD → polish, with 8-12 tests per module.

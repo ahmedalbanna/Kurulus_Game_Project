@@ -49,6 +49,7 @@ pub fn register_plugins(app: &mut App) {
     app.add_plugins((
         // Window + input infrastructure
         bevy::window::WindowPlugin::default(),
+        bevy_a11y::AccessibilityPlugin,
         bevy::winit::WinitPlugin::<bevy::winit::WakeUp>::default(),
         bevy::input::InputPlugin,
         // Picking (required by sprite and UI picking backends)
@@ -69,6 +70,7 @@ pub fn register_plugins(app: &mut App) {
     app.add_plugins((
         // Window + input infrastructure
         bevy::window::WindowPlugin::default(),
+        bevy_a11y::AccessibilityPlugin,
         bevy::winit::WinitPlugin::<bevy::winit::WakeUp>::default(),
         bevy::input::InputPlugin,
         // Picking (required by sprite and UI picking backends)
