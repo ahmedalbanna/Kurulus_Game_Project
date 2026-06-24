@@ -1,67 +1,88 @@
 use bevy::prelude::*;
 use kurulus_core::prelude::*;
 use rand::Rng;
+use std::collections::HashMap;
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  FLANKING CALCULATION (GDD §1.2 — Encirclement)
 // ═════════════════════════════════════════════════════════════════════════════
 
 /// Computes the attack zone (Front/Side/Rear) for each attacker-target pair
-/// based on the target's facing direction. Stores the result as a FlankingInfo
-/// component on the attacker so the melee system can read it.
+/// based on the target's facing direction. Uses SpatialGrid to efficiently
+/// find only nearby targets instead of O(n²) iteration.
 ///
 /// Zone thresholds:
 ///   Front: ±45°  — ×1.0, full block
 ///   Side:  45–135° — ×1.25, -15% block
 ///   Rear:  135–180° — ×1.5, -30% block
 pub fn flanking_calculation_system(
+    grid: Res<SpatialGrid>,
     mut attackers: Query<
         (Entity, &WorldPosition, &mut FlankingInfo, Option<&Facing>),
         (With<Unit>, Without<Dead>),
     >,
     targets: Query<(Entity, &WorldPosition, Option<&Facing>), (With<Unit>, Without<Dead>)>,
 ) {
-    // Collect target positions and facings into a Vec for iteration
-    let target_list: Vec<(Entity, Vec2, Vec2)> = targets
+    // Snapshot target data for O(1) lookup: WorldPosition + Facing direction
+    let target_map: HashMap<Entity, (Vec2, Vec2)> = targets
         .iter()
         .map(|(e, pos, facing)| {
             let fwd = facing.map(|f| f.direction).unwrap_or(Vec2::NEG_Y);
-            (e, pos.world_2d.0, fwd)
+            (e, (pos.world_2d.0, fwd))
         })
         .collect();
 
     for (attacker_e, attacker_pos, mut flank_info, _attacker_facing_opt) in attackers.iter_mut() {
-        for (target_e, target_pos, target_facing) in &target_list {
-            if *target_e == attacker_e {
+        // Use SpatialGrid to find potential targets within flanking range (10 units)
+        let nearby = grid.entities_in_range(attacker_pos.grid, 10.0);
+
+        let mut best_target: Option<(Entity, f32, Vec2, f32)> = None; // (entity, dist, facing, angle_deg)
+
+        for &candidate in &nearby {
+            if candidate == attacker_e {
                 continue;
             }
+            let Some(&(target_pos, target_facing)) = target_map.get(&candidate) else {
+                continue;
+            };
 
-            // Vector from target to attacker
-            let attack_vec = attacker_pos.world_2d.0 - *target_pos;
+            let attack_vec = attacker_pos.world_2d.0 - target_pos;
             let dist = attack_vec.length();
             if dist < 0.01 || dist > 10.0 {
                 continue;
             }
 
             let attack_dir = attack_vec / dist;
-            let dot = attack_dir.dot(*target_facing);
+            let dot = attack_dir.dot(target_facing);
             let angle_deg = dot.acos().to_degrees().clamp(0.0, 180.0);
 
-            let (zone, dmg_mult, block_reduction) = if angle_deg <= 45.0 {
+            // Keep the nearest valid target
+            match best_target {
+                Some((_, best_dist, _, _)) if dist < best_dist => {
+                    best_target = Some((candidate, dist, target_facing, angle_deg));
+                }
+                None => {
+                    best_target = Some((candidate, dist, target_facing, angle_deg));
+                }
+                _ => {}
+            }
+        }
+
+        if let Some((_target_e, _dist, _target_facing, best_angle)) = best_target {
+            let (zone, dmg_mult, block_reduction) = if best_angle <= 45.0 {
                 (AttackZone::Front, 1.0, 0.0)
-            } else if angle_deg <= 135.0 {
+            } else if best_angle <= 135.0 {
                 (AttackZone::Side, 1.25, 0.15)
             } else {
                 (AttackZone::Rear, 1.5, 0.30)
             };
 
             *flank_info = FlankingInfo {
-                attack_angle: angle_deg,
+                attack_angle: best_angle,
                 zone,
                 damage_multiplier: dmg_mult,
                 block_reduction,
             };
-            break;
         }
     }
 }
@@ -173,13 +194,14 @@ pub fn charge_update_system(
 // ═════════════════════════════════════════════════════════════════════════════
 
 /// Resolves melee combat with full damage pipeline including:
-///   - Nearest-target selection
+///   - Nearest-target selection (via SpatialGrid for O(neighbors) performance)
 ///   - Flanking zone multipliers
 ///   - Block/Parry checks
 ///   - Dodge checks
 ///   - Critical hit rolls
 ///   - Formation bonus integration (equipment, buffs, morale)
 pub fn melee_combat_system(
+    grid: Res<SpatialGrid>,
     mut attack_triggers: EventWriter<AttackTriggered>,
     mut attackers: Query<
         (
@@ -213,28 +235,33 @@ pub fn melee_combat_system(
     effectiveness_table: Res<DamageEffectivenessTable>,
     resistance_table: Res<ArmorResistanceTable>,
 ) {
+    // Snapshot target data into a HashMap for O(1) lookups
     #[allow(clippy::type_complexity)]
-    let target_list: Vec<(
+    let target_map: HashMap<
         Entity,
-        Vec2,
-        UnitArchetype,
-        FactionId,
-        ArmorType,
-        f32,
-        Option<FormationBonus>,
-        Option<CurrentMoraleState>,
-    )> = targets
+        (
+            Vec2,
+            UnitArchetype,
+            FactionId,
+            ArmorType,
+            f32,
+            Option<FormationBonus>,
+            Option<CurrentMoraleState>,
+        ),
+    > = targets
         .iter()
         .map(|(e, pos, health, unit, formation, morale)| {
             (
                 e,
-                pos.world_2d.0,
-                unit.archetype,
-                unit.faction,
-                health.armor_type,
-                health.armor,
-                formation.copied(),
-                morale.copied(),
+                (
+                    pos.world_2d.0,
+                    unit.archetype,
+                    unit.faction,
+                    health.armor_type,
+                    health.armor,
+                    formation.copied(),
+                    morale.copied(),
+                ),
             )
         })
         .collect();
@@ -257,35 +284,34 @@ pub fn melee_combat_system(
             continue;
         }
 
+        // Use SpatialGrid to find nearby targets within attack range
+        let nearby = grid.entities_in_range(attacker_pos.grid, attacker_stats.attack_range);
+
         let mut best_target = None;
         let mut best_dist = f32::MAX;
 
-        for (
-            target_e,
-            target_pos,
-            _archetype,
-            target_faction,
-            _armor_type,
-            _armor,
-            _formation,
-            _target_morale,
-        ) in &target_list
-        {
-            if attacker_unit.faction == *target_faction || attacker_e == *target_e {
+        for &candidate in &nearby {
+            if candidate == attacker_e {
                 continue;
             }
-            let dist = attacker_pos.world_2d.0.distance(*target_pos);
+            let Some(&(target_pos, _, target_faction, _, _, _, _)) = target_map.get(&candidate)
+            else {
+                continue;
+            };
+            if attacker_unit.faction == target_faction {
+                continue;
+            }
+
+            let dist = attacker_pos.world_2d.0.distance(target_pos);
             if dist <= attacker_stats.attack_range && dist < best_dist {
                 best_dist = dist;
-                best_target = Some(*target_e);
+                best_target = Some(candidate);
             }
         }
 
         if let Some(target_e) = best_target {
-            // Retrieve target data
-            let t_data = target_list.iter().find(|(e, ..)| *e == target_e);
-            let (
-                _target_e,
+            // Retrieve target data from HashMap
+            let Some(&(
                 _target_pos,
                 target_archetype,
                 _target_faction,
@@ -293,9 +319,9 @@ pub fn melee_combat_system(
                 target_armor_val,
                 target_formation_opt,
                 target_morale_opt,
-            ) = match t_data {
-                Some(d) => d.clone(),
-                None => continue,
+            )) = target_map.get(&target_e)
+            else {
+                continue;
             };
 
             // ─── 0. Compute stat bonuses from equipment + buffs + morale ─────────

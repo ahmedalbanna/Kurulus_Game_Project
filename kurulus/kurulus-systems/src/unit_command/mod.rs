@@ -9,7 +9,7 @@ use commands::*;
 use engagement::*;
 use formation::*;
 use kurulus_core::prelude::*;
-use pathfinding::{a_star, collect_obstacles, ObstacleMap};
+use pathfinding::{a_star, collect_obstacles, is_path_blocked, ObstacleMap};
 use selection::*;
 
 pub struct UnitCommandPlugin;
@@ -17,6 +17,7 @@ pub struct UnitCommandPlugin;
 impl Plugin for UnitCommandPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ObstacleMap>()
+            .init_resource::<PathfindingGrid>()
             .init_resource::<SelectionState>()
             .init_resource::<EngagementConfig>()
             .add_systems(
@@ -61,10 +62,14 @@ impl Plugin for UnitCommandPlugin {
             .add_systems(
                 FixedUpdate,
                 (
-                    // Phase 3a: Build obstacle map
+                    // Phase 3a: Build obstacle map from building positions
                     build_obstacle_map_system.in_set(SimulationSet::Pathfinding),
+                    // Phase 3a: Build combined pathfinding grid (terrain + obstacles)
+                    build_pathfinding_grid_system.in_set(SimulationSet::Pathfinding),
                     // Phase 3a: Calculate paths for units with a Destination but no Path
                     apply_paths_system.in_set(SimulationSet::Pathfinding),
+                    // Phase 3a: Recalculate paths for units whose path is now blocked
+                    recalculate_blocked_paths_system.in_set(SimulationSet::Pathfinding),
                     // Phase D: Formation slot & bonus assignment (before movement)
                     assign_formation_slots_system.in_set(SimulationSet::FormationMovement),
                     assign_formation_bonus_system.in_set(SimulationSet::FormationMovement),
@@ -120,13 +125,32 @@ fn build_obstacle_map_system(
     map.obstacles = collect_obstacles(buildings);
 }
 
+// ─── Pathfinding grid (terrain + obstacles) ────────────────────────────────
+
+/// Builds the combined `PathfindingGrid` from terrain data and building
+/// obstacles.  This runs before `apply_paths_system` so A* can account for
+/// terrain movement costs when calculating paths.
+fn build_pathfinding_grid_system(
+    terrain: Res<TerrainGrid>,
+    obstacles: Res<ObstacleMap>,
+    mut grid: ResMut<PathfindingGrid>,
+) {
+    *grid = PathfindingGrid::build(&terrain, &obstacles.obstacles);
+}
+
 // ─── Pathfinding ──────────────────────────────────────────────────────────
+
+/// Bounds constant used for pathfinding searches (matches Mission 1 map).
+const PATHFINDING_BOUNDS: Option<(IVec2, IVec2)> =
+    Some((IVec2::new(-100, -100), IVec2::new(100, 100)));
 
 /// For each entity that has a `Destination` but no `Path`, calculate a
 /// new A* path and insert it via Commands.
+///
+/// Uses the combined `PathfindingGrid` for terrain-aware routing.
 fn apply_paths_system(
     mut commands: Commands,
-    map: Res<ObstacleMap>,
+    grid: Res<PathfindingGrid>,
     positions: Query<&WorldPosition>,
     to_pathfind: Query<(Entity, &Destination), (With<Unit>, Without<Path>, Without<Dead>)>,
 ) {
@@ -137,9 +161,37 @@ fn apply_paths_system(
         };
         let goal = destination.target.0;
 
-        // Reasonable bounds for the Mission 1 map
-        let bounds = Some((IVec2::splat(-100), IVec2::splat(100)));
-        if let Some(waypoints) = a_star(start_pos, goal, &map.obstacles, bounds) {
+        if let Some(waypoints) = a_star(start_pos, goal, &*grid, PATHFINDING_BOUNDS) {
+            let grid_waypoints: Vec<GridPos> =
+                waypoints.into_iter().map(|iv| GridPos(iv)).collect();
+            commands.entity(entity).insert(Path::new(grid_waypoints));
+        }
+    }
+}
+
+/// Recalculates paths for units whose current path is blocked by new
+/// obstacles (e.g., a building was constructed mid-march, or terrain
+/// changed). Only recalculates if the forward portion of the path
+/// (from current_index onward) is blocked.
+fn recalculate_blocked_paths_system(
+    mut commands: Commands,
+    grid: Res<PathfindingGrid>,
+    positions: Query<&WorldPosition>,
+    to_recalc: Query<(Entity, &Destination, &Path), (With<Unit>, Without<Dead>)>,
+) {
+    for (entity, destination, path) in to_recalc.iter() {
+        // Only recalculate if the remaining path is blocked
+        if !is_path_blocked(&path.waypoints, path.current_index, &grid) {
+            continue;
+        }
+
+        let start_pos = match positions.get(entity) {
+            Ok(p) => p.grid.0,
+            Err(_) => continue,
+        };
+        let goal = destination.target.0;
+
+        if let Some(waypoints) = a_star(start_pos, goal, &*grid, PATHFINDING_BOUNDS) {
             let grid_waypoints: Vec<GridPos> =
                 waypoints.into_iter().map(|iv| GridPos(iv)).collect();
             commands.entity(entity).insert(Path::new(grid_waypoints));

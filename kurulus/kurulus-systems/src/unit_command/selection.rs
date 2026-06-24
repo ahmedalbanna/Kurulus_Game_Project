@@ -21,7 +21,10 @@ pub fn process_selection_system(
     mut box_events: EventReader<BoxSelectEvent>,
     mut selection: ResMut<SelectionState>,
     unit_query: Query<Entity, (With<Unit>, Without<Dead>)>,
+    mut selection_changed: EventWriter<SelectionChanged>,
 ) {
+    let previous = selection.selected.clone();
+
     for event in select_events.read() {
         if event.modifiers.shift {
             // Shift-click: toggle entity in/out of selection
@@ -62,6 +65,14 @@ pub fn process_selection_system(
                 commands.entity(*entity).insert(Selected);
             }
         }
+    }
+
+    // Emit SelectionChanged if the selection actually changed
+    if selection.selected != previous {
+        selection_changed.send(SelectionChanged {
+            selected: selection.selected.clone(),
+            previous,
+        });
     }
 }
 

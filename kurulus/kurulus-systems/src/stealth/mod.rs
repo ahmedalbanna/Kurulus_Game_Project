@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use kurulus_core::prelude::*;
+use std::collections::HashMap;
 
 pub struct StealthPlugin;
 
@@ -413,6 +414,7 @@ fn ambush_auto_hide_system(
 
 /// Enhanced detection with vision cones, observer factors, target factors.
 fn stealth_detection_system(
+    grid: Res<SpatialGrid>,
     mut stealth_query: Query<
         (
             Entity,
@@ -438,15 +440,36 @@ fn stealth_detection_system(
     _config: Res<AmbushConfig>,
     mut reveal_events: EventWriter<StealthRevealed>,
 ) {
-    let detector_list: Vec<(
+    // Snapshot active detector data into a HashMap for O(1) lookups.
+    // Store a cloned VisionCone so we can use detection_mult() faithfully.
+    let detector_map: HashMap<
         Entity,
-        &WorldPosition,
-        &Detection,
-        Option<&VisionCone>,
-        Option<&ObserverState>,
-    )> = detectors
+        (
+            GridPos,
+            f32,        // detection radius + height bonus (effective base radius)
+            Vec2,       // world_2d position
+            VisionCone, // cloned cone for accurate detection_mult()
+            f32,        // observer multiplier
+        ),
+    > = detectors
         .iter()
         .filter(|(_, _, det, _, _)| det.active)
+        .map(|(e, pos, det, cone_opt, obs_opt)| {
+            let cone = cone_opt.cloned().unwrap_or_default();
+            let observer_factor = obs_opt
+                .map(|obs| obs.effective_detection_mult())
+                .unwrap_or(1.0);
+            (
+                e,
+                (
+                    pos.grid,
+                    det.radius + det.height_bonus,
+                    pos.world_2d.0,
+                    cone,
+                    observer_factor,
+                ),
+            )
+        })
         .collect();
 
     for (stealth_e, stealth_pos, mut stealth, noise_opt, vis_opt) in stealth_query.iter_mut() {
@@ -465,22 +488,37 @@ fn stealth_detection_system(
             (stealth.level + best_terrain + night_mod - noise_factor - size_factor).clamp(0.0, 1.0);
 
         let target_factor = 1.0 - effective_stealth;
+        let st_pos_2d = stealth_pos.world_2d.0;
 
-        for (detector_e, detector_pos, detector_detection, cone_opt, obs_opt) in &detector_list {
-            if *detector_e == stealth_e {
+        // Use SpatialGrid to find nearby entities, then check only those that
+        // are active detectors
+        let nearby = grid.entities_in_range(stealth_pos.grid, 50.0); // generous outer radius
+
+        for &candidate in &nearby {
+            if candidate == stealth_e {
+                continue;
+            }
+            let Some(&(det_grid_pos, det_base_radius, det_pos_2d, ref cone, observer_factor)) =
+                detector_map.get(&candidate)
+            else {
+                continue;
+            };
+
+            let d_grid = stealth_pos.grid.0.distance_squared(det_grid_pos.0) as f32;
+            if d_grid > 2500.0 {
+                // 50² — matches outer radius above
                 continue;
             }
 
-            let dist = stealth_pos.world_2d.0.distance(detector_pos.world_2d.0);
+            let dist = st_pos_2d.distance(det_pos_2d);
 
-            let cone_mult = if let Some(cone) = cone_opt {
-                let to_target = stealth_pos.world_2d.0 - detector_pos.world_2d.0;
-                let angle: f32 =
-                    if cone.facing.length_squared() > 0.0 && to_target.length_squared() > 0.0 {
-                        to_target.angle_to(cone.facing).abs().to_degrees()
-                    } else {
-                        0.0
-                    };
+            let cone_mult = if cone.facing.length_squared() > 0.0 {
+                let to_target = st_pos_2d - det_pos_2d;
+                let angle = if to_target.length_squared() > 0.0 {
+                    to_target.angle_to(cone.facing).abs().to_degrees()
+                } else {
+                    0.0
+                };
                 cone.detection_mult(angle)
             } else {
                 1.0
@@ -490,15 +528,10 @@ fn stealth_detection_system(
                 continue;
             }
 
-            let observer_factor = obs_opt
-                .map(|obs| obs.effective_detection_mult())
-                .unwrap_or(1.0);
-
             let env_factor: f32 = if game_time.is_night() { 0.6 } else { 1.0 };
 
-            let base_radius = detector_detection.radius + detector_detection.height_bonus;
             let effective_radius =
-                base_radius * observer_factor * target_factor * env_factor * cone_mult;
+                det_base_radius * observer_factor * target_factor * env_factor * cone_mult;
 
             if effective_radius <= 0.0 {
                 continue;
@@ -511,7 +544,7 @@ fn stealth_detection_system(
                 stealth.hidden_timer = 0.0;
                 reveal_events.send(StealthRevealed {
                     entity: stealth_e,
-                    revealer: *detector_e,
+                    revealer: candidate,
                 });
                 break;
             } else if detection_ratio < 1.0 {
@@ -521,7 +554,7 @@ fn stealth_detection_system(
                     stealth.hidden_timer = 0.0;
                     reveal_events.send(StealthRevealed {
                         entity: stealth_e,
-                        revealer: *detector_e,
+                        revealer: candidate,
                     });
                     break;
                 }

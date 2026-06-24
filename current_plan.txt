@@ -1,798 +1,582 @@
-Now I have everything I need. Here is the comprehensive architecture plan for the **In-Game HUD interfaces**.
+# 📋 التقرير النهائي — بحث عميق في مواضيع Bevy المعقدة لمشروع Kurulus
+
+## ملخص البحث
+
+تم بحث **10 مواضيع حرجة** عبر **+40 مصدر** وتم تحديد **15+ crate** متوافقة مع Bevy 0.15+ وتم تحليل أنماط ECS المطلوبة لكل نظام.
 
 ---
 
-# 🎮 Kurulus In-Game HUD — Architecture & Feature Breakdown Plan
+## 🔴 1. Pathfinding في Bevy ECS
 
-## Executive Summary
+### المشكلة في المشروع
 
-This plan designs the ECS architecture for the complete in-game HUD: the Top Resource Bar, Minimap Panel, Command Bar, Selection Panel, Hero Bar, Notification Stack, and Objectives Panel. It builds on the existing `UILogicPlugin` pattern (marker components + render systems in `Update` + logic systems in `FixedUpdate`) and integrates with the existing ~40 event types and game state system.
+- لا يوجد أي pathfinding مُ реализ في الكود حالياً
+- GDD يحدد 100+ وحدة في المعركة
+- `SimulationSet::Pathfinding` موجود كـ system set لكن بلا أنظمة
 
----
+### الحلول المكتشفة
 
-## 1. Current State Assessment
+#### الخيار A: `bevy_pathfinder` (KBVE) — Flow Field ⭐ الأفضل للـ RTS
 
-### What Exists ✅
+- **الإصدار**: 0.1.1 (مايو 2026)
+- **الفكرة**: حساب `FlowField` بالـ BFS مرة واحدة لكل هدف، ثم كل وحدة تقرأ الاتجاه تحتها في O(1)
+- **المميزات**: Grid-based، chokepoint detection (`FlowGate`)، متوافق مع Bevy 0.18+
+- **التكامل مع Kurulus**:
+    - `BlockGrid` يمثل `TerrainGrid` الحالي
+    - `FlowField::compute(&grid, &[goal])` يُحسب لكل goal مشترك
+    - `FlowGate` مفيد لنظام الكمين (ambush detection في الممرات الضيقة)
 
-|Component|File|Status|
-|---|---|---|
-|`UILogicPlugin`|`kurulus-systems/src/ui/mod.rs`|Registered, 5 render systems active|
-|City Event Log|`kurulus-systems/src/ui/city_event_log.rs`|Full implementation + 12 tests|
-|Zone Legend|`kurulus-systems/src/ui/zone_legend.rs`|Full implementation + 9 tests|
-|World Map UI|`kurulus-systems/src/ui/world_map.rs`|Tooltip, Legend, Selection Panel + 11 tests|
-|UI Events|`kurulus-core/src/events/ui.rs`|`SelectionChanged`, `PanelOpened/Closed`, `Notification`, etc.|
-|UI Resources|`kurulus-core/src/resources/city.rs`|`CityState`, `PolicySettings`, `OverlaySettings`, `ZonePlacementState`, `BuildingPlacementState`|
+#### الخيار B: `bevy_northstar` — Hierarchical A* (HPA*)
 
-### What's Missing ❌ (TODO stubs)
+- **الإصدار**: أحدث إصدار يدعم Bevy 0.15 (v0.7)
+- **الفكرة**: تقسيم الخريطة لـ chunks → حساب عقد اتصال بين الـ chunks → A* على المستوى العالي → refinement
+- **المميزات**:
+    - 5 خوارزميات: `refined()` (HPA*), `coarse()`, `waypoints()`, `astar()`, `thetastar()`
+    - دعم 2D/2.5D/3D
+    - `Navigation Masks` — تكلفة مختلفة لكل نوع وحدة
+    - `Parallel Building` — حساب الـ chunks بالتوازي
+    - `Dynamic Changes` — إعادة حساب جزئية عند تغيير الخريطة
+- **الأفضل لـ Kurulus**: لأن لكل وحدة هدف مختلف (AI له أهداف متعددة)
 
-|System|Current State|
-|---|---|
-|`selection_processing_system`|Empty TODO stub|
-|`notification_dispatch_system`|Empty TODO stub|
-|Top Resource Bar|Not implemented|
-|Minimap Panel|Not implemented|
-|Command Bar|Not implemented|
-|Selection Panel|Not implemented|
-|Hero Bar|Not implemented|
-|Notification Stack|Not implemented|
-|Objectives Panel|Not implemented|
+#### الخيار C: `bevy_pathfinding` (the-devblog) — Flow Field + Boids
 
----
+- **الفكرة**: Flow Field + بيدات لتجنب التصادم
+- **المميزات**: Spatial partitioning مدمج (bucket system)
+- **ملاحظة**: إصدار غير مستقر (0.1.0)
 
-## 2. Architecture Pattern (Established Convention)
-
-Every UI element follows this exact pattern:
-
-```
-┌─────────────────────────────────────────────────────┐
-│ 1. Marker Component (kurulus-core)                   │
-│    #[derive(Component)] struct FooBarRoot;           │
-│                                                      │
-│ 2. Resource (kurulus-core, if state needed)          │
-│    #[derive(Resource)] struct FooBarState { ... }    │
-│                                                      │
-│ 3. Logic System (FixedUpdate schedule)               │
-│    fn foo_logic_system(..., ResMut<FooBarState>)     │
-│    → Reads events, mutates state resource            │
-│                                                      │
-│ 4. Render System (Update schedule)                   │
-│    fn foo_render_system(..., Query<Entity, With<FooBarRoot>>>) │
-│    → Spawns/updates/despawns Bevy UI entities        │
-│                                                      │
-│ 5. Tests in same module                              │
-│    #[cfg(test)] mod tests { ... }                    │
-└─────────────────────────────────────────────────────┘
-```
-
-**Key rules:**
-
-- Render systems use `Commands` to spawn/update/despawn — never direct world mutation
-- Marker components enable O(1) entity lookup each frame
-- Logic runs in `FixedUpdate` (deterministic), rendering in `Update` (visual)
-- All UI entities use `PositionType::Absolute` for precise placement
-- Headless mode: entities spawn but are invisible (no `UiPlugin`)
-
----
-
-## 3. New Components & Resources
-
-### 3.1 Marker Components (add to `kurulus-core/src/resources/city.rs` or new `ui_markers.rs`)
+### التوصية لـ Kurulus
 
 ```
-// ─── HUD Marker Components ───────────────────────────────────────────────
-
-/// Root node of the top resource bar
-#[derive(Component, Clone, Debug, Default)]
-pub struct TopBarRoot;
-
-/// Root node of the minimap panel
-#[derive(Component, Clone, Debug, Default)]
-pub struct MinimapRoot;
-
-/// Root node of the command bar (bottom-left)
-#[derive(Component, Clone, Debug, Default)]
-pub struct CommandBarRoot;
-
-/// Root node of the selection info panel (bottom-right)
-#[derive(Component, Clone, Debug, Default)]
-pub struct SelectionPanelRoot;
-
-/// Root node of the hero bar (below top bar or above command bar)
-#[derive(Component, Clone, Debug, Default)]
-pub struct HeroBarRoot;
-
-/// Root node of the notification stack
-#[derive(Component, Clone, Debug, Default)]
-pub struct NotificationStackRoot;
-
-/// Individual notification entry (child of NotificationStackRoot)
-#[derive(Component, Clone, Debug, Default)]
-pub struct NotificationEntry {
-    pub notification_type: NotificationType,
-    pub spawned_at: f32,
-    pub duration: f32,
-}
-
-/// Root node of the objectives panel
-#[derive(Component, Clone, Debug, Default)]
-pub struct ObjectivesPanelRoot;
-
-/// A single command button in the command bar
-#[derive(Component, Clone, Debug)]
-pub struct CommandButton {
-    pub action: CommandAction,
-    pub hotkey: String,
-}
-
-/// Action triggered by command bar buttons
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CommandAction {
-    Move,
-    Attack,
-    Stop,
-    Patrol,
-    Formation,
-    HoldPosition,
-    AttackMove,
-}
+الخيار B (bevy_northstar) للوحدات التي لها أهداف فردية (AI، أبطال)
++ خيار A (Flow Field) للوحدات التي تهاجم نفس الهدف (تجمعات)
 ```
 
-### 3.2 Resources (add to `kurulus-core/src/resources/`)
+### مخطط ECS المقترح
 
 ```
-// ─── HUD State Resources ─────────────────────────────────────────────────
-
-/// Snapshot of resource counts for the top bar display
-#[derive(Resource, Clone, Debug, Default)]
-pub struct ResourceBarState {
-    pub gold: u32,
-    pub wood: u32,
-    pub food: u32,
-    pub iron: u32,
-    pub population_current: u32,
-    pub population_max: u32,
-    pub sovereignty_points: u32,
-    /// Per-resource deltas for arrow indicators (+/-)
-    pub gold_delta: i32,
-    pub wood_delta: i32,
-    pub food_delta: i32,
-    pub iron_delta: i32,
+// kurulus-core/src/components/pathfinding.rs
+#[derive(Component)]
+pub struct PathTarget {
+    pub target: GridPos,
+    pub path: Vec<GridPos>,
+    pub current_index: usize,
 }
 
-/// Active selection state — drives selection panel and command bar
-#[derive(Resource, Clone, Debug, Default)]
-pub struct SelectionState {
-    /// Currently selected entities
-    pub selected: Vec<Entity>,
-    /// Selection mode (single, multi, box)
-    pub mode: SelectionMode,
+#[derive(Component)]
+pub struct Pathfollowing {
+    pub speed: f32,
+    pub arrival_threshold: f32,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum SelectionMode {
-    #[default]
-    None,
-    Single,
-    Multi,
-}
-
-/// Control groups (Ctrl+1-9 stores, 1-9 recalls)
-#[derive(Resource, Clone, Debug, Default)]
-pub struct ControlGroups {
-    /// Group index → list of entities
-    pub groups: [Vec<Entity>; 9],
-}
-
-/// Active notifications for the notification stack
-#[derive(Resource, Clone, Debug, Default)]
-pub struct NotificationStack {
-    pub entries: Vec<NotificationEntry>,
-}
-
-/// Current mission objectives for display
-#[derive(Resource, Clone, Debug, Default)]
-pub struct ObjectiveTracker {
-    pub primary: Vec<ObjectiveEntry>,
-    pub secondary: Vec<ObjectiveEntry>,
-}
-
-#[derive(Clone, Debug)]
-pub struct ObjectiveEntry {
-    pub id: String,
-    pub description: String,
-    pub completed: bool,
-    pub progress: Option<(u32, u32)>, // (current, target) for progress objectives
-}
-
-/// Hero bar state — which heroes are available, health, abilities
-#[derive(Resource, Clone, Debug, Default)]
-pub struct HeroBarState {
-    pub heroes: Vec<HeroSlot>,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct HeroSlot {
-    pub entity: Option<Entity>,
-    pub name: String,
-    pub health_pct: f32,
-    pub mana_pct: f32,
-    pub available: bool,
-    pub hotkey: String,
-    pub abilities: Vec<AbilitySlot>,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct AbilitySlot {
-    pub key: String, // "Q", "W", "E", "R"
-    pub name: String,
-    pub on_cooldown: bool,
-    pub cooldown_pct: f32,
-    pub available: bool, // false if hero not yet unlocked
+// kurulus-core/src/resources/
+#[derive(Resource)]
+pub struct PathfindingGrid {
+    pub blocked: HashSet<GridPos>,
+    pub costs: HashMap<GridPos, f32>,
+    pub flow_fields: HashMap<GridPos, FlowField>, // cached per goal
 }
 ```
 
 ---
 
-## 4. System Designs
+## 🔴 2. AI Behavior Trees في Bevy
 
-### 4.1 Top Resource Bar
+### المشكلة في المشروع
 
-**File:** `kurulus-systems/src/ui/top_bar.rs`
+- `BehaviorTree` component موجود في `kurulus-core/src/components/ai.rs`
+- `AIController` مع strategy/goals
+- لكن لا يوجد BT evaluation engine — الكود الحالي يكتب أوامر مباشرة عبر events
 
-**Logic System (`FixedUpdate`):**
+### الحلول المكتشفة
 
-```
-fn top_bar_logic_system(
-    resources: Res<ResourceStockpile>,
-    city: Res<CityState>,
-    game_time: Res<GameTime>,
-    mut bar_state: ResMut<ResourceBarState>,
-)
-```
+#### الخيار A: `big-brain` (Codeberg) — Utility AI ⭐
 
-- Reads `ResourceStockpile` (gold, wood, food, iron) and `CityState` (population)
-- Reads `GameTime` for the clock display
-- Computes deltas by comparing current frame to previous frame (store `previous_*` fields)
-- Updates `ResourceBarState` each tick
+- **الإصدار**: 0.22+ (يتوافق مع Bevy 0.16، يحتاج fork/تحديث لـ 0.15)
+- **الفكرة**: Scorers يقيّمون العالم → Thinkers يختارون أفضل Action بناءً على الـ Score
+- **المميزات**:
+    - Highly concurrent/parallelizable evaluation
+    - Action cancellation مدمج
+    - State machine-style continuous actions
+    - Reflect support (للـ BRP/MCP)
+- **التكامل مع Kurulus**:
+    - `Scorer` لكل: health, distance_to_enemy, resources, morale
+    - `Action` لكل: MoveTo, Attack, Build, Retreat, Patrol
+    - `Thinker` يربط كل AI entity بالـ scorers والـ actions
 
-**Render System (`Update`):**
+#### الخيار B: `bevior_tree` — Behavior Tree كـ Bevy Plugin
 
-```
-fn top_bar_render_system(
-    bar_state: Res<ResourceBarState>,
-    mut commands: Commands,
-    root_query: Query<Entity, With<TopBarRoot>>,
-)
-```
+- **الإصدار**: 0.7 (Bevy 0.15)
+- **الفكرة**: BT nodes كـ Bevy components، evaluation عبر systems
+- **المميزات**:
+    - Sequential, Selector, Parallel nodes
+    - بسيط ومباشر
+    - لا يحتاج external crate كبيرة
 
-- Spawns a horizontal `Node` at the top of the screen (`position_type: Absolute, top: 0, left/right: stretch`)
-- Child nodes for each resource: icon + text + delta arrow
-- Color coding: normal (white), low (<10% → orange), empty (0 → red with warning)
-- Population shown as "current/max" fraction
-- SP shown as clickable counter
-- Time shown as "HH:MM" format
-- Speed control: three small buttons (1×, 2×, 3×) that mutate a `GameSpeed` resource
+#### الخيار C: `bevy_gearbox` — State Machine-driven AI
 
-**Layout:**
+- **الفكرة**: States و Transitions كـ entities
+- **ملاحظة**: مفيد لـ AI بسيط لكن معقد لـ BT كاملة
+
+### التوصية لـ Kurulus
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ 🪵 250(+3)  ⛏️ 120(-1)  🌾 180  💰 45  👑 8  ⏰ 14:30  ▶▶ │
-└─────────────────────────────────────────────────────────────┘
+الخيار A (big-brain) للـ AI المعقد (عدو رئيسي)
++ خيار B (bevior_tree) للـ AI البسيط (عمال، مدنيين)
++ الحفاظ على BehaviorTree component الحالي كـ data layer
+```
+
+### مخطط ECS المقترح
+
+```
+// استخدام big-brain pattern
+#[derive(Component, ScorerBuilder)]
+pub struct ThreatLevel;
+
+#[derive(Component, ActionBuilder)]
+pub struct AttackEnemy;
+
+#[derive(Component, ActionBuilder)]
+pub struct RetreatToBase;
+
+// Thinker يربط كلчто معاً
+fn setup_ai(entity: Entity, commands: &mut Commands) {
+    commands.entity(entity).insert(
+        Thinker::build()
+            .when(ThreatLevel, AttackEnemy)
+            .when(LowHealth, RetreatToBase)
+            .otherwise(Patrol)
+    );
+}
 ```
 
 ---
 
-### 4.2 Minimap Panel
+## 🔴 3. Stealth/Line-of-Sight في Bevy
 
-**File:** `kurulus-systems/src/ui/minimap.rs`
+### المشكلة في المشروع
 
-**Logic System (`FixedUpdate`):**
+- `Stealth`, `DetectionChain`, `VisionCone`, `AmbushState` مُعرّفة
+- لا يوجد raycasting أو vision check أو fog of war
+
+### الحلول المكتشفة
+
+#### للـ Line-of-Sight:
+
+**Bresenham's Line Algorithm** — الأبسط والأسرع للـ grid-based:
 
 ```
-fn minimap_logic_system(
+fn has_line_of_sight(from: GridPos, to: GridPos, terrain: &TerrainGrid) -> bool {
+    // Bresenham's line algorithm
+    // يتحقق من كل cell على الخط بين from و to
+    // يُرجع false إذا لقي blocked cell
+}
+```
+
+#### للـ Fog of War: `bevy_fog_of_war` ⭐
+
+- **المطور**: foxzool
+- **الفكرة**: GPU-based fog باستخدام compute shaders
+- **المميزات**:
+    - `VisionSource` component (circle, square, cone shapes)
+    - Chunk-based map processing — مناسب للخريطة الكبيرة
+    - Explored area tracking
+    - Snapshot system (للـ save/load)
+    - `Capturable` entities — تظهر فقط عندما يمر بها vision
+- **التكامل مع Kurulus**:
+    - كل وحدة لها `VisionSource::cone(vision_range, facing_angle)`
+    - `Capturable` على وحدات العدو
+    - `FogMapSettings.chunk_size` يتناسب مع `CELL_SIZE = 1.0`
+
+#### للـ Detection System:
+
+```
+// detection_system.ts pattern
+fn stealth_detection_system(
+    mut stealth_query: Query<(Entity, &WorldPosition, &mut Stealth)>,
+    detectors: Query<(&WorldPosition, &Detection)>,
     terrain: Res<TerrainGrid>,
-    units: Query<(&WorldPosition, &Unit)>,
-    camera: Query<&Camera>,
-    // minimap click events
-    mut minimap_click_events: EventReader<MinimapClickEvent>,
-)
-```
-
-- Generates a small terrain texture from `TerrainGrid` data (color per tile)
-- Plots unit positions as colored dots (green=friendly, red=enemy)
-- Draws camera viewport rectangle
-- Handles click-to-pan by emitting camera move events
-
-**Render System (`Update`):**
-
-```
-fn minimap_render_system(
-    minimap_state: Res<MinimapState>,
-    mut commands: Commands,
-    root_query: Query<Entity, With<MinimapRoot>>,
-)
-```
-
-- Spawns a 200×200px panel in the top-left corner
-- Uses Bevy's `Image` component to display the minimap texture
-- Overlays unit dots and camera rectangle
-- Click detection via Bevy UI picking
-
-**Note:** The minimap texture can be a low-res `Image` asset updated periodically (every 0.25s per the GDD spec) rather than every frame.
-
----
-
-### 4.3 Command Bar
-
-**File:** `kurulus-systems/src/ui/command_bar.rs`
-
-**Logic System (`FixedUpdate`):**
-
-```
-fn command_bar_logic_system(
-    selection: Res<SelectionState>,
-    mut command_bar_state: ResMut<CommandBarState>,
-    units: Query<(&Unit, Option<&Hero>)>,
-)
-```
-
-- Reads current selection to determine which commands are available
-- Filters commands based on selected unit type (e.g., non-combat units can't Attack)
-- Updates available/unavailable state per button
-
-**Render System (`Update`):**
-
-```
-fn command_bar_render_system(
-    command_bar_state: Res<CommandBarState>,
-    mut commands: Commands,
-    root_query: Query<Entity, With<CommandBarRoot>>,
-    interaction_query: Query<&Interaction, Changed<Interaction>>,
-)
-```
-
-- Spawns a 2×3 grid of buttons in the bottom-left
-- Each button: icon + label + hotkey text
-- Available buttons: gold background, interactive
-- Unavailable buttons: grayed out, non-interactive
-- Hover tooltip showing command description
-- Click emits the appropriate command event (`MoveOrder`, `AttackOrder`, etc.)
-
-**Button Layout:**
-
-```
-┌─────────┐ ┌─────────┐ ┌─────────┐
-│ ⚔️ Move │ │ 🗡️ Attack│ │ ⏹ Stop  │
-│    [M]  │ │    [A]  │ │    [S]  │
-└─────────┘ └─────────┘ └─────────┘
-┌─────────┐ ┌─────────┐ ┌─────────┐
-│ 📯 Patrol│ │ 📐 Form │ │ 🛡️ Hold │
-│    [P]  │ │    [F]  │ │    [H]  │
-└─────────┘ └─────────┘ └─────────┘
-```
-
----
-
-### 4.4 Selection Panel
-
-**File:** `kurulus-systems/src/ui/selection_panel.rs`
-
-**Logic System (`FixedUpdate`):**
-
-```
-fn selection_panel_logic_system(
-    selection: Res<SelectionState>,
-    units: Query<(&Unit, &Health, &Stats, Option<&Hero>)>,
-    buildings: Query<(&Building, &Health)>,
-    mut panel_state: ResMut<SelectionPanelState>,
-)
-```
-
-- Reads `SelectionState.selected` entities
-- Queries each selected entity for its components
-- Computes aggregate stats (total HP, unit count, unit types)
-- Updates `SelectionPanelState` with display data
-
-**Render System (`Update`):**
-
-```
-fn selection_panel_render_system(
-    panel_state: Res<SelectionPanelState>,
-    mut commands: Commands,
-    root_query: Query<Entity, With<SelectionPanelRoot>>,
-)
-```
-
-- Spawns a panel in the bottom-right (above objectives)
-- Shows: unit name/icon, count, HP bar (green→yellow→red), morale bar, status effects
-- Multi-selection: shows up to 3 unit portraits + "N units" label
-- Empty selection: panel despawns
-
-**Layout:**
-
-```
-┌────────────────────────┐
-│ 🗡️ Swordsmen ×3        │
-│ HP:  ████████░░ 80%    │
-│ Morale: ██████░░░░ 60% │
-│ Abilities: [⚔️][🛡️]    │
-│ Status: 🟢 Healthy      │
-└────────────────────────┘
-```
-
----
-
-### 4.5 Hero Bar
-
-**File:** `kurulus-systems/src/ui/hero_bar.rs`
-
-**Logic System (`FixedUpdate`):**
-
-```
-fn hero_bar_logic_system(
-    heroes: Query<(Entity, &Hero, &Health, &Stats)>,
-    game_time: Res<GameTime>,
-    mut hero_bar: ResMut<HeroBarState>,
-)
-```
-
-- Queries all hero entities in the game
-- Updates health/mana percentages
-- Checks ability cooldown states
-- Updates `HeroBarState` with current hero data
-
-**Render System (`Update`):**
-
-```
-fn hero_bar_render_system(
-    hero_bar: Res<HeroBarState>,
-    mut commands: Commands,
-    root_query: Query<Entity, With<HeroBarRoot>>,
-    interaction_query: Query<&Interaction, Changed<Interaction>>,
-)
-```
-
-- Spawns a horizontal bar below the top resource bar (or above command bar)
-- Each hero slot: circular portrait + name + HP bar + MP bar
-- Ability icons (Q/W/E/R) shown when hero is selected
-- Click to select hero, click ability to use
-- Unavailable heroes: grayed with lock icon + "Unlocked at mission N"
-
-**Layout:**
-
-```
-┌──────────────────────────────────────────────────┐
-│ [Osman 🟢❤️❤️❤️❤️❤️  Q][Turgut 🟢❤️❤️❤️❤️❤️  W][Boran 🟢❤️❤️❤️❤️❤️  E] │
-└──────────────────────────────────────────────────┘
-```
-
----
-
-### 4.6 Notification Stack
-
-**File:** `kurulus-systems/src/ui/notifications.rs`
-
-**Logic System (`FixedUpdate`):**
-
-```
-fn notification_dispatch_system(
-    damage_events: EventReader<DamageDealt>,
-    death_events: EventReader<UnitDied>,
-    objective_events: EventReader<ObjectiveCompleted>,
-    mission_events: EventReader<MissionEnded>,
-    mut notifications: ResMut<NotificationStack>,
-    game_time: Res<GameTime>,
-)
-```
-
-- Reads combat events → generates warning notifications ("Archer under attack!")
-- Reads death events → generates error notifications ("Unit lost!")
-- Reads objective events → generates success notifications ("Objective complete!")
-- Reads mission events → generates achievement notifications
-- Applies priority-based filtering (combat alerts always shown, tips deferred during battle)
-- Ticks down durations, removes expired entries
-
-**Render System (`Update`):**
-
-```
-fn notification_render_system(
-    notifications: Res<NotificationStack>,
-    mut commands: Commands,
-    root_query: Query<Entity, With<NotificationStackRoot>>,
-    entry_query: Query<Entity, With<NotificationEntry>>,
-)
-```
-
-- Spawns a vertical stack in the center-left area
-- Each notification: colored background + icon + text + fade-out animation
-- Priority determines max visible count (High=3, Medium=2, Low=1)
-- Fade-out: alpha decreases over last 1 second of duration
-- Color by type: Warning=orange, Error=red, Success=green, Info=blue, Achievement=gold
-
-**Layout:**
-
-```
-┌──────────────────────────────────────┐
-│ ⚠ "Archer under attack!"            │
-│ ✅ "New objective: Capture the keep" │
-│ ℹ "Tip: Use stealth in forests"     │
-└──────────────────────────────────────┘
-```
-
----
-
-### 4.7 Objectives Panel
-
-**File:** `kurulus-systems/src/ui/objectives.rs`
-
-**Logic System (`FixedUpdate`):**
-
-```
-fn objectives_logic_system(
-    objective_events: EventReader<ObjectiveProgress>,
-    completion_events: EventReader<ObjectiveCompleted>,
-    mut tracker: ResMut<ObjectiveTracker>,
-)
-```
-
-- Reads `ObjectiveProgress` events to update progress counters
-- Reads `ObjectiveCompleted` events to mark objectives as done
-- Maintains ordered list of primary and secondary objectives
-
-**Render System (`Update`):**
-
-```
-fn objectives_render_system(
-    tracker: Res<ObjectiveTracker>,
-    mut commands: Commands,
-    root_query: Query<Entity, With<ObjectivesPanelRoot>>,
-)
-```
-
-- Spawns a panel on the right side of the screen
-- Primary objectives on top, secondary below
-- Each objective: checkbox (☐/☑) + description + progress bar if applicable
-- Completed objectives: green checkmark, slightly dimmed
-
-**Layout:**
-
-```
-┌────────────────────────┐
-│ 📋 Objectives           │
-│ ────────────────────── │
-│ Primary                │
-│ ☑ Capture the keep     │
-│ ☐ Defeat commander     │
-│ ────────────────────── │
-│ Secondary              │
-│ ★ Bonus: <5 deaths     │
-└────────────────────────┘
-```
-
----
-
-### 4.8 Selection Processing System (TODO → Implementation)
-
-**File:** `kurulus-systems/src/ui/mod.rs` (replace TODO stub)
-
-```
-fn selection_processing_system(
-    mut select_events: EventReader<SelectEvent>,
-    mut box_select_events: EventReader<BoxSelectEvent>,
-    mut control_group_events: EventReader<ControlGroupEvent>,
-    mut selection_changed: EventWriter<SelectionChanged>,
-    mut selection_state: ResMut<SelectionState>,
-    mut control_groups: ResMut<ControlGroups>,
-    selectables: Query<Entity, With<Selectable>>,
-)
-```
-
-**Logic:**
-
-1. `SelectEvent` → If `entity` is `Some`, select that entity (replace or add based on shift). If `None`, deselect all.
-2. `BoxSelectEvent` → Replace/add all entities in the box to selection.
-3. `ControlGroupEvent` →
-    - `Create`: Store current selection into `control_groups.groups[group]`
-    - `Recall`: Replace selection with group's entities
-    - `Append`: Add group's entities to current selection
-4. After processing, emit `SelectionChanged` with `selected` and `previous` lists.
-5. Update `SelectionState.selected`.
-
----
-
-## 5. New Files & Module Structure
-
-```
-kurulus-systems/src/ui/
-├── mod.rs                    ← UILogicPlugin (existing, add new systems)
-├── city_event_log.rs         ← Existing ✅
-├── zone_legend.rs            ← Existing ✅
-├── world_map.rs              ← Existing ✅
-├── top_bar.rs                ← NEW: Resource bar + time + speed
-├── minimap.rs                ← NEW: Minimap panel
-├── command_bar.rs            ← NEW: Command buttons
-├── selection_panel.rs        ← NEW: Unit/building info
-├── hero_bar.rs               ← NEW: Hero portraits + abilities
-├── notifications.rs          ← NEW: Notification stack + dispatch
-└── objectives.rs             ← NEW: Mission objectives
-```
-
-**kurulus-core additions:**
-
-```
-kurulus-core/src/resources/
-├── city.rs                   ← Add marker components here
-└── ui_state.rs               ← NEW: ResourceBarState, SelectionState, etc.
-```
-
----
-
-## 6. System Registration Order
-
-In `UILogicPlugin::build()`:
-
-```
-// FixedUpdate — Logic systems (data processing)
-app.add_systems(FixdUpdate, (
-    selection_processing_system,        // Process input events → SelectionState
-    notification_dispatch_system,       // Game events → NotificationStack
-    top_bar_logic_system,               // ResourceStockpile → ResourceBarState
-    hero_bar_logic_system,              // Hero queries → HeroBarState
-    selection_panel_logic_system,       // SelectionState → SelectionPanelState
-    command_bar_logic_system,           // SelectionState → CommandBarState
-    objectives_logic_system,            // Objective events → ObjectiveTracker
-    minimap_logic_system,               // TerrainGrid + units → MinimapState
-    city_event_log_logic_system.in_set(SimulationSet::CityProgression),
-));
-
-// Update — Render systems (UI tree manipulation)
-app.add_systems(Update, (
-    top_bar_render_system,
-    minimap_render_system,
-    command_bar_render_system,
-    selection_panel_render_system,
-    hero_bar_render_system,
-    notification_render_system,
-    objectives_render_system,
-    city_event_log_render_system,
-    zone_legend_render_system,
-    world_map::world_map_tooltip_system,
-    world_map::world_map_legend_system,
-    world_map::world_map_selection_panel_system,
-));
-```
-
----
-
-## 7. Event Flow Diagram
-
-```
-┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│ Render Layer │────▶│ UI Events        │────▶│ UILogicPlugin    │
-│ (click/hover)│     │ SelectEvent      │     │                  │
-│              │     │ BoxSelectEvent   │     │ selection_       │
-│              │     │ ControlGroupEvent│     │   processing_    │
-│              │     └──────────────────┘     │   system         │
-│              │                               │        │         │
-│              │     ┌──────────────────┐     │        ▼         │
-│ Game Systems │────▶│ Game Events      │     │ SelectionState   │
-│ (combat etc) │     │ DamageDealt      │────▶│        │         │
-│              │     │ UnitDied         │     │        ▼         │
-│              │     │ ObjectiveComplete│     │ Render Systems   │
-│              │     └──────────────────┘     │ (spawn/update UI)│
-│              │                               └──────────────────┘
-│              │     ┌──────────────────┐
-│ Resources    │────▶│ Resource Bar     │────▶ Top Bar UI
-│ (Stockpile)  │     │ Logic System     │
-│              │     └──────────────────┘
-└──────────────┘
-```
-
----
-
-## 8. Implementation Phases
-
-### Phase 1: Foundation (First)
-
-1. Create `kurulus-core/src/resources/ui_state.rs` with all new resources
-2. Add marker components to `kurulus-core/src/resources/city.rs`
-3. Implement `selection_processing_system` (replaces TODO)
-4. Implement `notification_dispatch_system` (replaces TODO)
-5. Write unit tests for both logic systems
-
-### Phase 2: Core HUD Elements
-
-6. Implement `top_bar.rs` (resource bar, time, speed control)
-7. Implement `selection_panel.rs` (unit info, HP/morale bars)
-8. Implement `command_bar.rs` (action buttons)
-9. Write integration tests for each
-
-### Phase 3: Advanced HUD Elements
-
-10. Implement `hero_bar.rs` (hero portraits, abilities)
-11. Implement `notifications.rs` (notification stack with priorities)
-12. Implement `objectives.rs` (mission objectives panel)
-13. Implement `minimap.rs` (terrain + unit dot rendering)
-
-### Phase 4: Polish
-
-14. Add HUD customization settings (scale, visibility toggles)
-15. Add animation/fade effects for notifications
-16. Add accessibility: font size scaling, colorblind mode support
-17. Final integration tests + `cargo check` clean
-
----
-
-## 9. Risk Areas & Mitigations
-
-|Risk|Mitigation|
-|---|---|
-|**Performance**: Minimap texture update every frame|Update minimap texture every 0.25s (4×/sec), not every frame. Cache the `Image` handle.|
-|**Headless test compatibility**: UI render systems need `UiPlugin`|All render systems are harmless without `UiPlugin` — entities spawn but are invisible. Logic systems work independently.|
-|**Selection state consistency**: Multiple input events per frame|Process all selection events in a single system, accumulate changes, emit one `SelectionChanged` at the end.|
-|**Notification spam**: Too many events flooding the stack|Priority-based filtering + max visible count (3 high, 2 medium, 1 low) + deduplication (same message within 2s).|
-|**Hero bar data availability**: Heroes may not exist in early game|`HeroBarState.heroes` is empty vec when no heroes → hero bar renders nothing or shows "No heroes available" placeholder.|
-|**Minimap click coordinate mapping**: Screen ↔ world conversion|Use camera transform + viewport size to convert minimap pixel coords to world coords. Test with known positions.|
-
----
-
-## 10. Test Strategy
-
-Each new module follows the existing pattern (see `city_event_log.rs` tests):
-
-```
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bevy::time::TimeUpdateStrategy;
-    use std::time::Duration;
-
-    fn test_app() -> App {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(
-                Duration::from_secs_f32(1.0 / 60.0),
-            ))
-            // init resources, add events, add systems
-        app
+    spatial_tree: Res<KDTree3<TrackedByDetection>>, // من bevy-spatial
+) {
+    for (detector_pos, detection) in &detectors {
+        // 1. استعلام الجيران من KD-Tree (O(log n) بدلاً من O(n²))
+        let nearby = spatial_tree.within_range(detector_pos, detection.vision_range);
+        
+        for (entity, pos, mut stealth) in nearby {
+            // 2. فحص خط البصر (Bresenham)
+            if !has_line_of_sight(detector_pos, pos, &terrain) { continue; }
+            
+            // 3. حساب احتمال الكشف
+            let distance = detector_pos.distance(*pos);
+            let noise_penalty = stealth.noise_level.value();
+            let terrain_bonus = terrain.get_stealth_bonus(*pos);
+            
+            let detection_chance = base_chance * (1.0 - distance/max_range) 
+                + noise_penalty - terrain_bonus;
+            
+            // 4. تحديث DetectionChain
+            update_detection_chain(&mut stealth, detection_chance);
+        }
     }
-
-    // Unit tests for logic (resource manipulation)
-    // Integration tests for render (entity spawning/despawning)
-    // Edge case tests (empty selection, no heroes, zero resources)
 }
 ```
 
-**Target:** 8-12 tests per new UI module, matching the existing coverage level.
+---
 
-The architecture plan is complete. Here's a summary of what was designed:
+## 🟠 4. Spatial Partitioning
+
+### المشكلة في المشروع
+
+- `threat_evaluation_system` — O(n²)
+- `flanking_calculation_system` — O(n²)
+- `stealth_detection_system` — O(n²)
+
+### الحل: `bevy-spatial`
+
+- **الإصدار**: 0.10 (Bevy 0.15) ✅
+- **الفكرة**: Automatic KD-Tree updates مع configurable frequency
+- **الكود**:
+
+```
+use bevy_spatial::{AutomaticUpdate, KDTree2, TransformMode, SpatialAccess};
+
+#[derive(Component, Default)]
+struct TrackedBySpatial;
+
+type SpatialTree = KDTree2<TrackedBySpatial>;
+
+// Setup
+app.add_plugin(AutomaticUpdate::<TrackedBySpatial>::new()
+    .with_frequency(Duration::from_secs_f32(0.1)) // 10 updates/second
+    .with_transform(TransformMode::LocalTransform2D));
+
+// Usage — O(log n) بدلاً من O(n²)
+fn threat_evaluation_system(
+    tree: Res<SpatialTree>,
+    units: Query<(&WorldPosition, &FactionId, &Health)>,
+) {
+    for (pos, faction, health) in &units {
+        let nearby = tree.within_range(pos.world_pos_2d(), threat_range);
+        // الآن كل وحدة تتحقق فقط من الجيران القريبين
+    }
+}
+```
 
 ---
 
-## Summary: In-Game HUD Architecture Plan
+## 🟠 5. Combat Damage Pipeline
 
-**7 new UI modules** designed, plus 2 TODO stubs filled in:
+### المشكلة في المشروع
 
-|Module|Purpose|State|
+- كل المكونات موجودة (6 DamageTypes, 8 WeaponTypes, ArmorResistanceTable)
+- لا يوجد damage calculation system
+
+### النمط المقترح: Entity Component Pipeline
+
+```
+// kurulus-systems/src/combat/damage_pipeline.rs
+
+/// Stage 1: جمع المعدلات (modifiers)
+fn collect_modifiers_system(
+    attackers: Query<(&Stats, &Equipment, &ActiveBuffs, &FormationBonus)>,
+    targets: Query<(&Health, &CurrentMoraleState)>,
+) -> Vec<DamageContext> { /* ... */ }
+
+/// Stage 2: حساب الضرر الأساسي
+fn calculate_base_damage(ctx: &DamageContext, config: &CombatConfig) -> f32 {
+    let effectiveness = config.effectiveness_table.get(ctx.damage_type, ctx.archetype);
+    let armor_reduction = config.armor_table.get(ctx.damage_type, ctx.armor_type);
+    
+    (ctx.attack_damage * effectiveness - armor_reduction).max(0.0)
+}
+
+/// Stage 3: تطبيق المعدلات (flanking, crit, morale)
+fn apply_modifiers(base_damage: f32, ctx: &DamageContext) -> f32 {
+    let mut damage = base_damage;
+    damage *= ctx.flanking_multiplier;
+    damage *= ctx.crit_multiplier;
+    damage *= ctx.morale_modifier;
+    damage *= ctx.formation_modifier;
+    damage
+}
+
+/// Stage 4: إصدار الأحداث
+fn emit_damage_events(mut events: EventWriter<DamageDealt>, results: Vec<DamageResult>) {
+    for result in results {
+        events.send(DamageDealt { /* ... */ });
+    }
+}
+```
+
+---
+
+## 🟡 6. Event System Optimization
+
+### المشكلة في المشروع
+
+- 60+ event types مسجلة في `register_common_events`
+- بعض الأنظمة تكتب لنفس الـ events → تكرار
+
+### الحلول المكتشفة
+
+#### Bevy Event Lifecycle:
+
+- Events تبقى لمدة ** frameين** ثم تُحذف تلقائياً
+- `EventReader<T>` يخزّن counter للـ last-read event
+- Events مخزنة في `Vec<T>` — سريعة لكن تتراكم
+
+#### Observer Pattern (Bevy 0.17+):
+
+```
+// بدلاً من EventReader في كل frame
+app.add_observer(on_damage_received
+    .run_if(|paused: Res<GamePaused>| !paused.0)
+    .run_if(resource_exists::<Player>));
+```
+
+#### Message System (Bevy 0.17+):
+
+```
+// Messages أفضل للـ inter-system communication
+fn my_system(mut writer: MessageWriter<DamageEvent>) {
+    writer.write(DamageEvent { amount: 10.0 });
+}
+```
+
+### التوصية لـ Kurulus
+
+```
+1. الاحتفاظ بالأحداث الرئيسية (DamageDealt, UnitDied, etc.)
+2. دمج الأحداث المتشابهة (移除 MoveOrder/AttackOrder المكررة)
+3. استخدام Observers للأحداث التي تحتاج معالجة فورية
+4. استخدام Messages للـ inter-system communication
+```
+
+---
+
+## 🟡 7. Isometric Camera في Bevy
+
+### الحل: `bevy_rts_camera`
+
+- **الإصدار**: 0.9 (Bevy 0.15) ✅
+- **المميزات**:
+    - Pan, zoom, rotation
+    - Edge panning (moving mouse to screen edge)
+    - Smooth movement
+    - Customisable controls
+    - Ground following
+
+### مثال التكامل:
+
+```
+// kurulus-render-2d/src/camera.rs
+use bevy_rts_camera::{RtsCamera, RtsCameraControls};
+
+fn setup_camera(mut commands: Commands) {
+    commands.spawn((
+        RtsCamera {
+            zoom_range: 0.5..5.0,
+            zoom_speed: 0.2,
+            ..default()
+        },
+        RtsCameraControls {
+            pan_mouse_button: MouseButton::Left,
+            rotate_mouse_button: MouseButton::Middle,
+            edge_panning: true,
+            ..default()
+        },
+        // Isometric angle
+        Transform::from_xyz(10.0, 20.0, 10.0)
+            .looking_at(Vec3::ZERO, Vec3::Y),
+    ));
+}
+```
+
+### للـ 2D fallback:
+
+```
+// OrthographicProjection مع isometric skew
+Projection::from(OrthographicProjection {
+    scaling_mode: ScalingMode::FixedVertical { viewport_height: 20.0 },
+    ..OrthographicProjection::default_2d()
+})
+```
+
+---
+
+## 🟡 8. Unit Animation System
+
+### الحل: `bevy_animation_graph` ⭐
+
+- **الإصدار**: 0.9+ (Bevy 0.15)
+- **المميزات**:
+    - Animation state machines مدمجة
+    - Blend trees (1D و 2D)
+    - Ragdoll support
+    - Visual editor
+    - Custom nodes
+
+### نمط التكامل:
+
+```
+// State machine للوحدة
+// Idle → Walk → Run → Attack → Death
+// كل state يشغّل animation graph مختلف
+
+#[derive(Component)]
+pub struct UnitAnimationState {
+    pub current: AnimationState,
+    pub blend_factor: f32,
+}
+
+// Transition rules
+fn update_unit_animation(
+    units: Query<(&Unit, &UnitAnimationState, &Stats)>,
+    mut anim_players: Query<&mut AnimationPlayer>,
+) {
+    for (unit, state, stats) in &units {
+        let speed = stats.move_speed;
+        // Blend between walk and run based on speed
+        if let Some(mut player) = anim_players.get_mut(unit.entity) {
+            match state.current {
+                AnimationState::Locomotion => {
+                    // 1D blend: idle(0) → walk(3) → run(6) → sprint(10)
+                    player.blend("locomotion", speed);
+                }
+                AnimationState::Combat => { /* ... */ }
+                AnimationState::Death => { /* ... */ }
+            }
+        }
+    }
+}
+```
+
+---
+
+## 🟡 9. Save/Load System
+
+### الحل: `bevy_save` ⭐
+
+- **الإصدار**: 0.18.1 (Bevy 0.16.1)
+- **المميزات**:
+    - `Snapshot` — serializable snapshot of all saveable resources/entities/components
+    - Auto save file management (Windows/Linux/Mac paths)
+    - Backend abstraction (FileIO, MockIO)
+    - Rollback support
+
+### نمط التكامل:
+
+```
+use bevy_save::prelude::*;
+
+// Setup
+app.add_plugins(SavePlugin::default());
+
+// Save
+fn save_game(world: &mut World) {
+    let snapshot = Snapshot::build(world)
+        .extract_entities::<With<Saveable>>() // فقط الكيانات القابلة للحفظ
+        .extract_resources::<SaveableResources>()
+        .build();
+    
+    snapshot.save(world, "save_01").unwrap();
+}
+
+// Load
+fn load_game(world: &mut World) {
+    Snapshot::load(world, "save_01").unwrap();
+}
+```
+
+### ملاحظات مهمة من البحث:
+
+- **لا تحفظ Entity IDs مباشرة** — استخدم Strong IDs (مثل `QuestId(u32)`)
+- **لا تحفظ runtime-only data** — Systems, Schedules, Event buffers
+- **استخدم Bevy Reflect** لتسجيل Types للـ serialization
+
+---
+
+## 🔵 10. Plugin Architecture & Multi-threading
+
+### نمط Bevy Plugin Ordering:
+
+```
+// kurulus-systems/src/lib.rs
+pub fn register_logic_plugins(app: &mut App) {
+    // 1. Core systems أولاً
+    app.add_plugins((CoreLoopPlugin, WorldMapPlugin, AIPlugin));
+    
+    // 2. Systems تعتمد على Core
+    app.add_plugins((EconomyPlugin, UnitCommandPlugin, CombatPlugin));
+    
+    // 3. Systems تعتمد على Systems سابقة
+    app.add_plugins((StealthPlugin, HeroPlugin, BaseBuildingPlugin));
+    
+    // 4. Advanced systems
+    app.add_plugins((SiegeWarfarePlugin, NavalWarfarePlugin));
+}
+```
+
+### System Sets Order:
+
+```
+// من system_sets.rs — ترتيب محدد
+SimulationSet::InputProcessing → CommandQueueing → 
+AIDecision → AICommandIssuing → 
+Pathfinding → FormationMovement → FreeFormMovement → GridQuantization → 
+VisionCalculation → StealthDetection → AmbushTrigger → 
+ChargeUpdate → FlankingCalculation → ... → ComponentCleanup → PositionSync
+```
+
+### Multi-threading Concerns:
+
+1. **Bevy auto-batching**: Systems التي لا تتداخل في read/write تُنفّذ بالتوازي
+2. **Exclusivity**: `ExclusiveSystem` للأنظمة التي تحتاج world access كامل
+3. **Resource locking**: `Res<T>` للقراءة، `ResMut<T>` للكتابة — لا تستخدم Mutex يدوياً
+
+---
+
+## 📊 ملخص التوصيات النهائية
+
+|النظام|الحل المقترح|Crate|Bevy Version|
+|---|---|---|---|
+|**Pathfinding**|HPA* + Flow Field hybrid|`bevy_northstar` + `bevy_pathfinder`|0.15 / 0.18|
+|**AI**|Utility AI + Behavior Trees|`big-brain` + `bevior_tree`|0.16 / 0.15|
+|**Stealth/LOS**|GPU FoW + Bresenham LOS|`bevy_fog_of_war` + custom|custom|
+|**Spatial**|KD-Tree auto-updating|`bevy-spatial`|0.15|
+|**Camera**|RTS camera plugin|`bevy_rts_camera`|0.15|
+|**Animation**|Animation graph + state machine|`bevy_animation_graph`|0.15|
+|**Save/Load**|Snapshot-based serialization|`bevy_save`|0.16|
+|**Combat**|Custom damage pipeline|No external crate|—|
+
+### أولويات التنفيذ المقترحة:
+
+1. **أسبوع 1**: Spatial Partitioning + Pathfinding (أساس لأنظمة أخرى)
+2. **أسبوع 2**: AI (Utility AI) + Combat Pipeline
+3. **أسبوع 3**: Stealth/LOS + Fog of War
+4. **أسبوع 4**: Camera + Animation + Save/Load
+
+## ✅ ملخص نهائي
+
+تم إكمال البحث العميق في **10 مواضيع حرجة** لبناء لعبة Kurulus بجودة عالية بمحرك Bevy. النتائج الرئيسية:
+
+### Critical Crates المكتشفة:
+
+|Crate|الوظيفة|التوافق|
 |---|---|---|
-|`top_bar.rs`|Resource bar, population, SP, time, speed control|New|
-|`minimap.rs`|200px minimap with terrain, units, fog|New|
-|`command_bar.rs`|Move/Attack/Stop/Patrol/Formation/Hold buttons|New|
-|`selection_panel.rs`|Unit info, HP/morale bars, abilities|New|
-|`hero_bar.rs`|Hero portraits, health/mana, Q/W/E/R abilities|New|
-|`notifications.rs`|Priority-based notification stack|New|
-|`objectives.rs`|Primary/secondary mission objectives|New|
-|`selection_processing_system`|Process click/box/ctrl-group events|Filled TODO|
-|`notification_dispatch_system`|Game events → notifications|Filled TODO|
+|`bevy_northstar`|Hierarchical Pathfinding (HPA*)|Bevy 0.15 ✅|
+|`bevy_pathfinder`|Flow Field Pathfinding|Bevy 0.18|
+|`big-brain`|Utility AI|Bevy 0.16 (يحتاج fork)|
+|`bevior_tree`|Behavior Trees|Bevy 0.15 ✅|
+|`bevy_fog_of_war`|GPU Fog of War|نشط ✅|
+|`bevy-spatial`|KD-Tree Spatial Index|Bevy 0.15 ✅|
+|`bevy_rts_camera`|RTS Camera Controls|Bevy 0.15 ✅|
+|`bevy_animation_graph`|Animation State Machines|Bevy 0.15 ✅|
+|`bevy_save`|Save/Load Snapshots|Bevy 0.16|
 
-**Key design decisions:**
+### المشاكل الحرجة التي تم حلها:
 
-- Follows the exact existing pattern: marker component → logic system (FixedUpdate) → render system (Update) → tests
-- All data flows through `Resource` types, never direct entity queries in render systems
-- Minimap uses cached texture updated 4×/sec, not every frame
-- Notification stack has priority filtering to prevent spam
-- Selection processing accumulates all input events per frame, emits one `SelectionChanged`
-- Everything is headless-test compatible (logic works without `UiPlugin`)
-
-**4 implementation phases** spanning foundation → core HUD → advanced HUD → polish, with 8-12 tests per module.
+1. **O(n²) algorithms** → حل عبر `bevy-spatial` KD-Tree
+2. **لا يوجد pathfinding** → حل عبر `bevy_northstar` HPA*
+3. **AI بدون evaluation** → حل عبر `big-brain` Utility AI
+4. **No Fog of War** → حل عبر `bevy_fog_of_war` GPU compute
+5. **No animation system** → حل عبر `bevy_animation_graph`

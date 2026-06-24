@@ -1,6 +1,7 @@
 use bevy::math::IVec2;
 use bevy::prelude::*;
 use kurulus_core::prelude::*;
+use std::collections::HashMap;
 
 pub struct AIPlugin;
 
@@ -720,6 +721,7 @@ fn ai_strategy_transition_system(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 fn threat_evaluation_system(
+    grid: Res<SpatialGrid>,
     mut unit_query: Query<(
         Entity,
         &WorldPosition,
@@ -730,19 +732,35 @@ fn threat_evaluation_system(
     )>,
     game_time: Res<GameTime>,
 ) {
-    let mut threats: Vec<(Entity, Entity, f32, ThreatType)> = Vec::new();
-    let entities: Vec<(Entity, &WorldPosition, &FactionId, &Health, &Stats)> = unit_query
+    // Phase 1: Snapshot all unit data (owned copies = no borrow conflicts)
+    let unit_data: Vec<(Entity, GridPos, FactionId, Health, Stats)> = unit_query
         .iter_mut()
-        .map(|(e, p, f, h, s, _)| (e, p, f, h, s))
+        .map(|(e, p, f, h, s, _)| (e, p.grid, *f, h.clone(), s.clone()))
         .collect();
 
-    for (entity, pos, faction, health, stats) in &entities {
-        for (enemy_entity, epos, efaction, ehealth, _estats) in &entities {
-            if efaction == faction {
+    let data_map: HashMap<Entity, (GridPos, FactionId, Health, Stats)> = unit_data
+        .iter()
+        .map(|(e, p, f, h, s)| (*e, (*p, *f, h.clone(), s.clone())))
+        .collect();
+
+    // Phase 2: For each unit, use SpatialGrid to find only nearby enemies
+    let mut threats: Vec<(Entity, Entity, f32, ThreatType)> = Vec::new();
+
+    for (entity, pos, faction, health, stats) in &unit_data {
+        let nearby = grid.entities_in_range(*pos, stats.vision_range);
+
+        for &enemy in &nearby {
+            if enemy == *entity {
+                continue;
+            }
+            let Some((epos, efaction, ehealth, _estats)) = data_map.get(&enemy) else {
+                continue;
+            };
+            if *efaction == *faction {
                 continue;
             }
 
-            let dist_sq = pos.grid.0.distance_squared(epos.grid.0);
+            let dist_sq = pos.0.distance_squared(epos.0);
             let max_range = stats.vision_range as i32;
             if dist_sq > max_range * max_range {
                 continue;
@@ -765,11 +783,11 @@ fn threat_evaluation_system(
                 ThreatType::Proximity
             };
 
-            threats.push((*entity, *enemy_entity, threat_level, threat_type));
+            threats.push((*entity, enemy, threat_level, threat_type));
         }
     }
 
-    // Update Threat components on existing entities
+    // Phase 3: Update Threat components on existing entities
     for (entity, _pos, _faction, _health, _stats, threat_opt) in unit_query.iter_mut() {
         if let Some(mut existing_threat) = threat_opt {
             // Find the highest threat for this entity
@@ -820,6 +838,7 @@ fn resource_management_system(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 fn combat_ai_system(
+    grid: Res<SpatialGrid>,
     mut combat_query: Query<(
         Entity,
         &mut AICombatUnit,
@@ -828,35 +847,50 @@ fn combat_ai_system(
         &Stats,
         &FactionId,
     )>,
-    friendly_query: Query<(Entity, &WorldPosition, &Health, &FactionId)>,
-    enemy_query: Query<(Entity, &WorldPosition, &Health, &FactionId, &Stats)>,
+    all_units: Query<(Entity, &WorldPosition, &Health, &FactionId, Option<&Stats>)>,
     mut move_events: EventWriter<MoveOrder>,
     mut attack_events: EventWriter<AttackOrder>,
 ) {
+    // Snapshot all unit data for O(1) lookups (owned copies = no borrow conflicts)
+    let unit_map: HashMap<Entity, (GridPos, Health, FactionId, Option<Stats>)> = all_units
+        .iter()
+        .map(|(e, p, h, f, s)| (e, (p.grid, h.clone(), *f, s.cloned())))
+        .collect();
+
     let mut targets_to_attack: Vec<(Entity, Entity)> = Vec::new();
     let mut entities_to_move: Vec<(Entity, GridPos)> = Vec::new();
 
     for (entity, mut combat_unit, pos, health, stats, faction) in combat_query.iter_mut() {
-        // Find nearby enemies within vision range
-        let nearby_enemies: Vec<(Entity, &WorldPosition, &Health, &FactionId, &Stats)> =
-            enemy_query
-                .iter()
-                .filter(|(_e, epos, _eh, efaction, _es)| {
-                    **efaction != *faction
-                        && epos.grid.0.distance_squared(pos.grid.0)
-                            < (stats.vision_range * stats.vision_range) as i32
-                })
-                .collect();
+        let combat_pos = pos.grid;
 
-        let nearby_friendlies: Vec<(Entity, &WorldPosition, &Health)> = friendly_query
-            .iter()
-            .filter(|(_e, fpos, _fh, ffaction)| {
-                **ffaction == *faction
-                    && fpos.grid.0 != pos.grid.0
-                    && fpos.grid.0.distance_squared(pos.grid.0) < 100
-            })
-            .map(|(e, p, h, _f)| (e, p, h))
-            .collect();
+        // Use SpatialGrid to find nearby entities
+        let nearby = grid.entities_in_range(combat_pos, stats.vision_range);
+
+        // Separate into enemies and friendlies
+        let mut nearby_enemies: Vec<(Entity, GridPos, Health)> = Vec::new();
+        let mut nearby_friendlies: Vec<(Entity, GridPos)> = Vec::new();
+
+        for &candidate in &nearby {
+            if candidate == entity {
+                continue;
+            }
+            let Some((cpos, chealth, cfaction, _cstats)) = unit_map.get(&candidate) else {
+                continue;
+            };
+
+            let dist_sq = combat_pos.0.distance_squared(cpos.0);
+            if dist_sq >= (stats.vision_range * stats.vision_range) as i32 {
+                continue;
+            }
+
+            if *cfaction == *faction {
+                if cpos.0 != combat_pos.0 && dist_sq < 100 {
+                    nearby_friendlies.push((candidate, *cpos));
+                }
+            } else {
+                nearby_enemies.push((candidate, *cpos, chealth.clone()));
+            }
+        }
 
         if nearby_enemies.is_empty() {
             combat_unit.target = None;
@@ -870,9 +904,9 @@ fn combat_ai_system(
             (outnumbered || health_ratio < 0.2) && combat_unit.retreat_timer <= 0.0;
 
         if should_retreat {
-            if let Some((_friendly_entity, fpos, _fh)) = nearby_friendlies.first() {
-                let retreat_dir = (fpos.grid.0 - pos.grid.0).signum();
-                let retreat_pos = GridPos(pos.grid.0 + retreat_dir * 5);
+            if let Some((_friendly_entity, fpos)) = nearby_friendlies.first() {
+                let retreat_dir = (fpos.0 - combat_pos.0).signum();
+                let retreat_pos = GridPos(combat_pos.0 + retreat_dir * 5);
                 entities_to_move.push((entity, retreat_pos));
                 combat_unit.target = None;
                 combat_unit.retreat_timer = 120.0;
@@ -884,10 +918,10 @@ fn combat_ai_system(
         }
 
         if !combat_unit.flanking && nearby_friendlies.len() >= nearby_enemies.len() + 2 {
-            if let Some((_enemy_entity, epos, _eh, _ef, _es)) = nearby_enemies.first() {
-                let dir = epos.grid.0 - pos.grid.0;
+            if let Some((_enemy_entity, epos, _eh)) = nearby_enemies.first() {
+                let dir = epos.0 - combat_pos.0;
                 let flank_offset = IVec2::new(-dir.y, dir.x).signum() * 3;
-                let flank_pos = GridPos(epos.grid.0 + flank_offset);
+                let flank_pos = GridPos(epos.0 + flank_offset);
                 entities_to_move.push((entity, flank_pos));
                 combat_unit.flanking = true;
                 continue;
@@ -898,11 +932,11 @@ fn combat_ai_system(
         let target = nearby_enemies
             .iter()
             .min_by(|a, b| {
-                let da = a.1.grid.0.distance_squared(pos.grid.0);
-                let db = b.1.grid.0.distance_squared(pos.grid.0);
+                let da = combat_pos.0.distance_squared(a.1 .0);
+                let db = combat_pos.0.distance_squared(b.1 .0);
                 da.cmp(&db)
             })
-            .map(|(e, _, _, _, _)| *e);
+            .map(|(e, _, _)| *e);
         if let Some(target_entity) = target {
             combat_unit.target = Some(target_entity);
             targets_to_attack.push((entity, target_entity));

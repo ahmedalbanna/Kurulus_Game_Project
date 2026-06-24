@@ -11,6 +11,7 @@ pub mod core_loop;
 pub mod corule;
 pub mod diplomacy;
 pub mod economy;
+pub mod flow_field;
 pub mod hero;
 pub mod imperial_admin;
 pub mod narrative;
@@ -21,6 +22,7 @@ pub mod progression;
 pub mod road_infrastructure;
 pub mod romance_loyalty;
 pub mod siege_warfare;
+pub mod spatial;
 pub mod stealth;
 pub mod succession_legacy;
 pub mod ui;
@@ -37,6 +39,7 @@ pub use core_loop::CoreLoopPlugin;
 pub use corule::CoRulePlugin;
 pub use diplomacy::DiplomacyPlugin;
 pub use economy::EconomyPlugin;
+pub use flow_field::FlowFieldPlugin;
 pub use hero::HeroPlugin;
 pub use imperial_admin::ImperialAdminPlugin;
 pub use narrative::NarrativePlugin;
@@ -47,6 +50,7 @@ pub use progression::ProgressionPlugin;
 pub use road_infrastructure::RoadInfrastructurePlugin;
 pub use romance_loyalty::RomanceLoyaltyPlugin;
 pub use siege_warfare::SiegeWarfarePlugin;
+pub use spatial::SpatialPlugin;
 pub use stealth::StealthPlugin;
 pub use succession_legacy::SuccessionLegacyPlugin;
 pub use ui::UILogicPlugin;
@@ -178,6 +182,8 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         .init_resource::<WorldMap>()
         .init_resource::<BuildingCatalog>()
         .init_resource::<BuildingLimits>()
+        // Spatial grid
+        .init_resource::<SpatialGrid>()
         // Core loop resources
         .init_resource::<TacticalPhaseTracker>()
         .init_resource::<HarvestState>()
@@ -212,6 +218,11 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         .register_type::<TriggerType>()
         .register_type::<LureTarget>()
         .register_type::<AmbushConfig>()
+        .register_type::<TrackedBySpatial>()
+        .register_type::<SpatialGrid>()
+        .register_type::<PathfindingGrid>()
+        .register_type::<FlowFieldMovement>()
+        .register_type::<FlowFieldCache>()
         .register_type::<TerrainType>()
         .register_type::<TerrainTile>()
         .register_type::<TerrainGrid>()
@@ -280,6 +291,8 @@ pub fn register_logic_plugins(app: &mut bevy::prelude::App) {
         CombatPlugin,
         StealthPlugin,
         HeroPlugin,
+        SpatialPlugin,
+        FlowFieldPlugin,
     ));
 
     // Group 2: Feature Systems (9-16)

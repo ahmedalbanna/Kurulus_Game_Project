@@ -135,6 +135,11 @@ fn test_campaign_resource_persistence() {
         stockpile.stone = 80.0;
         stockpile.population = 12;
         stockpile.sovereignty_points = 5;
+        // Increase storage caps so max_capacity_enforcement_system doesn't clamp
+        stockpile.max_gold = 200.0;
+        stockpile.max_food = 500.0;
+        stockpile.max_wood = 150.0;
+        stockpile.max_stone = 100.0;
     }
 
     // End a mission successfully → saves a snapshot of current stockpile
@@ -287,6 +292,8 @@ fn test_post_mission_rewards_gold_awarded() {
     let mut app = make_app();
 
     with_base_gold(&mut app, 50.0);
+    // Raise storage cap so max_capacity_enforcement_system doesn't clamp gold rewards
+    app.world_mut().resource_mut::<ResourceStockpile>().max_gold = 200.0;
 
     spawn_mission_with_rewards(
         &mut app,

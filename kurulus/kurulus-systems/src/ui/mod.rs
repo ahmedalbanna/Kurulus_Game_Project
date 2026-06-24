@@ -48,7 +48,9 @@ impl Plugin for UILogicPlugin {
             .add_systems(
                 FixedUpdate,
                 (
-                    selection_processing_system,
+                    // Selection state is managed by `process_selection_system`
+                    // in `unit_command/selection.rs` (runs in SimulationSet::InputProcessing).
+                    // `selection_processing_system` is only used in tests.
                     notification_dispatch_system,
                     // City event log logic — runs after city events are generated
                     city_event_log_logic_system.in_set(SimulationSet::CityProgression),
