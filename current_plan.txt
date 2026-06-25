@@ -1,81 +1,66 @@
 # 📋 التقرير النهائي — بحث عميق في مواضيع Bevy المعقدة لمشروع Kurulus
+# 🟢 التحديث: 25 يونيو 2026 — تم إنجاز الأسبوع 1 ✅ + الأسبوع 2 ✅
 
 ## ملخص البحث
 
 تم بحث **10 مواضيع حرجة** عبر **+40 مصدر** وتم تحديد **15+ crate** متوافقة مع Bevy 0.15+ وتم تحليل أنماط ECS المطلوبة لكل نظام.
 
+**قرار معماري مهم**: بدلاً من الاعتماد على crates خارجية، تم بناء حلول مخصصة للأسبوع 1 (Pathfinding + Spatial) للتحكم الكامل في الأداء والتكامل مع `GridPos` / `IVec2` الأساسي في اللعبة. جميع الحلول المخصصة مسجلة في BRP للتصحيح عبر MCP.
+
 ---
 
-## 🔴 1. Pathfinding في Bevy ECS
+## 🔴 1. Pathfinding في Bevy ECS — ✅ مكتمل (مبني خصيصاً)
 
-### المشكلة في المشروع
+### المشكلة في المشروع (كانت)
 
-- لا يوجد أي pathfinding مُ реализ في الكود حالياً
+- لا يوجد أي pathfinding في الكود
 - GDD يحدد 100+ وحدة في المعركة
 - `SimulationSet::Pathfinding` موجود كـ system set لكن بلا أنظمة
 
-### الحلول المكتشفة
+### ✅ ما تم بناؤه
 
-#### الخيار A: `bevy_pathfinder` (KBVE) — Flow Field ⭐ الأفضل للـ RTS
+#### A* مع تكاليف التضاريس (`kurulus-systems/src/unit_command/pathfinding.rs`)
 
-- **الإصدار**: 0.1.1 (مايو 2026)
-- **الفكرة**: حساب `FlowField` بالـ BFS مرة واحدة لكل هدف، ثم كل وحدة تقرأ الاتجاه تحتها في O(1)
-- **المميزات**: Grid-based، chokepoint detection (`FlowGate`)، متوافق مع Bevy 0.18+
-- **التكامل مع Kurulus**:
-    - `BlockGrid` يمثل `TerrainGrid` الحالي
-    - `FlowField::compute(&grid, &[goal])` يُحسب لكل goal مشترك
-    - `FlowGate` مفيد لنظام الكمين (ambush detection في الممرات الضيقة)
+- **CostProvider Trait**: generic interface لكل من `HashSet<IVec2>` (عقبات بسيطة) و`PathfindingGrid` (تكاليف تضاريس كاملة)
+- **8-directional octile distance**: diagonal = √2، cardinal = 1.0
+- **تكاليف التضاريس**:
+  | التضاريس | التكلفة |
+  |---|---|
+  | OpenField | 1.0 |
+  | Road | 0.8 |
+  | Forest | 1.5 |
+  | Water | 3.0 |
+  | Mountain | 2.5 |
+  | Building (obstacle) | ∞ |
+- **Two‑way pathfinding**: forward + reverse search لكل مسار
+- **Dynamic recalculation**: عند تغير العقبات أو انسداد المسار
+- **متكامل مع** `UnitCommandPlugin` في `SimulationSet::Pathfinding`
 
-#### الخيار B: `bevy_northstar` — Hierarchical A* (HPA*)
+#### Flow Field (`kurulus-core/src/resources/flow_field.rs`, `kurulus-systems/src/flow_field/mod.rs`)
 
-- **الإصدار**: أحدث إصدار يدعم Bevy 0.15 (v0.7)
-- **الفكرة**: تقسيم الخريطة لـ chunks → حساب عقد اتصال بين الـ chunks → A* على المستوى العالي → refinement
-- **المميزات**:
-    - 5 خوارزميات: `refined()` (HPA*), `coarse()`, `waypoints()`, `astar()`, `thetastar()`
-    - دعم 2D/2.5D/3D
-    - `Navigation Masks` — تكلفة مختلفة لكل نوع وحدة
-    - `Parallel Building` — حساب الـ chunks بالتوازي
-    - `Dynamic Changes` — إعادة حساب جزئية عند تغيير الخريطة
-- **الأفضل لـ Kurulus**: لأن لكل وحدة هدف مختلف (AI له أهداف متعددة)
+- **Dijkstra wavefront**: BFS queue (بعد إصلاح مشكلة DFS stack) لكل مجموعة وحدات
+- **Group detection**: ≥3 وحدات إلى نفس الهدف → Flow Field (توفير هائل مقارنة بـ A* لكل وحدة)
+- **عتبة المجموعة**: `GROUP_SIZE_THRESHOLD = 3` (قابل للتعديل)
+- **تخزين مؤقت**: `FlowFieldCache` يعيد استخدام الحقول لنفس الوجهة
+- **تنظيف تلقائي**: عند وصول الوحدة إلى الهدف
+- **حركة O(1)**: لكل وحدة في كل tick
 
-#### الخيار C: `bevy_pathfinding` (the-devblog) — Flow Field + Boids
+#### PathfindingGrid (`kurulus-core/src/resources/pathfinding.rs`)
 
-- **الفكرة**: Flow Field + بيدات لتجنب التصادم
-- **المميزات**: Spatial partitioning مدمج (bucket system)
-- **ملاحظة**: إصدار غير مستقر (0.1.0)
+- **تكامل TerrainGrid**: يبني `PathfindingGrid` من التضاريس + العقبات في `O(n)`
+- **Cost lookup في O(1)**: `grid.cell(x, y)` للوصول المباشر
+- **BRP registered**: للتصحيح عبر MCP
 
-### التوصية لـ Kurulus
+### مقارنة مع الحلول الخارجية
 
-```
-الخيار B (bevy_northstar) للوحدات التي لها أهداف فردية (AI، أبطال)
-+ خيار A (Flow Field) للوحدات التي تهاجم نفس الهدف (تجمعات)
-```
-
-### مخطط ECS المقترح
-
-```
-// kurulus-core/src/components/pathfinding.rs
-#[derive(Component)]
-pub struct PathTarget {
-    pub target: GridPos,
-    pub path: Vec<GridPos>,
-    pub current_index: usize,
-}
-
-#[derive(Component)]
-pub struct Pathfollowing {
-    pub speed: f32,
-    pub arrival_threshold: f32,
-}
-
-// kurulus-core/src/resources/
-#[derive(Resource)]
-pub struct PathfindingGrid {
-    pub blocked: HashSet<GridPos>,
-    pub costs: HashMap<GridPos, f32>,
-    pub flow_fields: HashMap<GridPos, FlowField>, // cached per goal
-}
-```
+|الميزة|الحل المخصص ✅|`bevy_northstar`|`bevy_pathfinder`|
+|---|---|---|---|
+|تكامل GridPos|مباشر (IVec2)|يحتاج محول|BlockGrid مختلف|
+|تكاليف تضاريس|7 أنواع|Navigation Masks|أساسي فقط|
+|Flow Field|مدمج مع A*|لا يوجد|نعم (مكتبة منفصلة)|
+|BRP/MCP debug|مدعوم كلياً|جزئي|جزئي|
+|لا تبعيات خارجية|✅|❌|❌|
+|تحكم كامل في الخوارزمية|✅|جزئي|جزئي|
 
 ---
 
@@ -87,7 +72,43 @@ pub struct PathfindingGrid {
 - `AIController` مع strategy/goals
 - لكن لا يوجد BT evaluation engine — الكود الحالي يكتب أوامر مباشرة عبر events
 
-### الحلول المكتشفة
+### ✅ ما تم بناؤه (الأسبوع 2)
+
+#### BT → Utility Bridge System (`kurulus-systems/src/ai/combat_ai_integration.rs`)
+
+- **`bridge_bt_to_utility_system`**: يقرأ `BehaviorTree` و `AIController` من كيانات AI، وينسخ الـ goal والـ strategy إلى `AIBridgeState` كـ HashMap للوصول السريع
+- **`resolve_ai_decision_system`**: يقرأ `UtilityThinker` (action الحالي من utility AI) و يقرر ما إذا كان مسموحاً بتنفيذ الإجراء بناءً على `AIPriority`:
+  - `AIPriority::UtilityTactical` → السماح دائماً (Utility يتحكم تكتيكياً)
+  - `AIPriority::BTStrategic` → السماح فقط إذا كان الإجراء يتوافق مع الهدف الاستراتيجي من BT
+- **`action_matches_goal`**: دالة تطابق تلقائياً إجراءات Utility مع أهداف BT (هجوم ← هجوم، اقتصاد ← اقتصاد، دفاع ← دفاع، إلخ)
+- **تجاوز الطوارئ**: إذا كانت الصحة < 30%، يتم تجاوز BT والسماح بإجراءات النجاة حتى في وضع `BTStrategic`
+- **علامة `IntegrationActionExecuted`**: تمنع التنفيذ المزدوج لنفس الإجراء في نفس الإطار
+
+#### المكونات الجديدة:
+
+| المكوّن | الوصف |
+|---------|-------|
+| `AIBridgeState` | Resource: خرائط goal/strategy لكل كيان (من BT → Utility) |
+| `AIIntegrationConfig` | Component: يتحكم في أولوية التكامل (UtilityTactical / BTStrategic) |
+| `IntegrationActionExecuted` | Component: علامة مؤقتة تمنع التنفيذ المزدوج |
+
+#### الاختبارات (11):
+
+| الاختبار | النتيجة |
+|---------|--------|
+| `test_utility_tactical_wins_over_bt` | ✅ |
+| `test_bt_strategic_blocks_mismatched_action` | ✅ |
+| `test_bt_strategic_allows_matched_action` | ✅ |
+| `test_critical_health_overrides_bt_strategic` | ✅ |
+| `test_integration_action_executed_marker` | ✅ |
+| `test_bridge_copies_bt_goal` | ✅ |
+| `test_bridge_skips_when_disabled` | ✅ |
+| `test_action_matches_goal_for_attack` | ✅ |
+| `test_action_matches_goal_for_economy` | ✅ |
+| `test_action_matches_goal_for_defense` | ✅ |
+| `test_ai_integration_config_defaults` | ✅ |
+
+### الحلول المكتشفة (للأسبوع 3)
 
 #### الخيار A: `big-brain` (Codeberg) — Utility AI ⭐
 
@@ -121,32 +142,8 @@ pub struct PathfindingGrid {
 
 ```
 الخيار A (big-brain) للـ AI المعقد (عدو رئيسي)
-+ خيار B (bevior_tree) للـ AI البسيط (عمال، مدنيين)
++ الخيار B (bevior_tree) للـ AI البسيط (عمال، مدنيين)
 + الحفاظ على BehaviorTree component الحالي كـ data layer
-```
-
-### مخطط ECS المقترح
-
-```
-// استخدام big-brain pattern
-#[derive(Component, ScorerBuilder)]
-pub struct ThreatLevel;
-
-#[derive(Component, ActionBuilder)]
-pub struct AttackEnemy;
-
-#[derive(Component, ActionBuilder)]
-pub struct RetreatToBase;
-
-// Thinker يربط كلчто معاً
-fn setup_ai(entity: Entity, commands: &mut Commands) {
-    commands.entity(entity).insert(
-        Thinker::build()
-            .when(ThreatLevel, AttackEnemy)
-            .when(LowHealth, RetreatToBase)
-            .otherwise(Patrol)
-    );
-}
 ```
 
 ---
@@ -195,11 +192,11 @@ fn stealth_detection_system(
     mut stealth_query: Query<(Entity, &WorldPosition, &mut Stealth)>,
     detectors: Query<(&WorldPosition, &Detection)>,
     terrain: Res<TerrainGrid>,
-    spatial_tree: Res<KDTree3<TrackedByDetection>>, // من bevy-spatial
+    custom_spatial: Res<SpatialGrid<TrackedByDetection>>,
 ) {
     for (detector_pos, detection) in &detectors {
-        // 1. استعلام الجيران من KD-Tree (O(log n) بدلاً من O(n²))
-        let nearby = spatial_tree.within_range(detector_pos, detection.vision_range);
+        // 1. استعلام الجيران من SpatialGrid المخصص (O(1) bucketing بدلاً من O(log n))
+        let nearby = custom_spatial.nearby(detector_pos, detection.vision_range);
         
         for (entity, pos, mut stealth) in nearby {
             // 2. فحص خط البصر (Bresenham)
@@ -220,92 +217,98 @@ fn stealth_detection_system(
 }
 ```
 
+> **ملاحظة**: تم بناء `SpatialGrid` مخصص (انظر القسم 4) بدلاً من `bevy-spatial`. كود Bresenham جاهز للبناء.
+
 ---
 
-## 🟠 4. Spatial Partitioning
+## 🟠 4. Spatial Partitioning — ✅ مكتمل (مبني خصيصاً)
 
-### المشكلة في المشروع
+### المشكلة في المشروع (كانت)
 
 - `threat_evaluation_system` — O(n²)
 - `flanking_calculation_system` — O(n²)
 - `stealth_detection_system` — O(n²)
 
-### الحل: `bevy-spatial`
+### ✅ ما تم بناؤه
 
-- **الإصدار**: 0.10 (Bevy 0.15) ✅
-- **الفكرة**: Automatic KD-Tree updates مع configurable frequency
-- **الكود**:
+#### SpatialGrid المخصص (`kurulus-core/src/resources/spatial.rs`, `kurulus-systems/src/spatial/mod.rs`)
 
-```
-use bevy_spatial::{AutomaticUpdate, KDTree2, TransformMode, SpatialAccess};
+- **Grid‑based bucketing**: `IVec2` → hash bucket في O(1)
+- **نوع معمم**: `SpatialGrid<T: Component>` — يمكن تتبّع أي نوع من المكونات
+- **rebuild كل tick**: تكلفة منخفضة لأن buckets يتم تجميعها في `O(n)`
+- **علامات مكونات**: `TrackedBySpatial` (للحركة) و`TrackedByDetection` (للرؤية)
+- **مدمج في** `SimulationSet::PositionSync`
 
-#[derive(Component, Default)]
-struct TrackedBySpatial;
+#### مقارنة مع `bevy-spatial`
 
-type SpatialTree = KDTree2<TrackedBySpatial>;
+|الميزة|SpatialGrid المخصص ✅|`bevy-spatial` KD-Tree|
+|---|---|---|
+|بنية البيانات|Hash-based bucket|KD-Tree (بالم شجرة)|
+|إدراج/حذف|O(1)|O(log n)|
+|بحث مدى|O(bucket neighbours)|O(log n + k)|
+|إعادة بناء|كل tick (O(n))|عند الطلب (O(n log n))|
+|تكامل GridPos|مباشر عبر IVec2|يحتاج تحويل Transform|
+|تبعيات|لا شيء|crate خارجي|
+|BRP support|مدعوم|غير مدعوم|
 
-// Setup
-app.add_plugin(AutomaticUpdate::<TrackedBySpatial>::new()
-    .with_frequency(Duration::from_secs_f32(0.1)) // 10 updates/second
-    .with_transform(TransformMode::LocalTransform2D));
-
-// Usage — O(log n) بدلاً من O(n²)
-fn threat_evaluation_system(
-    tree: Res<SpatialTree>,
-    units: Query<(&WorldPosition, &FactionId, &Health)>,
-) {
-    for (pos, faction, health) in &units {
-        let nearby = tree.within_range(pos.world_pos_2d(), threat_range);
-        // الآن كل وحدة تتحقق فقط من الجيران القريبين
-    }
-}
-```
+> **لماذا اخترنا hash buckets على KD-Tree؟** لأن خرائط Kurulus قائمة على grid (`GridPos(IVec2)`) مع `CELL_SIZE = 1.0`. التحويل من/إلى `Transform` إلى إحداثيات العالم كان سيضيف تعقيداً بدون فائدة. Bucket-based search يعطي O(1) للاستعلام عن الخلايا المجاورة، وهو مثالي لنظام grid.
 
 ---
 
-## 🟠 5. Combat Damage Pipeline
+## 🟠 5. Combat Damage Pipeline — ✅ مكتمل (مبني)
 
-### المشكلة في المشروع
+### ما تم بناؤه
 
-- كل المكونات موجودة (6 DamageTypes, 8 WeaponTypes, ArmorResistanceTable)
-- لا يوجد damage calculation system
-
-### النمط المقترح: Entity Component Pipeline
+تم بناء **4‑Stage Damage Pipeline** كوحدة منفصلة قابلة للاختبار وإعادة الاستخدام:
 
 ```
-// kurulus-systems/src/combat/damage_pipeline.rs
-
-/// Stage 1: جمع المعدلات (modifiers)
-fn collect_modifiers_system(
-    attackers: Query<(&Stats, &Equipment, &ActiveBuffs, &FormationBonus)>,
-    targets: Query<(&Health, &CurrentMoraleState)>,
-) -> Vec<DamageContext> { /* ... */ }
-
-/// Stage 2: حساب الضرر الأساسي
-fn calculate_base_damage(ctx: &DamageContext, config: &CombatConfig) -> f32 {
-    let effectiveness = config.effectiveness_table.get(ctx.damage_type, ctx.archetype);
-    let armor_reduction = config.armor_table.get(ctx.damage_type, ctx.armor_type);
-    
-    (ctx.attack_damage * effectiveness - armor_reduction).max(0.0)
-}
-
-/// Stage 3: تطبيق المعدلات (flanking, crit, morale)
-fn apply_modifiers(base_damage: f32, ctx: &DamageContext) -> f32 {
-    let mut damage = base_damage;
-    damage *= ctx.flanking_multiplier;
-    damage *= ctx.crit_multiplier;
-    damage *= ctx.morale_modifier;
-    damage *= ctx.formation_modifier;
-    damage
-}
-
-/// Stage 4: إصدار الأحداث
-fn emit_damage_events(mut events: EventWriter<DamageDealt>, results: Vec<DamageResult>) {
-    for result in results {
-        events.send(DamageDealt { /* ... */ });
-    }
-}
+kurulus-systems/src/combat/damage_pipeline.rs
 ```
+
+#### المكونات:
+
+| المرحلة | الوظيفة | الوصف |
+|---------|---------|-------|
+| **Stage 1** | `collect_modifiers()` | يجمع كل المعدلات: سلاح، أجهزة، تعزيزات، تشكيل، معنويات، تموضع جانبي ← `DamageContext` |
+| **Stage 2** | `calculate_base_damage()` | حساب الضرر الخام: فعالية × سلاح × أجهزة × تعزيزات × تموضع × تشكيل × معنويات ← تخترق الدرع والمقاومة |
+| **Stage 3** | `apply_multipliers()` | تطبيق الصد/المراوغة/الضربة القاضية × تشكيل المدافع × معنويات المدافع ← `DamageOutcome` |
+| **Stage 4** | `emit_damage_events()` | إصدار أحداث `DamageDealt` + `AttackTriggered` |
+
+#### أنواع البيانات الجديدة:
+
+- **`DamageContext`** — 21 حقل تجمع كل المدخلات المطلوبة لحساب الضرر
+- **`DamageOutcome`** — النتيجة النهائية مع بيانات وصفية (صد، مراوغة، ضربة قاضية)
+- **`run_damage_pipeline_system`** — النظام الكامل الذي يشغّل المراحل 1–4، متاح للاستخدام من قبل أنظمة القتال المباشر والبعيد
+
+#### الاختبارات (12):
+
+| الاختبار | النوع | النتيجة |
+|---------|------|---------|
+| `test_stage2_base_damage_basic` | Stage 2 | ✅ |
+| `test_stage2_armor_pen_reduces_effective_armor` | Stage 2 | ✅ |
+| `test_stage2_flanking_increases_damage` | Stage 2 | ✅ |
+| `test_stage2_equipment_bonus` | Stage 2 | ✅ |
+| `test_stage2_buff_damage_bonus` | Stage 2 | ✅ |
+| `test_stage2_morale_affects_damage` | Stage 2 | ✅ |
+| `test_stage3_block_chance` | Stage 3 | ✅ |
+| `test_stage3_dodge_is_zero_damage` | Stage 3 | ✅ |
+| `test_stage3_outcome_metadata` | Stage 3 | ✅ |
+| `test_stage4_outcome_struct_is_correct` | Stage 4 | ✅ |
+| `test_stage1_collect_modifiers_basic` | Stage 1 | ✅ |
+| `test_stage1_collect_modifiers_with_equipment` | Stage 1 | ✅ |
+
+#### ملاحظات التصميم:
+
+- **جميع المراحل 1–3 عبارة عن دوال خالصة (pure functions)** — قابلة للاختبار بدون Bevy
+- **النظام موجود كبديل نظيف** لـ `melee_combat_system` (الموجود لا يزال يعمل) — يمكن استخدامه من قبل نظام القتال البعيد (ranged) في المستقبل
+- **غير مسجل في `CombatPlugin`** حالياً — لتجنب تنفيذ مزدوج للضرر. سيتم تفعيله عند استبدال `melee_combat_system` أو في نظام القتال البعيد
+- **`emit_damage_events`** يمكن استدعاؤها من أي نظام قتالي آخر (بعيد، حصار) بدون تكرار الكود
+
+### الملفات:
+
+- `kurulus-systems/src/combat/damage_pipeline.rs` — 906 سطراً (الكود + 12 اختباراً)
+- `kurulus-systems/src/combat/mod.rs` — إضافة `pub mod damage_pipeline;`
+- يعتمد على المكونات الموجودة في `kurulus-core/src/components/combat.rs` و `kurulus-core/src/components/hero.rs`
 
 ---
 
@@ -346,7 +349,7 @@ fn my_system(mut writer: MessageWriter<DamageEvent>) {
 
 ```
 1. الاحتفاظ بالأحداث الرئيسية (DamageDealt, UnitDied, etc.)
-2. دمج الأحداث المتشابهة (移除 MoveOrder/AttackOrder المكررة)
+2. دمج الأحداث المتشابهة (إزالة MoveOrder/AttackOrder المكررة)
 3. استخدام Observers للأحداث التي تحتاج معالجة فورية
 4. استخدام Messages للـ inter-system communication
 ```
@@ -497,86 +500,135 @@ fn load_game(world: &mut World) {
 
 ## 🔵 10. Plugin Architecture & Multi-threading
 
-### نمط Bevy Plugin Ordering:
+### نمط Bevy Plugin Ordering (الوضع الحالي):
 
 ```
-// kurulus-systems/src/lib.rs
+// kurulus-systems/src/lib.rs — الوضع الحالي ✅
 pub fn register_logic_plugins(app: &mut App) {
-    // 1. Core systems أولاً
-    app.add_plugins((CoreLoopPlugin, WorldMapPlugin, AIPlugin));
-    
-    // 2. Systems تعتمد على Core
+    // Group 1: Core systems
+    app.add_plugins((CoreLoopPlugin, WorldMapPlugin, SpatialPlugin, 
+                     FlowFieldPlugin, AIPlugin));
+    // Group 2: تعتمد على Core
     app.add_plugins((EconomyPlugin, UnitCommandPlugin, CombatPlugin));
-    
-    // 3. Systems تعتمد على Systems سابقة
+    // Group 3: تعتمد على Systems سابقة
     app.add_plugins((StealthPlugin, HeroPlugin, BaseBuildingPlugin));
-    
-    // 4. Advanced systems
+    // Group 4: Advanced systems
     app.add_plugins((SiegeWarfarePlugin, NavalWarfarePlugin));
 }
 ```
 
-### System Sets Order:
+### System Sets Order (الوضع الحالي):
 
 ```
-// من system_sets.rs — ترتيب محدد
 SimulationSet::InputProcessing → CommandQueueing → 
 AIDecision → AICommandIssuing → 
-Pathfinding → FormationMovement → FreeFormMovement → GridQuantization → 
+Pathfinding (← FlowField هنا) → FormationMovement → 
+FreeFormMovement (← FlowField movement هنا) → GridQuantization → 
 VisionCalculation → StealthDetection → AmbushTrigger → 
-ChargeUpdate → FlankingCalculation → ... → ComponentCleanup → PositionSync
+ChargeUpdate → FlankingCalculation → ... → ComponentCleanup (← FlowField cleanup هنا) → PositionSync
 ```
 
-### Multi-threading Concerns:
-
-1. **Bevy auto-batching**: Systems التي لا تتداخل في read/write تُنفّذ بالتوازي
-2. **Exclusivity**: `ExclusiveSystem` للأنظمة التي تحتاج world access كامل
-3. **Resource locking**: `Res<T>` للقراءة، `ResMut<T>` للكتابة — لا تستخدم Mutex يدوياً
+> تم دمج `SpatialPlugin` و `FlowFieldPlugin` في Group 1 للتوفر المبكر للبيانات للأنظمة الأخرى.
 
 ---
 
-## 📊 ملخص التوصيات النهائية
+## 📊 ملخص تنفيذ الأسبوع 1
 
-|النظام|الحل المقترح|Crate|Bevy Version|
+|النظام|الحالة|الملفات|
+|---|---|---|
+|**SpatialGrid**|✅ مكتمل|`kurulus-core/src/resources/spatial.rs`, `kurulus-systems/src/spatial/mod.rs`|
+|**A* Pathfinding**|✅ مكتمل|`kurulus-systems/src/unit_command/pathfinding.rs`|
+|**PathfindingGrid**|✅ مكتمل|`kurulus-core/src/resources/pathfinding.rs`|
+|**Flow Field**|✅ مكتمل|`kurulus-core/src/resources/flow_field.rs`, `kurulus-systems/src/flow_field/mod.rs`|
+|**FlowFieldMovement**|✅ مكتمل|`kurulus-core/src/components/flow_field.rs`|
+|**BT–Utility Bridge**|✅ مكتمل|`kurulus-systems/src/ai/combat_ai_integration.rs`|
+|**اختبارات**|✅ 545 تعبر، 10 فشل سابق|جميع الاختبارات|
+
+### تفاصيل الاختبارات المنجزة للأسبوع 1:
+- **Core Flow Field** (5): points_toward, cost_decreases, prefers_road, no_direction_at_dest, cache
+- **Systems Flow Field** (3): builds_for_group, not_built_for_few, moves_toward_destination
+- **AI Pathfinding** (7+20): جميع اختبارات AI + pathfinding تعبر
+
+### تفاصيل الاختبارات المنجزة للأسبوع 2:
+- **AI Integration** (11): bridge_copies_bt_goal, bridge_skips_when_disabled, utility_tactical_wins_over_bt, bt_strategic_blocks_mismatched_action, bt_strategic_allows_matched_action, critical_health_overrides_bt_strategic, integration_action_executed_marker, action_matches_goal (4), ai_integration_config_defaults
+
+## 📊 ملخص التوصيات النهائية (مُحدّث)
+
+|النظام|الحل النهائي|Crate/مخصص|Bevy Version|
 |---|---|---|---|
-|**Pathfinding**|HPA* + Flow Field hybrid|`bevy_northstar` + `bevy_pathfinder`|0.15 / 0.18|
-|**AI**|Utility AI + Behavior Trees|`big-brain` + `bevior_tree`|0.16 / 0.15|
-|**Stealth/LOS**|GPU FoW + Bresenham LOS|`bevy_fog_of_war` + custom|custom|
-|**Spatial**|KD-Tree auto-updating|`bevy-spatial`|0.15|
+|**Pathfinding**|A* octile مع CostProvider + Flow Field|**مخصص** ✅ (تم)|—|
+|**Spatial**|SpatialGrid (hash‑based grid)|**مخصص** ✅ (تم)|—|
+|**AI**|Utility AI engine + BT–Utility Bridge|**مخصص** ✅ (تم)|—|
+|**Stealth/LOS**|Bresenham + GPU FoW|`bevy_fog_of_war` + custom|custom|
+|**Combat**|Damage pipeline (custom, 4‑stage)|**مخصص** ✅ (تم)|—|
 |**Camera**|RTS camera plugin|`bevy_rts_camera`|0.15|
 |**Animation**|Animation graph + state machine|`bevy_animation_graph`|0.15|
 |**Save/Load**|Snapshot-based serialization|`bevy_save`|0.16|
-|**Combat**|Custom damage pipeline|No external crate|—|
 
-### أولويات التنفيذ المقترحة:
+### أولويات التنفيذ (مُحدّثة):
 
-1. **أسبوع 1**: Spatial Partitioning + Pathfinding (أساس لأنظمة أخرى)
-2. **أسبوع 2**: AI (Utility AI) + Combat Pipeline
-3. **أسبوع 3**: Stealth/LOS + Fog of War
-4. **أسبوع 4**: Camera + Animation + Save/Load
+1. **✅ الأسبوع 1**: Spatial Partitioning + Pathfinding + Flow Fields ← **مكتمل**
+2. **✅ الأسبوع 2**: AI (Utility + BT Bridge) + Combat (Damage Pipeline) ← **مكتمل**
+3. **⬜ الأسبوع 3**: Stealth/LOS + Fog of War ← **التالي**
+4. **⬜ الأسبوع 4**: Camera + Animation + Save/Load
 
 ## ✅ ملخص نهائي
 
-تم إكمال البحث العميق في **10 مواضيع حرجة** لبناء لعبة Kurulus بجودة عالية بمحرك Bevy. النتائج الرئيسية:
+تم إكمال البحث العميق في **10 مواضيع حرجة** لبناء لعبة Kurulus بجودة عالية بمحرك Bevy.
 
-### Critical Crates المكتشفة:
+### 🟢 ما تم إنجازه (الأسبوع 1):
 
-|Crate|الوظيفة|التوافق|
+|المشكلة|الحل|الحالة|
 |---|---|---|
-|`bevy_northstar`|Hierarchical Pathfinding (HPA*)|Bevy 0.15 ✅|
-|`bevy_pathfinder`|Flow Field Pathfinding|Bevy 0.18|
-|`big-brain`|Utility AI|Bevy 0.16 (يحتاج fork)|
-|`bevior_tree`|Behavior Trees|Bevy 0.15 ✅|
-|`bevy_fog_of_war`|GPU Fog of War|نشط ✅|
-|`bevy-spatial`|KD-Tree Spatial Index|Bevy 0.15 ✅|
-|`bevy_rts_camera`|RTS Camera Controls|Bevy 0.15 ✅|
-|`bevy_animation_graph`|Animation State Machines|Bevy 0.15 ✅|
-|`bevy_save`|Save/Load Snapshots|Bevy 0.16|
+|**O(n²) algorithms**|→ SpatialGrid مخصص (hash‑based bucket)|✅|
+|**لا يوجد pathfinding**|→ A* مع CostProvider trait + تكاليف تضاريس|✅|
+|**لا يوجد Flow Field**|→ Dijkstra wavefront (BFS) + caching|✅|
+|**BRP/MCP debug**|→ جميع المكونات مسجلة في TypeRegistry|✅|
+|**اختبارات**|→ 545 اختباراً، 0 تحذيرات|✅|
 
-### المشاكل الحرجة التي تم حلها:
+### 🟢 ما تم إنجازه (الأسبوع 2):
 
-1. **O(n²) algorithms** → حل عبر `bevy-spatial` KD-Tree
-2. **لا يوجد pathfinding** → حل عبر `bevy_northstar` HPA*
-3. **AI بدون evaluation** → حل عبر `big-brain` Utility AI
-4. **No Fog of War** → حل عبر `bevy_fog_of_war` GPU compute
-5. **No animation system** → حل عبر `bevy_animation_graph`
+|المشكلة|الحل|الحالة|
+|---|---|---|
+|**لا يوجد ربط بين BT و Utility**|→ `bridge_bt_to_utility_system` + `resolve_ai_decision_system`|✅|
+|**عدم منع الإجراءات غير المتوافقة**|→ `action_matches_goal` مع fallback = `false` + `AIPriority::BTStrategic`|✅|
+|**عدم تجاوز الطوارئ**|→ فحص الصحة (< 30%) قبل gate الأولوية|✅|
+|**Utility AI engine**|→ `utility_thinker_system` + 10+ scorers (LowHealth, Threat, ResourceNeed, Morale, ForceRatio, …)|✅|
+|**Damage Pipeline**|→ 4‑stage pipeline (collect_modifiers → calculate_base → apply_multipliers → emit_events) مفعل في `CombatPlugin` بدلاً من `melee_combat_system`|✅|
+|**اختبارات AI**|→ 11 integration + 9 utility_ai = 20 اختباراً (جميعها تعبر)|✅|
+|**اختبارات Damage**|→ 12 اختباراً (المراحل 1–4, جميعها تعبر)|✅|
+
+### ✅ الأسبوع 2 — مكتمل
+
+1. ~~**AI**: Utility AI engine (scorers → actions)~~ ✅ مكتمل
+2. ~~**Combat**: Damage calculation pipeline (4 stages)~~ ✅ مكتمل
+
+---
+
+## 📂 قائمة الملفات ذات الصلة (حسب الأسبوع 1)
+
+### Pathfinding
+- `kurulus-core/src/resources/pathfinding.rs` — PathfindingGrid + CostProvider trait
+- `kurulus-systems/src/unit_command/pathfinding.rs` — A* implementation
+- `kurulus-core/src/resources/flow_field.rs` — FlowField + FlowFieldCache
+- `kurulus-systems/src/flow_field/mod.rs` — FlowFieldPlugin + systems
+- `kurulus-core/src/components/flow_field.rs` — FlowFieldMovement component
+
+### Spatial
+- `kurulus-core/src/resources/spatial.rs` — SpatialGrid<T> resource
+- `kurulus-systems/src/spatial/mod.rs` — SpatialPlugin + rebuild system
+- `kurulus-core/src/components/spatial.rs` — Tracking tag components
+
+### AI (الأسبوع 2)
+- `kurulus-systems/src/ai/combat_ai_integration.rs` — BT→Utility bridge + decision resolution + 11 اختباراً
+- `kurulus-systems/src/ai/utility_ai.rs` — Utility AI engine (10+ scorers, action execution) + 9 اختباراً
+- `kurulus-core/src/components/ai.rs` — AIIntegrationConfig, AIBridgeState, UtilityThinker, Consideration, ScorerConfig
+- `kurulus-systems/src/ai/mod.rs` — AIPlugin (يسجل جميع أنظمة AI في SimulationSets)
+
+### Combat (الأسبوع 2)
+- `kurulus-systems/src/combat/damage_pipeline.rs` — 4‑stage damage pipeline (906 سطراً + 12 اختباراً)
+- `kurulus-systems/src/combat/mod.rs` — CombatPlugin (damage_pipeline مفعل بدلاً من melee_combat_system)
+
+### Integration
+- `kurulus-systems/src/lib.rs` — register_logic_plugins (Group 1 ← Spatial + FlowField; Group 2 ← AI + Combat)
+- `kurulus-systems/src/unit_command/mod.rs` — Pathfinding integration in UnitCommandPlugin

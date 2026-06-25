@@ -3,12 +3,16 @@ use bevy::prelude::*;
 use kurulus_core::prelude::*;
 use std::collections::HashMap;
 
+pub mod combat_ai_integration;
+pub mod utility_ai;
+
 pub struct AIPlugin;
 
 impl Plugin for AIPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AIDifficultyConfig>()
             .init_resource::<FactionConfig>()
+            .init_resource::<combat_ai_integration::AIBridgeState>()
             .add_systems(
                 FixedUpdate,
                 (
@@ -17,6 +21,11 @@ impl Plugin for AIPlugin {
                     ai_blackboard_system.in_set(SimulationSet::AIDecision),
                     ai_goal_selection_system.in_set(SimulationSet::AIDecision),
                     ai_strategy_transition_system.in_set(SimulationSet::AIDecision),
+                    // Bridge BT → Utility context before Utility evaluates
+                    combat_ai_integration::bridge_bt_to_utility_system
+                        .in_set(SimulationSet::AIDecision),
+                    // Utility AI thinker runs alongside BT evaluation
+                    self::utility_ai::utility_thinker_system.in_set(SimulationSet::AIDecision),
                 ),
             )
             .add_systems(
@@ -29,6 +38,9 @@ impl Plugin for AIPlugin {
                     worker_ai_system.in_set(SimulationSet::AICommandIssuing),
                     ai_command_issuing_system.in_set(SimulationSet::AICommandIssuing),
                     faction_unit_bonus_system.in_set(SimulationSet::AICommandIssuing),
+                    // Integration resolver runs after all other AI systems
+                    combat_ai_integration::resolve_ai_decision_system
+                        .in_set(SimulationSet::AICommandIssuing),
                 ),
             );
     }

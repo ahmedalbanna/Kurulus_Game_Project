@@ -24,6 +24,7 @@ pub mod stealth_zone;
 pub mod succession;
 pub mod terrain;
 pub mod unit;
+pub mod utility_ai;
 pub mod vision_cone;
 pub mod world;
 
@@ -53,6 +54,7 @@ pub use stealth_zone::*;
 pub use succession::*;
 pub use terrain::*;
 pub use unit::*;
+pub use utility_ai::*;
 pub use vision_cone::*;
 pub use world::*;
 
@@ -83,6 +85,7 @@ pub mod prelude {
     pub use crate::components::succession::*;
     pub use crate::components::terrain::*;
     pub use crate::components::unit::*;
+    pub use crate::components::utility_ai::*;
     pub use crate::components::vision_cone::*;
     pub use crate::components::world::*;
     // Re-export from unit module (Path, Destination already there via unit::*)

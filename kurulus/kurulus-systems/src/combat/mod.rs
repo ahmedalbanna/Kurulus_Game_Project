@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use kurulus_core::prelude::*;
 
 pub mod damage;
+pub mod damage_pipeline;
 pub mod feedback;
 pub mod hero_combat;
 pub mod melee;
@@ -33,7 +34,8 @@ impl Plugin for CombatPlugin {
                     // Phase 5b: Resolution
                     (
                         attack_timer_system.in_set(SimulationSet::AttackTimers),
-                        melee::melee_combat_system.in_set(SimulationSet::MeleeResolution),
+                        damage_pipeline::run_damage_pipeline_system
+                            .in_set(SimulationSet::MeleeResolution),
                         ranged::ranged_combat_system.in_set(SimulationSet::RangedResolution),
                         ranged::ranged_ff_check_system.in_set(SimulationSet::RangedResolution),
                     ),
