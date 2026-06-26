@@ -33,6 +33,23 @@ use hud_polish::*;
 
 pub mod world_map;
 
+// ─── Main Screen UI Modules ──────────────────────────────────────────────
+
+mod hero_panel;
+use hero_panel::*;
+
+mod unit_stats;
+use unit_stats::*;
+
+mod action_bar;
+use action_bar::*;
+
+mod command_panel;
+use command_panel::*;
+
+mod settings_button;
+use settings_button::*;
+
 pub struct UILogicPlugin;
 
 impl Plugin for UILogicPlugin {
@@ -45,6 +62,9 @@ impl Plugin for UILogicPlugin {
             .init_resource::<SelectionState>()
             .init_resource::<MinimapState>()
             .init_resource::<HudSettings>()
+            .init_resource::<MainScreenLayout>()
+            .init_resource::<UnitStatsState>()
+            .init_resource::<ActionBarState>()
             .add_systems(
                 FixedUpdate,
                 (
@@ -58,6 +78,14 @@ impl Plugin for UILogicPlugin {
                     top_bar_logic_system,
                     // Hero bar — reads hero entities each tick
                     hero_bar_logic_system,
+                    // Hero panel — reads hero entities each tick
+                    hero_panel_logic_system,
+                    // Unit stats — reads selected unit each tick
+                    unit_stats_logic_system,
+                    // Action bar — reads selection state each tick
+                    action_bar_logic_system,
+                    // Command panel logic (reserved for future use)
+                    command_panel_logic_system,
                     // Notification stack — manages entry lifetimes
                     notification_logic_system,
                     // Minimap — reads terrain + unit positions each tick
@@ -78,6 +106,12 @@ impl Plugin for UILogicPlugin {
                     notification_render_system,
                     objectives_render_system,
                     minimap_render_system,
+                    // Main screen panels
+                    hero_panel_render_system,
+                    unit_stats_render_system,
+                    action_bar_render_system,
+                    command_panel_render_system,
+                    settings_button_render_system,
                     world_map::world_map_tooltip_system,
                     world_map::world_map_legend_system,
                     world_map::world_map_selection_panel_system,

@@ -35,7 +35,7 @@ fn test_hud_settings_defaults() {
     let settings = HudSettings::default();
     assert!((settings.font_scale - 1.0).abs() < f32::EPSILON);
     assert_eq!(settings.colorblind_mode, ColorblindMode::Normal);
-    assert_eq!(settings.panel_visibility.len(), 7);
+    assert_eq!(settings.panel_visibility.len(), 12);
     for (_, visible) in &settings.panel_visibility {
         assert!(*visible, "All panels should be visible by default");
     }

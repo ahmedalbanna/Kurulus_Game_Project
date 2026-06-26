@@ -1228,6 +1228,30 @@ pub struct HeroBarRoot;
 #[derive(Component, Clone, Debug, Default)]
 pub struct NotificationStackRoot;
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Main Screen UI Marker Components
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Marker component on the hero selection panel root UI node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct HeroPanelRoot;
+
+/// Marker component on the unit stats display panel root UI node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct UnitStatsRoot;
+
+/// Marker component on the action bar root UI node (building/unit actions).
+#[derive(Component, Clone, Debug, Default)]
+pub struct ActionBarRoot;
+
+/// Marker component on the command panel root UI node (Attack, Patrol, Guard, Stop).
+#[derive(Component, Clone, Debug, Default)]
+pub struct CommandPanelRoot;
+
+/// Marker component on the settings button root UI node.
+#[derive(Component, Clone, Debug, Default)]
+pub struct SettingsButtonRoot;
+
 /// Marker component on the objectives panel root UI node.
 #[derive(Component, Clone, Debug, Default)]
 pub struct ObjectivesPanelRoot;

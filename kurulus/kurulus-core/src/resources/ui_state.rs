@@ -144,6 +144,196 @@ impl Default for HeroSlot {
     }
 }
 
+// ─── Main Screen Layout ─────────────────────────────────────────────────────
+
+/// Main screen layout configuration for positioning all HUD panels.
+#[derive(Resource, Clone, Debug)]
+pub struct MainScreenLayout {
+    /// Height of the top resource bar.
+    pub top_bar_height: f32,
+    /// Width of the hero selection panel.
+    pub hero_panel_width: f32,
+    /// Height of the hero selection panel.
+    pub hero_panel_height: f32,
+    /// Width of the unit stats display panel.
+    pub unit_stats_width: f32,
+    /// Height of the unit stats display panel.
+    pub unit_stats_height: f32,
+    /// Width of the action bar (building/unit buttons).
+    pub action_bar_width: f32,
+    /// Height of the action bar.
+    pub action_bar_height: f32,
+    /// Width of the command panel (Attack, Patrol, Guard, Stop).
+    pub command_panel_width: f32,
+    /// Height of the command panel.
+    pub command_panel_height: f32,
+    /// Size of the minimap (width = height).
+    pub minimap_size: f32,
+    /// General padding value for spacing.
+    pub padding: f32,
+    /// Settings button size.
+    pub settings_button_size: f32,
+}
+
+impl Default for MainScreenLayout {
+    fn default() -> Self {
+        Self {
+            top_bar_height: 40.0,
+            hero_panel_width: 300.0,
+            hero_panel_height: 130.0,
+            unit_stats_width: 300.0,
+            unit_stats_height: 70.0,
+            action_bar_width: 500.0,
+            action_bar_height: 80.0,
+            command_panel_width: 130.0,
+            command_panel_height: 170.0,
+            minimap_size: 180.0,
+            padding: 8.0,
+            settings_button_size: 36.0,
+        }
+    }
+}
+
+// ─── Unit Stats State ────────────────────────────────────────────────────────
+
+/// Snapshot of the currently selected unit's stats for display.
+#[derive(Resource, Clone, Debug)]
+pub struct UnitStatsState {
+    /// Attack/damage value displayed.
+    pub damage: u32,
+    /// Defense/armor value displayed.
+    pub defense: u32,
+    /// Movement speed value displayed.
+    pub speed: u32,
+    /// Optional name of the selected unit type.
+    pub selected_unit_name: Option<String>,
+    /// A battle cry or flavour text shown below the stats.
+    pub battle_cry: String,
+}
+
+impl Default for UnitStatsState {
+    fn default() -> Self {
+        Self {
+            damage: 0,
+            defense: 0,
+            speed: 0,
+            selected_unit_name: None,
+            battle_cry: String::from("God is Great! Cry"),
+        }
+    }
+}
+
+// ─── Action Bar State ───────────────────────────────────────────────────────
+
+/// State of the action bar — which actions are available based on selection.
+#[derive(Resource, Clone, Debug, Default)]
+pub struct ActionBarState {
+    /// Row 1 actions (e.g. Move, Flag).
+    pub row1: Vec<ActionSlot>,
+    /// Row 2 actions (e.g. Heroes, Blacksmith, Oba, Barracks, Alpa, Horse Archer).
+    pub row2: Vec<ActionSlot>,
+}
+
+/// A single action slot in the action bar.
+#[derive(Clone, Debug)]
+pub struct ActionSlot {
+    /// The type of action this slot represents.
+    pub action_type: ActionType,
+    /// Display label for the action.
+    pub label: String,
+    /// Whether this action is currently available.
+    pub available: bool,
+    /// Optional hotkey character.
+    pub hotkey: Option<String>,
+    /// Font icon or character to display.
+    pub icon: String,
+}
+
+impl Default for ActionSlot {
+    fn default() -> Self {
+        Self {
+            action_type: ActionType::None,
+            label: String::new(),
+            available: true,
+            hotkey: None,
+            icon: String::new(),
+        }
+    }
+}
+
+/// Types of actions available in the game UI.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ActionType {
+    None,
+    Move,
+    Attack,
+    Patrol,
+    Guard,
+    Stop,
+    Build,
+    Train,
+    Repair,
+    Gather,
+    HeroAbility,
+    Flag,
+    Heroes,
+    Blacksmith,
+    Oba,
+    Barracks,
+    Alpa,
+    HorseArcher,
+}
+
+impl ActionType {
+    /// Get the display label for this action type.
+    pub fn label(&self) -> &'static str {
+        match self {
+            ActionType::None => "",
+            ActionType::Move => "Move",
+            ActionType::Attack => "Attack",
+            ActionType::Patrol => "Patrol",
+            ActionType::Guard => "Guard",
+            ActionType::Stop => "Stop",
+            ActionType::Build => "Build",
+            ActionType::Train => "Train",
+            ActionType::Repair => "Repair",
+            ActionType::Gather => "Gather",
+            ActionType::HeroAbility => "Ability",
+            ActionType::Flag => "Flag",
+            ActionType::Heroes => "Heroes",
+            ActionType::Blacksmith => "Blacksmith",
+            ActionType::Oba => "Oba",
+            ActionType::Barracks => "Barracks",
+            ActionType::Alpa => "Alpa",
+            ActionType::HorseArcher => "H.Archer",
+        }
+    }
+
+    /// Get the display icon character for this action type.
+    pub fn icon(&self) -> &'static str {
+        match self {
+            ActionType::None => "",
+            ActionType::Move => "🚩",
+            ActionType::Attack => "⚔",
+            ActionType::Patrol => "🔄",
+            ActionType::Guard => "🛡",
+            ActionType::Stop => "⏹",
+            ActionType::Build => "🔨",
+            ActionType::Train => "🎓",
+            ActionType::Repair => "🔧",
+            ActionType::Gather => "🌾",
+            ActionType::HeroAbility => "⭐",
+            ActionType::Flag => "🏴",
+            ActionType::Heroes => "👤",
+            ActionType::Blacksmith => "⚒",
+            ActionType::Oba => "🏠",
+            ActionType::Barracks => "🏰",
+            ActionType::Alpa => "🐴",
+            ActionType::HorseArcher => "🏹",
+        }
+    }
+}
+
 // ─── HUD Settings (Phase 4: Polish) ─────────────────────────────────────────
 
 /// HUD accessibility and display settings.
@@ -171,6 +361,11 @@ impl Default for HudSettings {
                 (HudPanel::Notifications, true),
                 (HudPanel::Objectives, true),
                 (HudPanel::Minimap, true),
+                (HudPanel::HeroPanel, true),
+                (HudPanel::UnitStats, true),
+                (HudPanel::ActionBar, true),
+                (HudPanel::CommandPanel, true),
+                (HudPanel::SettingsButton, true),
             ],
         }
     }
@@ -207,6 +402,11 @@ pub enum HudPanel {
     Notifications,
     Objectives,
     Minimap,
+    HeroPanel,
+    UnitStats,
+    ActionBar,
+    CommandPanel,
+    SettingsButton,
 }
 
 impl HudPanel {
@@ -220,6 +420,11 @@ impl HudPanel {
             HudPanel::Notifications => "notifications",
             HudPanel::Objectives => "objectives",
             HudPanel::Minimap => "minimap",
+            HudPanel::HeroPanel => "hero_panel",
+            HudPanel::UnitStats => "unit_stats",
+            HudPanel::ActionBar => "action_bar",
+            HudPanel::CommandPanel => "command_panel",
+            HudPanel::SettingsButton => "settings_button",
         }
     }
 }
